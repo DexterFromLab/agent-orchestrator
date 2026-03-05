@@ -2,7 +2,7 @@
 
 Terminal with session panel (MobaXterm-style), built with GTK 3 + VTE. Catppuccin Mocha theme.
 
-> **v2 in progress (Phase 1 complete):** Redesign as a multi-session Claude agent dashboard using Tauri 2.x + Svelte 5 + Claude Agent SDK. Project scaffolded on branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
+> **v2 in progress (Phase 2 complete):** Redesign as a multi-session Claude agent dashboard using Tauri 2.x + Svelte 5 + Claude Agent SDK. Working multi-pane terminal with PTY backend, CSS Grid tiling, and Catppuccin theme on branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
 
 ![BTerminal](screenshot.png)
 

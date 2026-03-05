@@ -43,5 +43,22 @@
 - [x] Project meta files: CLAUDE.md, .claude/CLAUDE.md, TODO.md, CHANGELOG.md
 - [x] Documentation structure: docs/README.md, task_plan.md, phases.md, findings.md, progress.md
 
+### Phase 2: Terminal Pane + Layout (complete)
+- [x] Rust PTY backend with portable-pty (PtyManager: spawn, write, resize, kill)
+- [x] PTY reader thread emitting Tauri events (pty-data-{id}, pty-exit-{id})
+- [x] Tauri commands: pty_spawn, pty_write, pty_resize, pty_kill
+- [x] xterm.js terminal pane with Canvas addon (explicit, no WebGL)
+- [x] Catppuccin Mocha theme for xterm.js (16 ANSI colors)
+- [x] FitAddon with ResizeObserver + 100ms debounce
+- [x] PTY bridge adapter (spawnPty, writePty, resizePty, killPty, onPtyData, onPtyExit)
+- [x] CSS Grid tiling layout with 5 presets (1-col, 2-col, 3-col, 2x2, master-stack)
+- [x] Layout store with Svelte 5 $state runes and auto-preset selection
+- [x] Sidebar with session list, layout preset selector, new terminal button
+- [x] Keyboard shortcuts: Ctrl+N new terminal, Ctrl+1-4 focus pane
+- [x] PaneContainer with header bar (title, status, close)
+- [x] Empty state welcome screen with Ctrl+N hint
+- [x] npm dependencies: @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit
+- [x] Cargo dependencies: portable-pty, uuid
+
 ### Next Steps
-- [ ] Begin Phase 2: Terminal Pane + Layout (CSS Grid, xterm.js, PTY)
+- [ ] Begin Phase 3: Agent SDK Integration (Node.js sidecar, SDK message adapter)

@@ -3,7 +3,8 @@
 ## Workflow
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
-- v2 planning docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
+- v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
+- Phase 2 (Terminal Pane + Layout) is complete. Phase 3 (Agent SDK) is next.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References

@@ -132,17 +132,17 @@ Zellij uses WASM plugins for extensibility:
 
 ## 6. Frontend Framework Choice
 
-### Why Solid.js
-- **Fine-grained reactivity** — updates only the DOM nodes that changed, not the component tree
+### Why Svelte 5 (revised from initial Solid.js choice)
+- **Fine-grained reactivity** — $state/$derived runes match Solid's signals model
 - **No VDOM** — critical when we have 4-8 panes each streaming data
-- **Small bundle** — ~7KB vs React's ~40KB
-- **JSX familiar** — easy for anyone who knows React
-- **Signals** — perfect for streaming agent state
+- **Small bundle** — ~5KB runtime vs React's ~40KB
+- **Larger ecosystem** — more component libraries, xterm.js wrappers, better tooling
+- **Better TypeScript support** — improved in Svelte 5
 
-### Alternative: Svelte
-- Also no VDOM, also reactive, slightly larger community
-- Slightly more ceremony for stores/state management
-- Would also work, personal preference
+### Why NOT Solid.js (initial choice, revised)
+- Ecosystem too small for production use
+- Fewer component libraries and integrations
+- Svelte 5 runes eliminated the ceremony gap
 
 ### NOT React
 - VDOM reconciliation across 4-8 simultaneously updating panes = CPU waste

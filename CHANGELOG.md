@@ -8,10 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- v2 project scaffolding: Tauri 2.x + Svelte 5 in `v2/` directory (Phase 1 complete)
-- Rust backend stubs: main.rs, lib.rs, pty.rs, sidecar.rs, watcher.rs, session.rs
-- Svelte frontend with Catppuccin Mocha CSS variables and component structure
-- Node.js sidecar scaffold with NDJSON communication pattern
+- Rust PTY backend with portable-pty: spawn, write, resize, kill with Tauri event streaming (Phase 2)
+- xterm.js terminal pane with Canvas addon, FitAddon, and Catppuccin Mocha theme (Phase 2)
+- CSS Grid tiling layout with 5 presets: 1-col, 2-col, 3-col, 2x2, master-stack (Phase 2)
+- Layout store with Svelte 5 $state runes and auto-preset selection (Phase 2)
+- Sidebar with session list, layout preset selector, and new terminal button (Phase 2)
+- Keyboard shortcuts: Ctrl+N new terminal, Ctrl+1-4 focus pane (Phase 2)
+- PTY bridge adapter for Tauri IPC (invoke + event listeners) (Phase 2)
+- PaneContainer component with header bar, status indicator, and close button (Phase 2)
+- Terminal resize handling with ResizeObserver and 100ms debounce (Phase 2)
+- v2 project scaffolding: Tauri 2.x + Svelte 5 in `v2/` directory (Phase 1)
+- Rust backend stubs: main.rs, lib.rs, pty.rs, sidecar.rs, watcher.rs, session.rs (Phase 1)
+- Svelte frontend with Catppuccin Mocha CSS variables and component structure (Phase 1)
+- Node.js sidecar scaffold with NDJSON communication pattern (Phase 1)
 - v2 architecture planning: Tauri 2.x + Svelte 5 + Claude Agent SDK via Node.js sidecar
 - Research documentation covering Agent SDK, xterm.js performance, Tauri ecosystem, and ultrawide layout patterns
 - Phased implementation plan (6 phases, MVP = Phases 1-4)
