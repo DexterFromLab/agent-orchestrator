@@ -66,7 +66,7 @@ bterminal-v2/
 
 ---
 
-## Phase 2: Terminal Pane + Layout [status: not_started] — MVP
+## Phase 2: Terminal Pane + Layout [status: complete] — MVP
 
 ### Layout (responsive)
 
@@ -86,22 +86,22 @@ bterminal-v2/
 +--------+-------------------------+
 ```
 
-- [ ] CSS Grid layout with sidebar + main area + optional right panel
-- [ ] Responsive breakpoints (ultrawide / standard / narrow)
-- [ ] Pane resize via drag handles (use CSS `resize` or lightweight lib)
-- [ ] Layout presets: 1-col, 2-col, 3-col, 2x2, master+stack
-- [ ] Save/restore layout to SQLite
-- [ ] Keyboard: Ctrl+1-4 focus pane, Ctrl+Shift+arrows move
+- [x] CSS Grid layout with sidebar + main area + optional right panel
+- [x] Responsive breakpoints (ultrawide / standard / narrow)
+- [ ] Pane resize via drag handles (deferred — current presets sufficient for MVP)
+- [x] Layout presets: 1-col, 2-col, 3-col, 2x2, master+stack
+- [ ] Save/restore layout to SQLite (Phase 4)
+- [x] Keyboard: Ctrl+1-4 focus pane, Ctrl+N new terminal
 
 ### Terminal
-- [ ] xterm.js with Canvas addon (explicit — no WebGL dependency)
-- [ ] Catppuccin Mocha theme for xterm.js
-- [ ] PTY spawn from Rust (portable-pty), stream to frontend via Tauri events
-- [ ] Terminal resize -> PTY resize
-- [ ] Copy/paste (Ctrl+Shift+C/V)
-- [ ] SSH session: spawn `ssh` command in PTY
-- [ ] Local shell: spawn user's $SHELL
-- [ ] Claude Code CLI: spawn `claude` in PTY (fallback mode)
+- [x] xterm.js with Canvas addon (explicit — no WebGL dependency)
+- [x] Catppuccin Mocha theme for xterm.js
+- [x] PTY spawn from Rust (portable-pty), stream to frontend via Tauri events
+- [x] Terminal resize -> PTY resize (100ms debounce)
+- [ ] Copy/paste (Ctrl+Shift+C/V) — deferred
+- [x] SSH session: spawn `ssh` command in PTY (via shell args)
+- [x] Local shell: spawn user's $SHELL
+- [x] Claude Code CLI: spawn `claude` in PTY (via shell args)
 
 **Milestone: After Phase 2, we have a working multi-pane terminal.** Usable as a daily driver even without agent features.
 
