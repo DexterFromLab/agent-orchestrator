@@ -1,30 +1,38 @@
-// PTY Bridge — IPC wrapper for Rust PTY backend
-// Phase 2: terminal spawn, resize, input/output streaming
+import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 export interface PtyOptions {
   shell?: string;
   cwd?: string;
-  env?: Record<string, string>;
+  args?: string[];
   cols?: number;
   rows?: number;
 }
 
-/**
- * Spawn a new PTY session via Tauri IPC.
- * Phase 2: implement with @tauri-apps/api invoke
- */
-export async function spawnPty(_options: PtyOptions): Promise<string> {
-  throw new Error('Not implemented — Phase 2');
+export async function spawnPty(options: PtyOptions): Promise<string> {
+  return invoke<string>('pty_spawn', { options });
 }
 
-export async function writePty(_id: string, _data: string): Promise<void> {
-  throw new Error('Not implemented — Phase 2');
+export async function writePty(id: string, data: string): Promise<void> {
+  return invoke('pty_write', { id, data });
 }
 
-export async function resizePty(_id: string, _cols: number, _rows: number): Promise<void> {
-  throw new Error('Not implemented — Phase 2');
+export async function resizePty(id: string, cols: number, rows: number): Promise<void> {
+  return invoke('pty_resize', { id, cols, rows });
 }
 
-export async function killPty(_id: string): Promise<void> {
-  throw new Error('Not implemented — Phase 2');
+export async function killPty(id: string): Promise<void> {
+  return invoke('pty_kill', { id });
+}
+
+export async function onPtyData(id: string, callback: (data: string) => void): Promise<UnlistenFn> {
+  return listen<string>(`pty-data-${id}`, (event) => {
+    callback(event.payload);
+  });
+}
+
+export async function onPtyExit(id: string, callback: () => void): Promise<UnlistenFn> {
+  return listen(`pty-exit-${id}`, () => {
+    callback();
+  });
 }
