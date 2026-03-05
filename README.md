@@ -2,6 +2,8 @@
 
 Terminal with session panel (MobaXterm-style), built with GTK 3 + VTE. Catppuccin Mocha theme.
 
+> **v2 in planning:** Redesign as a multi-session Claude agent dashboard using Tauri 2.x + Svelte 5 + Claude Agent SDK. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
+
 ![BTerminal](screenshot.png)
 
 ## Features
@@ -92,6 +94,15 @@ Context database: `~/.claude-context/context.db`
 | `Ctrl+Shift+C` | Copy |
 | `Ctrl+Shift+V` | Paste |
 | `Ctrl+PageUp/Down` | Previous/next tab |
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/task_plan.md](docs/task_plan.md) | v2 architecture decisions, error handling, testing strategy |
+| [docs/phases.md](docs/phases.md) | v2 implementation phases (1-6) with checklists |
+| [docs/findings.md](docs/findings.md) | Research findings (Agent SDK, Tauri, xterm.js, performance) |
+| [docs/progress.md](docs/progress.md) | Session-by-session progress log |
 
 ## License
 
