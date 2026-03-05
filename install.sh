@@ -9,6 +9,7 @@ INSTALL_DIR="$HOME/.local/share/bterminal"
 BIN_DIR="$HOME/.local/bin"
 CONFIG_DIR="$HOME/.config/bterminal"
 CTX_DIR="$HOME/.claude-context"
+ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
 DESKTOP_DIR="$HOME/.local/share/applications"
 
 echo "=== BTerminal Installer ==="
@@ -35,10 +36,11 @@ fi
 
 echo "[2/5] Installing BTerminal..."
 
-mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$CONFIG_DIR" "$CTX_DIR"
+mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$CONFIG_DIR" "$CTX_DIR" "$ICON_DIR"
 
 cp "$SCRIPT_DIR/bterminal.py" "$INSTALL_DIR/bterminal.py"
 cp "$SCRIPT_DIR/ctx" "$INSTALL_DIR/ctx"
+cp "$SCRIPT_DIR/bterminal.svg" "$ICON_DIR/bterminal.svg"
 chmod +x "$INSTALL_DIR/bterminal.py" "$INSTALL_DIR/ctx"
 
 # ─── Symlinks ──────────────────────────────────────────────────────────
@@ -72,7 +74,7 @@ cat > "$DESKTOP_DIR/bterminal.desktop" << EOF
 Name=BTerminal
 Comment=Terminal with SSH & Claude Code session management
 Exec=$BIN_DIR/bterminal
-Icon=utilities-terminal
+Icon=bterminal
 Type=Application
 Categories=System;TerminalEmulator;
 Terminal=false
