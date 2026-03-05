@@ -31,7 +31,17 @@
 - [x] Defined MVP boundary (Phases 1-4)
 - [x] Added responsive layout requirement (1920px degraded mode)
 
+### Phase 1 Scaffolding (complete)
+- [x] Created feature branch `v2-mission-control`
+- [x] Initialized Tauri 2.x + Svelte 5 project in `v2/` directory
+- [x] Rust backend stubs: main.rs, lib.rs, pty.rs, sidecar.rs, watcher.rs, session.rs
+- [x] Svelte frontend: App.svelte with Catppuccin Mocha CSS variables, component stubs
+- [x] Node.js sidecar scaffold: agent-runner.ts with NDJSON communication pattern
+- [x] Tauri builds and launches (cargo build --release verified)
+- [x] Dev scripts: npm run dev, npm run build, npm run tauri dev/build
+- [x] 17 operational rules added to `.claude/rules/`
+- [x] Project meta files: CLAUDE.md, .claude/CLAUDE.md, TODO.md, CHANGELOG.md
+- [x] Documentation structure: docs/README.md, task_plan.md, phases.md, findings.md, progress.md
+
 ### Next Steps
-- [ ] Present plan to user for review and decision
-- [ ] Create feature branch
-- [ ] Begin Phase 1: Project scaffolding
+- [ ] Begin Phase 2: Terminal Pane + Layout (CSS Grid, xterm.js, PTY)
