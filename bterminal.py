@@ -1860,7 +1860,7 @@ class BTerminalApp(Gtk.Window):
     def __init__(self):
         super().__init__(title=APP_NAME)
         self.set_default_size(1200, 700)
-        self.set_icon_name("utilities-terminal")
+        self.set_icon_name("bterminal")
 
         # Apply CSS
         css_provider = Gtk.CssProvider()
@@ -2062,15 +2062,30 @@ class BTerminalApp(Gtk.Window):
         return False
 
     def _on_delete_event(self, widget, event):
-        Gtk.main_quit()
         return False
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    app = BTerminalApp()
-    Gtk.main()
+    GLib.set_prgname("bterminal")
+    GLib.set_application_name("BTerminal")
+
+    application = Gtk.Application(
+        application_id="com.github.DexterFromLab.BTerminal",
+        flags=Gio.ApplicationFlags.FLAGS_NONE,
+    )
+
+    def on_activate(app):
+        windows = app.get_windows()
+        if windows:
+            windows[0].present()
+            return
+        win = BTerminalApp()
+        app.add_window(win)
+
+    application.connect("activate", on_activate)
+    application.run(None)
 
 
 if __name__ == "__main__":
