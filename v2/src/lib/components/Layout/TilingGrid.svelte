@@ -1,33 +1,84 @@
 <script lang="ts">
   import PaneContainer from './PaneContainer.svelte';
+  import TerminalPane from '../Terminal/TerminalPane.svelte';
+  import {
+    getPanes,
+    getGridTemplate,
+    getPaneGridArea,
+    focusPane,
+    removePane,
+  } from '../../stores/layout';
 
-  // Phase 2: dynamic pane management, resize, presets
-  // For now: single empty pane as placeholder
+  let gridTemplate = $derived(getGridTemplate());
+  let panes = $derived(getPanes());
 </script>
 
-<div class="tiling-grid">
-  <PaneContainer title="Welcome">
-    <div class="welcome">
+<div
+  class="tiling-grid"
+  style:grid-template-columns={gridTemplate.columns}
+  style:grid-template-rows={gridTemplate.rows}
+>
+  {#if panes.length === 0}
+    <div class="empty-state">
       <h1>BTerminal v2</h1>
       <p>Claude Agent Mission Control</p>
-      <div class="status">
-        <span class="badge">Phase 1 — Scaffold</span>
-      </div>
+      <p class="hint">Press <kbd>Ctrl+N</kbd> to open a terminal</p>
     </div>
-  </PaneContainer>
+  {:else}
+    {#each panes as pane, i (pane.id)}
+      {@const gridArea = getPaneGridArea(i)}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="pane-slot"
+        class:focused={pane.focused}
+        style:grid-area={gridArea}
+        onclick={() => focusPane(pane.id)}
+      >
+        <PaneContainer
+          title={pane.title}
+          status={pane.focused ? 'running' : 'idle'}
+          onClose={() => removePane(pane.id)}
+        >
+          {#if pane.type === 'terminal'}
+            <TerminalPane
+              shell={pane.shell}
+              cwd={pane.cwd}
+              args={pane.args}
+              onExit={() => removePane(pane.id)}
+            />
+          {:else}
+            <div class="placeholder">
+              <p>{pane.type} pane — coming in Phase 3/4</p>
+            </div>
+          {/if}
+        </PaneContainer>
+      </div>
+    {/each}
+  {/if}
 </div>
 
 <style>
   .tiling-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
     gap: var(--pane-gap);
     height: 100%;
     padding: var(--pane-gap);
   }
 
-  .welcome {
+  .pane-slot {
+    min-width: 0;
+    min-height: 0;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+  }
+
+  .pane-slot.focused {
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+  }
+
+  .empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -37,22 +88,33 @@
     color: var(--text-muted);
   }
 
-  .welcome h1 {
+  .empty-state h1 {
     font-size: 24px;
     font-weight: 700;
     color: var(--text-primary);
   }
 
-  .welcome p {
-    font-size: 14px;
+  .empty-state p { font-size: 14px; }
+
+  .hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--ctp-overlay0);
   }
 
-  .badge {
+  kbd {
     background: var(--bg-surface);
-    color: var(--accent);
-    padding: 4px 12px;
-    border-radius: var(--border-radius);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+
+  .placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
     font-size: 12px;
-    margin-top: 8px;
   }
 </style>

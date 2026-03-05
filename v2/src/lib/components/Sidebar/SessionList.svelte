@@ -1,27 +1,127 @@
 <script lang="ts">
-  // Phase 4: session CRUD, groups, types
+  import {
+    getPanes,
+    addPane,
+    focusPane,
+    removePane,
+    getActivePreset,
+    setPreset,
+    type LayoutPreset,
+  } from '../../stores/layout';
+
+  let panes = $derived(getPanes());
+  let preset = $derived(getActivePreset());
+
+  const presets: LayoutPreset[] = ['1-col', '2-col', '3-col', '2x2', 'master-stack'];
+
+  function newTerminal() {
+    const id = crypto.randomUUID();
+    const num = panes.length + 1;
+    addPane({
+      id,
+      type: 'terminal',
+      title: `Terminal ${num}`,
+    });
+  }
 </script>
 
 <div class="session-list">
   <div class="header">
     <h2>Sessions</h2>
+    <button class="new-btn" onclick={newTerminal} title="New terminal (Ctrl+N)">+</button>
   </div>
-  <div class="empty-state">
-    <p>No sessions yet.</p>
-    <p class="hint">Phase 2 will add terminal sessions.</p>
+
+  <div class="layout-presets">
+    {#each presets as p}
+      <button
+        class="preset-btn"
+        class:active={preset === p}
+        onclick={() => setPreset(p)}
+        title={p}
+      >{p}</button>
+    {/each}
   </div>
+
+  {#if panes.length === 0}
+    <div class="empty-state">
+      <p>No sessions yet.</p>
+      <p class="hint">Click + or press Ctrl+N</p>
+    </div>
+  {:else}
+    <ul class="pane-list">
+      {#each panes as pane (pane.id)}
+        <li class="pane-item" class:focused={pane.focused}>
+          <button class="pane-btn" onclick={() => focusPane(pane.id)}>
+            <span class="pane-icon">{pane.type === 'terminal' ? '>' : '#'}</span>
+            <span class="pane-name">{pane.title}</span>
+          </button>
+          <button class="remove-btn" onclick={() => removePane(pane.id)}>&times;</button>
+        </li>
+      {/each}
+    </ul>
+  {/if}
 </div>
 
 <style>
   .session-list {
     padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .header h2 {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 12px;
+  }
+
+  .new-btn {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    width: 24px;
+    height: 24px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .new-btn:hover {
+    background: var(--bg-surface-hover);
+    color: var(--accent);
+  }
+
+  .layout-presets {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+
+  .preset-btn {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 9px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  .preset-btn:hover { color: var(--text-primary); }
+  .preset-btn.active {
+    background: var(--accent);
+    color: var(--ctp-crust);
+    border-color: var(--accent);
   }
 
   .empty-state {
@@ -36,4 +136,62 @@
     font-size: 11px;
     color: var(--ctp-overlay0);
   }
+
+  .pane-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .pane-item {
+    display: flex;
+    align-items: center;
+    border-radius: var(--border-radius);
+  }
+
+  .pane-item.focused {
+    background: var(--bg-surface);
+  }
+
+  .pane-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 4px 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-align: left;
+  }
+
+  .pane-btn:hover { color: var(--text-primary); }
+
+  .pane-icon {
+    color: var(--ctp-green);
+    font-weight: bold;
+    font-size: 11px;
+  }
+
+  .pane-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    opacity: 0;
+  }
+
+  .pane-item:hover .remove-btn { opacity: 1; }
+  .remove-btn:hover { color: var(--ctp-red); }
 </style>
