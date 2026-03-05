@@ -8,6 +8,7 @@ gi.require_version("Gdk", "3.0")
 
 import json
 import os
+import subprocess
 import tempfile
 import uuid
 
@@ -653,7 +654,7 @@ class ClaudeCodeDialog(Gtk.Dialog):
         grid = Gtk.Grid(column_spacing=12, row_spacing=8)
         box.pack_start(grid, False, False, 0)
 
-        for i, text in enumerate(["Name:", "Folder:", "Color:"]):
+        for i, text in enumerate(["Name:", "Folder:", "Color:", "Project dir:"]):
             lbl = Gtk.Label(label=text, halign=Gtk.Align.END)
             grid.attach(lbl, 0, i, 1, 1)
 
@@ -669,6 +670,19 @@ class ClaudeCodeDialog(Gtk.Dialog):
             self.color_combo.append(c, c)
         self.color_combo.set_active(0)
         grid.attach(self.color_combo, 1, 2, 1, 1)
+
+        dir_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        self.entry_project_dir = Gtk.Entry(hexpand=True)
+        self.entry_project_dir.set_placeholder_text("(optional) path to project directory")
+        dir_box.pack_start(self.entry_project_dir, True, True, 0)
+        btn_browse = Gtk.Button(label="Browse…")
+        btn_browse.connect("clicked", self._on_browse_dir)
+        dir_box.pack_start(btn_browse, False, False, 0)
+        grid.attach(dir_box, 1, 3, 1, 1)
+
+        self.btn_edit_ctx = Gtk.Button(label="Edit ctx entries\u2026")
+        self.btn_edit_ctx.connect("clicked", self._on_edit_ctx)
+        grid.attach(self.btn_edit_ctx, 1, 4, 1, 1)
 
         # Separator
         box.pack_start(Gtk.Separator(), False, False, 2)
@@ -708,6 +722,7 @@ class ClaudeCodeDialog(Gtk.Dialog):
             self.chk_sudo.set_active(session.get("sudo", False))
             self.chk_resume.set_active(session.get("resume", True))
             self.chk_skip_perms.set_active(session.get("skip_permissions", True))
+            self.entry_project_dir.set_text(session.get("project_dir", ""))
             prompt = session.get("prompt", "")
             if prompt:
                 self.textview.get_buffer().set_text(prompt)
@@ -726,6 +741,7 @@ class ClaudeCodeDialog(Gtk.Dialog):
             "resume": self.chk_resume.get_active(),
             "skip_permissions": self.chk_skip_perms.get_active(),
             "prompt": prompt,
+            "project_dir": self.entry_project_dir.get_text().strip(),
         }
 
     def validate(self):
@@ -744,6 +760,300 @@ class ClaudeCodeDialog(Gtk.Dialog):
             text=msg,
         )
         dlg.run()
+        dlg.destroy()
+
+    def _on_edit_ctx(self, button):
+        project_dir = self.entry_project_dir.get_text().strip()
+        if not project_dir:
+            self._show_error("Set project directory first.")
+            return
+        ctx_project = os.path.basename(project_dir.rstrip("/"))
+        dlg = CtxEditDialog(self, ctx_project, project_dir)
+        dlg.run()
+        dlg.destroy()
+
+    def _on_browse_dir(self, button):
+        dlg = Gtk.FileChooserDialog(
+            title="Select project directory",
+            parent=self,
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+        )
+        dlg.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
+        )
+        if dlg.run() == Gtk.ResponseType.OK:
+            path = dlg.get_filename()
+            self.entry_project_dir.set_text(path)
+            basename = os.path.basename(path.rstrip("/"))
+            if not self.entry_name.get_text().strip():
+                self.entry_name.set_text(basename)
+            # Auto-fill prompt with ctx instructions if empty or auto-generated
+            buf = self.textview.get_buffer()
+            start, end = buf.get_bounds()
+            current = buf.get_text(start, end, False).strip()
+            if not current or current.startswith("Wczytaj kontekst"):
+                prompt = (
+                    f"Wczytaj kontekst projektu poleceniem: ctx get {basename}\n"
+                    f"Wykonaj tę komendę i zapoznaj się z kontekstem zanim zaczniesz pracę.\n"
+                    f"Kontekst zarządzasz przez: ctx --help\n"
+                    f"Ważne odkrycia zapisuj: ctx set {basename} <key> <value>\n"
+                    f"Przed zakończeniem sesji: ctx summary {basename} \"<co zrobiliśmy>\""
+                )
+                buf.set_text(prompt)
+        dlg.destroy()
+
+    @staticmethod
+    def _detect_description(project_dir):
+        for name in ["README.md", "README.rst", "README.txt", "README"]:
+            readme_path = os.path.join(project_dir, name)
+            if os.path.isfile(readme_path):
+                try:
+                    with open(readme_path, "r") as f:
+                        for line in f:
+                            line = line.strip().lstrip("#").strip()
+                            if line:
+                                return line[:100]
+                except (IOError, UnicodeDecodeError):
+                    pass
+        return os.path.basename(project_dir.rstrip("/"))
+
+    def setup_ctx(self):
+        """Auto-initialize ctx project and generate CLAUDE.md if project_dir is set."""
+        project_dir = self.entry_project_dir.get_text().strip()
+        if not project_dir:
+            return
+        ctx_project = os.path.basename(project_dir.rstrip("/"))
+        ctx_desc = self._detect_description(project_dir)
+        try:
+            subprocess.run(
+                ["ctx", "init", ctx_project, ctx_desc, project_dir],
+                check=True, capture_output=True, text=True,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return
+        claude_md = os.path.join(project_dir, "CLAUDE.md")
+        if not os.path.exists(claude_md):
+            claude_content = (
+                f"# {ctx_project}\n\n"
+                f"On session start, load context:\n"
+                f"```bash\n"
+                f"ctx get {ctx_project}\n"
+                f"```\n\n"
+                f"Context manager: `ctx --help`\n\n"
+                f"During work:\n"
+                f"- Save important discoveries: `ctx set {ctx_project} <key> <value>`\n"
+                f"- Append to existing: `ctx append {ctx_project} <key> <value>`\n"
+                f"- Before ending session: `ctx summary {ctx_project} \"<what was done>\"`\n"
+            )
+            try:
+                with open(claude_md, "w") as f:
+                    f.write(claude_content)
+            except IOError:
+                pass
+
+
+# ─── CtxEditDialog ────────────────────────────────────────────────────────────
+
+
+CTX_DB = os.path.join(os.path.expanduser("~"), ".claude-context", "context.db")
+
+
+class _CtxEntryDialog(Gtk.Dialog):
+    """Small dialog for adding/editing a ctx key-value entry."""
+
+    def __init__(self, parent, title, key="", value=""):
+        super().__init__(
+            title=title,
+            transient_for=parent,
+            modal=True,
+            destroy_with_parent=True,
+        )
+        self.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OK, Gtk.ResponseType.OK,
+        )
+        self.set_default_size(400, -1)
+        self.set_default_response(Gtk.ResponseType.OK)
+
+        box = self.get_content_area()
+        box.set_border_width(12)
+        box.set_spacing(8)
+
+        grid = Gtk.Grid(column_spacing=12, row_spacing=8)
+        box.pack_start(grid, True, True, 0)
+
+        grid.attach(Gtk.Label(label="Key:", halign=Gtk.Align.END), 0, 0, 1, 1)
+        self.entry_key = Gtk.Entry(hexpand=True)
+        self.entry_key.set_text(key)
+        grid.attach(self.entry_key, 1, 0, 1, 1)
+
+        grid.attach(Gtk.Label(label="Value:", halign=Gtk.Align.END, valign=Gtk.Align.START), 0, 1, 1, 1)
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_min_content_height(100)
+        self.textview = Gtk.TextView()
+        self.textview.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        if value:
+            self.textview.get_buffer().set_text(value)
+        scrolled.add(self.textview)
+        grid.attach(scrolled, 1, 1, 1, 1)
+
+        self.show_all()
+
+    def get_data(self):
+        key = self.entry_key.get_text().strip()
+        buf = self.textview.get_buffer()
+        start, end = buf.get_bounds()
+        value = buf.get_text(start, end, False).strip()
+        return key, value
+
+
+class CtxEditDialog(Gtk.Dialog):
+    """Dialog to view and edit ctx project entries."""
+
+    def __init__(self, parent, ctx_project, project_dir=""):
+        super().__init__(
+            title=f"Ctx: {ctx_project}",
+            transient_for=parent,
+            modal=True,
+            destroy_with_parent=True,
+        )
+        self.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+        self.set_default_size(550, 400)
+        self.ctx_project = ctx_project
+        self.project_dir = project_dir
+
+        box = self.get_content_area()
+        box.set_border_width(12)
+        box.set_spacing(8)
+
+        # Description
+        desc_box = Gtk.Box(spacing=8)
+        desc_box.pack_start(Gtk.Label(label="Description:"), False, False, 0)
+        self.entry_desc = Gtk.Entry(hexpand=True)
+        desc_box.pack_start(self.entry_desc, True, True, 0)
+        btn_save_desc = Gtk.Button(label="Save")
+        btn_save_desc.connect("clicked", self._on_save_desc)
+        desc_box.pack_start(btn_save_desc, False, False, 0)
+        box.pack_start(desc_box, False, False, 0)
+
+        box.pack_start(Gtk.Separator(), False, False, 2)
+
+        # Entries list
+        self.store = Gtk.ListStore(str, str)
+        self.tree = Gtk.TreeView(model=self.store)
+        self.tree.set_headers_visible(True)
+
+        renderer_key = Gtk.CellRendererText()
+        col_key = Gtk.TreeViewColumn("Key", renderer_key, text=0)
+        col_key.set_min_width(120)
+        self.tree.append_column(col_key)
+
+        renderer_val = Gtk.CellRendererText()
+        renderer_val.set_property("ellipsize", Pango.EllipsizeMode.END)
+        col_val = Gtk.TreeViewColumn("Value", renderer_val, text=1)
+        col_val.set_expand(True)
+        self.tree.append_column(col_val)
+
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scrolled.add(self.tree)
+        box.pack_start(scrolled, True, True, 0)
+
+        # Buttons
+        btn_box = Gtk.Box(spacing=4)
+        for label_text, cb in [("Add", self._on_add), ("Edit", self._on_edit), ("Delete", self._on_delete)]:
+            btn = Gtk.Button(label=label_text)
+            btn.connect("clicked", cb)
+            btn_box.pack_start(btn, True, True, 0)
+        box.pack_start(btn_box, False, False, 0)
+
+        self._load_data()
+        self.show_all()
+
+    def _load_data(self):
+        import sqlite3
+        self.store.clear()
+        if not os.path.exists(CTX_DB):
+            return
+        db = sqlite3.connect(CTX_DB)
+        db.row_factory = sqlite3.Row
+        session = db.execute(
+            "SELECT description FROM sessions WHERE name = ?", (self.ctx_project,)
+        ).fetchone()
+        if session:
+            self.entry_desc.set_text(session["description"] or "")
+        entries = db.execute(
+            "SELECT key, value FROM contexts WHERE project = ? ORDER BY key",
+            (self.ctx_project,),
+        ).fetchall()
+        for row in entries:
+            self.store.append([row["key"], row["value"]])
+        db.close()
+
+    def _on_save_desc(self, button):
+        desc = self.entry_desc.get_text().strip()
+        if desc:
+            subprocess.run(
+                ["ctx", "init", self.ctx_project, desc, self.project_dir],
+                capture_output=True, text=True,
+            )
+
+    def _on_add(self, button):
+        dlg = _CtxEntryDialog(self, "Add entry")
+        if dlg.run() == Gtk.ResponseType.OK:
+            key, value = dlg.get_data()
+            if key:
+                subprocess.run(
+                    ["ctx", "set", self.ctx_project, key, value],
+                    capture_output=True, text=True,
+                )
+                self._load_data()
+        dlg.destroy()
+
+    def _on_edit(self, button):
+        sel = self.tree.get_selection()
+        model, it = sel.get_selected()
+        if it is None:
+            return
+        old_key = model.get_value(it, 0)
+        old_value = model.get_value(it, 1)
+        dlg = _CtxEntryDialog(self, "Edit entry", old_key, old_value)
+        if dlg.run() == Gtk.ResponseType.OK:
+            key, value = dlg.get_data()
+            if key:
+                if key != old_key:
+                    subprocess.run(
+                        ["ctx", "delete", self.ctx_project, old_key],
+                        capture_output=True, text=True,
+                    )
+                subprocess.run(
+                    ["ctx", "set", self.ctx_project, key, value],
+                    capture_output=True, text=True,
+                )
+                self._load_data()
+        dlg.destroy()
+
+    def _on_delete(self, button):
+        sel = self.tree.get_selection()
+        model, it = sel.get_selected()
+        if it is None:
+            return
+        key = model.get_value(it, 0)
+        dlg = Gtk.MessageDialog(
+            transient_for=self,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.YES_NO,
+            text=f'Delete entry "{key}"?',
+        )
+        if dlg.run() == Gtk.ResponseType.YES:
+            subprocess.run(
+                ["ctx", "delete", self.ctx_project, key],
+                capture_output=True, text=True,
+            )
+            self._load_data()
         dlg.destroy()
 
 
@@ -880,9 +1190,10 @@ class TerminalTab(Gtk.Box):
         else:
             script = f'{CLAUDE_PATH} {flags_str}{prompt_arg}\nexec bash\n'
 
+        work_dir = config.get("project_dir") or os.environ.get("HOME", "/")
         self.terminal.spawn_async(
             Vte.PtyFlags.DEFAULT,
-            os.environ.get("HOME", "/"),
+            work_dir,
             ["/bin/bash", "-c", script],
             None,
             GLib.SpawnFlags.DEFAULT,
@@ -1286,6 +1597,12 @@ class SessionSidebar(Gtk.Box):
                     item_delete.connect("activate", lambda _, cid=claude_id: self._delete_claude(cid))
                     menu.append(item_delete)
 
+                    menu.append(Gtk.SeparatorMenuItem())
+
+                    item_ctx = Gtk.MenuItem(label="Edit ctx\u2026")
+                    item_ctx.connect("activate", lambda _, cid=claude_id: self._edit_ctx(cid))
+                    menu.append(item_ctx)
+
                     menu.show_all()
                     menu.popup_at_pointer(event)
 
@@ -1341,6 +1658,7 @@ class SessionSidebar(Gtk.Box):
             if resp != Gtk.ResponseType.OK:
                 break
             if dlg.validate():
+                dlg.setup_ctx()
                 self.app.claude_manager.add(dlg.get_data())
                 self.refresh()
                 break
@@ -1482,6 +1800,18 @@ class SessionSidebar(Gtk.Box):
 
     # ── Claude Code CRUD ──
 
+    def _edit_ctx(self, claude_id):
+        config = self.app.claude_manager.get(claude_id)
+        if not config:
+            return
+        project_dir = config.get("project_dir", "")
+        if not project_dir:
+            return
+        ctx_project = os.path.basename(project_dir.rstrip("/"))
+        dlg = CtxEditDialog(self.app, ctx_project, project_dir)
+        dlg.run()
+        dlg.destroy()
+
     def _connect_claude(self, claude_id):
         config = self.app.claude_manager.get(claude_id)
         if config:
@@ -1497,6 +1827,7 @@ class SessionSidebar(Gtk.Box):
             if resp != Gtk.ResponseType.OK:
                 break
             if dlg.validate():
+                dlg.setup_ctx()
                 data = dlg.get_data()
                 self.app.claude_manager.update(claude_id, data)
                 self.refresh()
