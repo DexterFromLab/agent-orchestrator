@@ -4,14 +4,14 @@ See [task_plan.md](task_plan.md) for architecture decisions, error handling, and
 
 ---
 
-## Phase 1: Project Scaffolding [status: not_started] — MVP
+## Phase 1: Project Scaffolding [status: complete] — MVP
 
-- [ ] Create feature branch `v2-mission-control`
-- [ ] Initialize Tauri 2.x project with Svelte 5 frontend
-- [ ] Project structure (see below)
-- [ ] Basic Tauri window with Catppuccin Mocha CSS variables
-- [ ] Verify Tauri builds and launches on target system
-- [ ] Set up dev scripts (dev, build, lint)
+- [x] Create feature branch `v2-mission-control`
+- [x] Initialize Tauri 2.x project with Svelte 5 frontend
+- [x] Project structure (see below)
+- [x] Basic Tauri window with Catppuccin Mocha CSS variables
+- [x] Verify Tauri builds and launches on target system
+- [x] Set up dev scripts (dev, build, lint)
 
 ### File Structure
 ```
