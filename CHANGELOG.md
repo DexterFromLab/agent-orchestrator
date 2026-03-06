@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `@anthropic-ai/claude-agent-sdk` ^0.2.70 npm dependency for sidecar agent session management
-- `build:sidecar` npm script for esbuild bundling of agent-runner.ts with SDK as external
+- `build:sidecar` npm script for esbuild bundling of agent-runner.ts (SDK bundled in, no external dependency at runtime)
+- `permission_mode` field in AgentQueryOptions (Rust, TypeScript) — flows from controller through sidecar to SDK, defaults to 'bypassPermissions', supports 'default' mode
 
 ### Changed
 - Sidecar agent runners migrated from raw `claude` CLI spawning (`child_process.spawn`/`Deno.Command`) to `@anthropic-ai/claude-agent-sdk` query() function — fixes silent hang when CLI spawned with piped stdio (known bug github.com/anthropics/claude-code/issues/6775)
@@ -17,7 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - agent-runner-deno.ts: sessions now use `AbortController` map; uses `npm:@anthropic-ai/claude-agent-sdk` import specifier
 - Deno sidecar permissions expanded: added `--allow-write` and `--allow-net` flags in sidecar.rs (required by SDK)
 - CLAUDE* env var stripping now passes clean env via SDK's `env` option in query() instead of filtering process.env before spawn
-- SDK query() options: `permissionMode: 'bypassPermissions'`, `allowDangerouslySkipPermissions: true`, 10 allowedTools (Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, TodoWrite, NotebookEdit)
+- SDK permissionMode and allowDangerouslySkipPermissions now dynamically set based on permission_mode option (was hardcoded to bypassPermissions)
+- build:sidecar esbuild command no longer uses --external for SDK (SDK bundled into output)
+
+### Fixed
+- AgentPane onDestroy no longer kills running agent sessions on component remount — stopAgent() moved from AgentPane.svelte onDestroy to TilingGrid.svelte onClose handler, ensuring agents only stop on explicit user close action
 
 ### Previously Added
 - Exponential backoff reconnection in RemoteManager: on disconnect, spawns async task with 1s/2s/4s/8s/16s/30s-cap backoff, uses attempt_tcp_probe() (TCP-only, no WS upgrade, 5s timeout, default port 9750), emits remote-machine-reconnecting and remote-machine-reconnect-ready events

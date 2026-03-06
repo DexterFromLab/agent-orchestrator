@@ -27,7 +27,10 @@
 - WebKit2GTK has no WebGL — xterm.js must use Canvas addon explicitly.
 - Agent sessions use `@anthropic-ai/claude-agent-sdk` query() function (migrated from raw CLI spawning due to piped stdio hang bug). SDK handles subprocess management internally. All output goes through the adapter layer (`src/lib/adapters/sdk-messages.ts`) — SDK message format matches CLI stream-json.
 - Sidecar uses Deno-first + Node.js fallback (`sidecar/agent-runner-deno.ts` preferred, `sidecar/agent-runner.ts` fallback). SidecarCommand struct in sidecar.rs abstracts runtime. Communicates with Rust via stdio NDJSON. Both runners MUST strip ALL `CLAUDE*` prefixed env vars via SDK's `env` option — without this, nesting detection triggers when BTerminal is launched from a Claude Code terminal. Session stop uses AbortController.abort() (not process.kill()).
+- AgentPane does NOT stop agents in onDestroy — onDestroy fires on layout remounts, not just explicit close. Stop-on-close is handled by TilingGrid.svelte's onClose handler (checks pane type + session status before calling stopAgent).
 - Agent dispatcher (`src/lib/agent-dispatcher.ts`) is a singleton that routes sidecar events to the agent store. Also handles subagent pane spawning (SUBAGENT_TOOL_NAMES detection, toolUseToChildPane routing map).
+- AgentQueryOptions supports `permission_mode` field (flows Rust -> sidecar -> SDK). Defaults to 'bypassPermissions', supports 'default' mode. allowDangerouslySkipPermissions is conditionally set.
+- Sidecar build: `npm run build:sidecar` bundles SDK into agent-runner.mjs via esbuild (no --external, SDK included in bundle).
 - Maximum 4 active xterm.js instances to avoid WebKit2GTK memory issues.
 - Store files using Svelte 5 runes (`$state`, `$derived`) MUST have `.svelte.ts` extension (not `.ts`). Import with `.svelte` suffix. Plain `.ts` compiles but fails at runtime with "rune_outside_svelte".
 - Session persistence uses rusqlite (bundled) with WAL mode. Data dir: `dirs::data_dir()/bterminal/sessions.db`.
