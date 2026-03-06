@@ -2,24 +2,20 @@
 
 ## Active
 
-- [ ] **Phase 5 remaining** -- Click tree node -> focus agent pane (onNodeClick wiring), subtree cost display in tree.
-- [ ] **Testing** -- vitest for sdk-messages adapter, cargo test for sidecar/session/watcher, Playwright for e2e.
-- [ ] **Pane drag-resize handles** -- Deferred from Phase 2, current presets sufficient for MVP.
-- [ ] **Copy/paste (Ctrl+Shift+C/V)** -- Deferred from Phase 2.
-- [ ] **Session resume (SDK resumeSessionId)** -- Allow resuming previous agent sessions.
-- [ ] **Evaluate Deno as sidecar runtime** -- Single binary, better packaging than Node.js. Test SDK compatibility.
-- [ ] **Auto-update signing key + update server** -- Plugin integrated, needs signing infrastructure for full auto-update flow.
-- [ ] **Terminal theme hot-swap** -- Existing open terminals don't update when theme flavor changes; only new terminals pick up the new theme.
+- [ ] **Auto-update signing key** -- Generate TAURI_SIGNING_PRIVATE_KEY, set as GitHub repo secret. CI workflow ready (latest.json + signing).
+- [ ] **Deno sidecar integration** -- Proof-of-concept done (agent-runner-deno.ts). Needs real claude CLI testing, benchmark vs Node.js, sidecar.rs integration.
+- [ ] **E2E testing (Playwright)** -- No e2e tests yet. Test: open terminal, run command, open agent, verify output.
+- [ ] **Session groups/folders** -- Organize sessions in sidebar by folder (deferred from Phase 4).
 
 ## Completed
 
-- [x] **SSH session management** -- CRUD in SQLite, SshDialog/SshSessionList components, SSH pane type routing to TerminalPane with ssh args. | Done: 2026-03-06
-- [x] **ctx integration** -- Read-only CtxDb in Rust (ctx.rs), ContextPane with project selector/tabs/search, ctx-bridge adapter. | Done: 2026-03-06
-- [x] **Catppuccin theme flavors** -- Latte/Frappe/Macchiato/Mocha selectable, themes.ts + theme.svelte.ts store, SettingsDialog dropdown. | Done: 2026-03-06
-- [x] **Detached pane mode** -- Pop-out windows via URL params (?detached=1), detach.ts utility, App.svelte conditional rendering. | Done: 2026-03-06
-- [x] **Syntax highlighting** -- Shiki with catppuccin-mocha theme, lazy singleton highlighter, 13 preloaded languages. Integrated in MarkdownPane and AgentPane. | Done: 2026-03-06
-- [x] **Tauri auto-updater plugin** -- tauri-plugin-updater (Rust + npm) + updater.ts utility integrated. | Done: 2026-03-06
-- [x] **Markdown rendering in agent messages** -- AgentPane text messages rendered as markdown with Shiki highlighting. | Done: 2026-03-06
-- [x] **Phase 6: Packaging + Distribution** -- install-v2.sh, tauri.conf.json bundle config (deb+appimage), icon regeneration, GitHub Actions release workflow. | Done: 2026-03-06
-- [x] **Phase 5 partial: Agent Tree + Polish** -- Agent tree SVG, status bar, toast notifications, settings dialog + SQLite backend, keyboard shortcuts. | Done: 2026-03-06
-- [x] **Phase 4: Session Management + Markdown Viewer** -- SQLite persistence, session CRUD, layout restore, file watcher, MarkdownPane. | Done: 2026-03-06
+- [x] **Copy/paste (Ctrl+Shift+C/V)** -- TerminalPane attachCustomKeyEventHandler, C copies selection, V writes clipboard to PTY. | Done: 2026-03-06
+- [x] **Terminal theme hot-swap** -- onThemeChange callback registry in theme.svelte.ts, TerminalPane subscribes. All open terminals update. | Done: 2026-03-06
+- [x] **Tree node click -> scroll to message** -- handleTreeNodeClick in AgentPane, scrollIntoView smooth. | Done: 2026-03-06
+- [x] **Subtree cost display** -- Yellow cost text below each tree node (subtreeCost util, NODE_H 32->40). | Done: 2026-03-06
+- [x] **Session resume** -- Follow-up prompt in AgentPane, resume_session_id passed to SDK. | Done: 2026-03-06
+- [x] **Pane drag-resize handles** -- Splitter overlays in TilingGrid with mouse drag, 10-90% clamping. | Done: 2026-03-06
+- [x] **Vitest + cargo tests** -- sdk-messages.test.ts, agent-tree.test.ts, session.rs tests, ctx.rs tests. | Done: 2026-03-06
+- [x] **Auto-update CI workflow** -- latest.json generation, signing env vars, artifact upload. | Done: 2026-03-06
+- [x] **Deno sidecar PoC** -- agent-runner-deno.ts proof-of-concept with same NDJSON protocol. | Done: 2026-03-06
+- [x] **Phase 6: Packaging + Distribution** -- install-v2.sh, bundle config, GitHub Actions release. | Done: 2026-03-06

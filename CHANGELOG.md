@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Terminal copy/paste: Ctrl+Shift+C copies selection, Ctrl+Shift+V pastes from clipboard to PTY (TerminalPane.svelte)
+- Terminal theme hot-swap: onThemeChange() callback registry in theme.svelte.ts, open terminals update immediately when flavor changes
+- Agent tree node click: clicking a tree node scrolls to the corresponding message in the agent pane (scrollIntoView smooth)
+- Agent tree subtree cost: cumulative cost displayed in yellow below each tree node label (subtreeCost utility)
+- Agent session resume: follow-up prompt input after session completes or errors, passes resume_session_id to SDK
+- Pane drag-resize handles: splitter overlays in TilingGrid with mouse drag, supports 2-col/3-col/2-row layouts with 10-90% ratio clamping
+- Auto-update CI workflow: release.yml generates latest.json with version, platform URL, and signature from .sig file; uploads as release artifact
+- Deno sidecar proof-of-concept: agent-runner-deno.ts with same NDJSON protocol, compiles to single binary via deno compile
+- Vitest test suite: sdk-messages.test.ts (SDK message adapter) and agent-tree.test.ts (tree builder/cost), vite.config.ts test config, npm run test script
+- Cargo test suite: session.rs tests (SessionDb CRUD for sessions, SSH sessions, settings, layout) and ctx.rs tests (CtxDb error handling with missing database)
+- tempfile dev dependency for Rust test isolation
+
+### Changed
+- Agent tree NODE_H increased from 32 to 40 to accommodate subtree cost display
+- release.yml build step now passes TAURI_SIGNING_PRIVATE_KEY and PASSWORD env vars from secrets
+- release.yml uploads latest.json alongside .deb and .AppImage artifacts
+- vitest ^4.0.18 added as npm dev dependency
+
+### Previously Added
 - SSH session management: SshSession CRUD in SQLite, SshDialog create/edit modal, SshSessionList grouped by folder with color dots, SSH pane type routing to TerminalPane with shell=/usr/bin/ssh (Phase 5)
 - ctx context database integration: read-only CtxDb (Rust, SQLITE_OPEN_READ_ONLY), ContextPane with project selector, tabs for entries/summaries/search, ctx-bridge adapter (Phase 5)
 - Catppuccin theme flavors: all 4 palettes (Latte/Frappe/Macchiato/Mocha) selectable via Settings dialog, theme.svelte.ts reactive store with SQLite persistence, TerminalPane theme-aware (Phase 5)

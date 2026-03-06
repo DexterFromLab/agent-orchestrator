@@ -109,7 +109,7 @@ bterminal-v2/
 
 - [x] CSS Grid layout with sidebar + main area + optional right panel
 - [x] Responsive breakpoints (ultrawide / standard / narrow)
-- [ ] Pane resize via drag handles (deferred — current presets sufficient for MVP)
+- [x] Pane resize via drag handles (splitter overlays in TilingGrid with mouse drag, min/max 10%/90%)
 - [x] Layout presets: 1-col, 2-col, 3-col, 2x2, master+stack
 - [ ] Save/restore layout to SQLite (Phase 4)
 - [x] Keyboard: Ctrl+1-4 focus pane, Ctrl+N new terminal
@@ -119,7 +119,7 @@ bterminal-v2/
 - [x] Catppuccin Mocha theme for xterm.js
 - [x] PTY spawn from Rust (portable-pty), stream to frontend via Tauri events
 - [x] Terminal resize -> PTY resize (100ms debounce)
-- [ ] Copy/paste (Ctrl+Shift+C/V) — deferred
+- [x] Copy/paste (Ctrl+Shift+C/V) — via attachCustomKeyEventHandler
 - [x] SSH session: spawn `ssh` command in PTY (via shell args)
 - [x] Local shell: spawn user's $SHELL
 - [x] Claude Code CLI: spawn `claude` in PTY (via shell args)
@@ -154,7 +154,7 @@ bterminal-v2/
 - [x] Agent status indicator (starting/running/done/error)
 - [x] Start/stop agent from UI (prompt form + stop button)
 - [x] Auto-scroll with scroll-lock on user scroll-up
-- [ ] Session resume (SDK `resume: sessionId`)
+- [x] Session resume (follow-up prompt in AgentPane, resume_session_id passed to SDK)
 - [x] Keyboard: Ctrl+Shift+N new agent
 - [x] Sidebar: agent session button
 
@@ -187,8 +187,12 @@ bterminal-v2/
 ## Phase 5: Agent Tree + Polish [status: complete] — Post-MVP
 
 - [x] Agent tree visualization (SVG, compact horizontal layout) — AgentTree.svelte + agent-tree.ts utility
-- [ ] Click tree node -> focus agent pane (onNodeClick prop exists, not wired)
-- [ ] Aggregate cost per subtree (subtreeCost util exists, not displayed in UI)
+- [x] Click tree node -> scroll to message (handleTreeNodeClick in AgentPane, scrollIntoView smooth)
+- [x] Aggregate cost per subtree (subtreeCost displayed in yellow below each tree node label)
+- [x] Terminal copy/paste (Ctrl+Shift+C/V via attachCustomKeyEventHandler)
+- [x] Terminal theme hot-swap (onThemeChange callback registry in theme.svelte.ts, TerminalPane subscribes)
+- [x] Pane drag-resize handles (splitter overlays in TilingGrid with mouse drag)
+- [x] Session resume (follow-up prompt, resume_session_id to SDK)
 - [x] Global status bar (terminal/agent counts, active agents pulse, token/cost totals) — StatusBar.svelte
 - [x] Notification system (toast: success/error/warning/info, auto-dismiss 4s, max 5) — notifications.svelte.ts + ToastContainer.svelte
 - [x] Agent dispatcher toast integration (agent complete, error, sidecar crash notifications)
@@ -220,7 +224,9 @@ bterminal-v2/
   - Builds .deb + AppImage, uploads as GitHub Release artifacts
 - [x] Build verified: .deb (4.3 MB), AppImage (103 MB)
 - [x] Auto-updater plugin integrated (tauri-plugin-updater Rust + @tauri-apps/plugin-updater npm + updater.ts)
-- [ ] Auto-update signing key + update server setup (needed for full auto-update flow)
+- [x] Auto-update latest.json generation in CI (version, platform URL, signature from .sig file)
+- [x] release.yml: TAURI_SIGNING_PRIVATE_KEY env vars passed to build step
+- [ ] Auto-update signing key generation + TAURI_SIGNING_PRIVATE_KEY secret in GitHub repo
 
 ### System Requirements
 - Node.js 20+ (for Agent SDK sidecar)

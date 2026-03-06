@@ -135,8 +135,51 @@ Architecture decision: Uses `claude` CLI with `--output-format stream-json` inst
 - [x] New npm dependencies: shiki, @tauri-apps/plugin-updater
 - [x] New Rust dependency: tauri-plugin-updater
 
+### Session: 2026-03-06 (continued) — Polish, Testing, Extras
+
+#### Terminal Copy/Paste + Theme Hot-Swap
+- [x] Copy/paste in TerminalPane via Ctrl+Shift+C/V (attachCustomKeyEventHandler: C copies selection, V reads clipboard and writes to PTY)
+- [x] Theme hot-swap: onThemeChange() callback registry in theme.svelte.ts, TerminalPane subscribes and updates term.options.theme on flavor change
+- [x] All open terminals now update immediately when theme flavor changes
+
+#### Agent Tree Enhancements
+- [x] Click tree node -> scroll to corresponding message (handleTreeNodeClick in AgentPane, scrollIntoView with smooth behavior)
+- [x] Subtree cost display: yellow cost text below each tree node label (subtreeCost from agent-tree.ts, NODE_H increased from 32 to 40)
+- [x] Each message div has id="msg-{msg.id}" for scroll targeting
+
+#### Session Resume
+- [x] Follow-up prompt input appears after session completes or errors (if sdkSessionId exists)
+- [x] startQuery(text, resume=true) passes resume_session_id to SDK via agent_query
+- [x] Styled .follow-up input + button in done-bar and error-bar sections
+
+#### Pane Drag-Resize Handles
+- [x] Splitter overlays in TilingGrid (positioned with fixed CSS, outside grid to avoid layout interference)
+- [x] Column splitters: vertical bars between grid columns with mousemove drag
+- [x] Row splitters: horizontal bars between grid rows with mousemove drag
+- [x] customColumns/customRows $state override preset grid-template; reset on preset change
+- [x] Supports 2-col, 3-col, and 2-row layouts with min 10% / max 90% ratio clamping
+- [x] .dragging class disables user-select during drag; splitter hover shows accent color at 40% opacity
+
+#### Auto-Update Workflow Enhancement
+- [x] release.yml: TAURI_SIGNING_PRIVATE_KEY + PASSWORD env vars passed to build step
+- [x] Generates latest.json for auto-updater (version, pub_date, platform URL, signature from .sig file)
+- [x] Uploads latest.json alongside .deb and .AppImage as release artifacts
+
+#### Deno Sidecar Evaluation
+- [x] Created agent-runner-deno.ts proof-of-concept (Deno.Command for claude CLI, TextLineStream for NDJSON)
+- [x] Same NDJSON protocol as Node.js version; compiles to single binary with deno compile
+- [ ] Not yet integrated with Rust SidecarManager; needs real-world testing
+
+#### Testing Infrastructure
+- [x] Vitest added: vitest ^4.0.18 dev dependency, vite.config.ts test config, npm run test script
+- [x] sdk-messages.test.ts: tests for adaptSDKMessage() — init, text, thinking, tool_use, tool_result, cost, unknown types
+- [x] agent-tree.test.ts: tests for buildAgentTree(), countTreeNodes(), subtreeCost()
+- [x] Cargo: tempfile 3 dev dependency added
+- [x] session.rs tests: SessionDb CRUD (sessions, SSH sessions, settings, layout), uses tempfile::tempdir()
+- [x] ctx.rs tests: CtxDb error handling with missing database (conn=None)
+
 ### Next Steps
-- [ ] Testing: vitest for sdk-messages adapter, cargo test for sidecar
-- [ ] Phase 5 remaining: click tree node -> focus pane, subtree cost display
-- [ ] Auto-update signing key + update server setup
-- [ ] Session resume (SDK resumeSessionId)
+- [ ] Auto-update signing key generation + TAURI_SIGNING_PRIVATE_KEY secret in GitHub repo
+- [ ] Deno sidecar: test with real claude CLI, benchmark vs Node.js, integrate with sidecar.rs
+- [ ] E2E testing with Playwright
+- [ ] Session groups/folders in sidebar

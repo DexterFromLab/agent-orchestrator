@@ -60,6 +60,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |
 | `v2/sidecar/agent-runner.ts` | Node.js sidecar (spawns claude CLI) |
+| `v2/sidecar/agent-runner-deno.ts` | Deno sidecar proof-of-concept (experimental) |
+| `v2/src/lib/adapters/sdk-messages.test.ts` | Vitest tests for SDK message adapter |
+| `v2/src/lib/utils/agent-tree.test.ts` | Vitest tests for agent tree builder |
 
 ## v1 Stack
 
@@ -78,7 +81,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup
 - File watcher (notify crate) for live markdown viewer
 - Rust deps: tauri, portable-pty, rusqlite (bundled), dirs, notify, uuid, serde, tokio, tauri-plugin-updater
-- npm deps: @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, marked, shiki
+- npm deps: @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, marked, shiki, vitest (dev)
 - Source: `v2/` directory
 
 ## Build / Run
@@ -94,6 +97,10 @@ sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-vte-2.91
 # v2 (development, branch v2-mission-control)
 cd v2 && npm install && npm run tauri dev   # Dev mode
 cd v2 && npm run tauri build                # Release build
+
+# v2 tests
+cd v2 && npm run test                       # Vitest (frontend)
+cd v2/src-tauri && cargo test               # Cargo tests (backend)
 
 # v2 install from source (builds + installs to ~/.local/bin/bterminal-v2)
 ./install-v2.sh

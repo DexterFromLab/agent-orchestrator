@@ -130,9 +130,12 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 | Build-from-source installer over pre-built binaries | install-v2.sh checks deps and builds locally. Pre-built binaries via GitHub Actions CI (.deb + AppImage on v* tags). Auto-update deferred until signing key infrastructure is set up. | 2026-03-06 |
 | ctx read-only access from Rust | Open ~/.claude-context/context.db with SQLITE_OPEN_READ_ONLY. Never write — ctx CLI owns the schema. Separate CtxDb struct in ctx.rs with Option<Connection> for graceful absence. | 2026-03-06 |
 | SSH via PTY shell args | SSH sessions spawn TerminalPane with shell=/usr/bin/ssh and args=[-p, port, [-i, keyfile], user@host]. No special SSH library — PTY handles it natively. | 2026-03-06 |
-| Catppuccin 4 flavors at runtime | CSS variables overridden at runtime for non-Mocha flavors. Existing terminals don't hot-swap (limitation accepted); new terminals pick up the active theme. | 2026-03-06 |
+| Catppuccin 4 flavors at runtime | CSS variables overridden at runtime. onThemeChange() callback registry in theme.svelte.ts allows open terminals to hot-swap themes. | 2026-03-06 |
 | Detached pane via URL params | Pop-out windows use ?detached=1&type=terminal URL params. App.svelte conditionally renders single pane without sidebar/grid chrome. Simple, no IPC needed. | 2026-03-06 |
 | Shiki over highlight.js | Shiki provides VS Code-grade syntax highlighting with Catppuccin theme. Lazy singleton pattern avoids repeated WASM init. 13 languages preloaded. | 2026-03-06 |
+| Vitest for frontend tests | Vitest over Jest — zero-config with Vite, same transform pipeline, faster. Test config in vite.config.ts. | 2026-03-06 |
+| Deno sidecar evaluation | Proof-of-concept agent-runner-deno.ts created. Deno compiles to single binary (better packaging). Same NDJSON protocol. Not yet integrated. | 2026-03-06 |
+| Splitter overlays for pane resize | Fixed-position divs outside CSS Grid (avoids layout interference). Mouse drag updates customColumns/customRows state. Resets on preset change. | 2026-03-06 |
 
 ## Open Questions
 
