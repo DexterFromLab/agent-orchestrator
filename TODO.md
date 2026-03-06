@@ -2,7 +2,7 @@
 
 ## Active
 
-- [ ] **Phase 5: Agent Tree + Polish** -- Agent tree visualization (SVG), global status bar, notifications, settings dialog, ctx integration.
+- [ ] **Phase 5 remaining** -- Click tree node -> focus agent pane (onNodeClick wiring), subtree cost display in tree, ctx integration (port from v1).
 - [ ] **Phase 6: Packaging + Distribution** -- install.sh v2, AppImage, .deb, GitHub Actions CI, auto-update.
 - [ ] **Markdown rendering in agent text messages** -- Currently plain text; needs marked.js integration in AgentPane text blocks.
 - [ ] **Testing** -- vitest for sdk-messages adapter, cargo test for sidecar/session/watcher, Playwright for e2e.
@@ -14,6 +14,7 @@
 
 ## Completed
 
+- [x] **Phase 5 partial: Agent Tree + Polish** -- Agent tree SVG visualization, global status bar, toast notifications, settings dialog + SQLite backend, keyboard shortcuts (Ctrl+W, Ctrl+,), agent dispatcher toast integration. | Done: 2026-03-06
 - [x] **Phase 4: Session Management + Markdown Viewer** -- SQLite persistence (rusqlite, WAL), session CRUD, layout restore on startup, file watcher (notify crate), MarkdownPane with marked.js and Catppuccin styles, sidebar file picker. | Done: 2026-03-06
 - [x] **Phase 3: Agent SDK Integration (core + polish)** -- Sidecar manager with restart, crash detection, auto-scroll lock, agent pane with messages/cost/stop/restart. | Done: 2026-03-06
 - [x] **Phase 2: Terminal Pane + Layout** -- PTY backend (portable-pty), xterm.js + Canvas addon, CSS Grid tiling (5 presets), sidebar, keyboard shortcuts. | Done: 2026-03-05

@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Agent tree visualization: SVG tree of tool calls with horizontal layout, bezier edges, status-colored nodes (AgentTree.svelte + agent-tree.ts) (Phase 5)
+- Global status bar showing terminal/agent pane counts, active agents with pulse animation, total tokens and cost (StatusBar.svelte) (Phase 5)
+- Toast notification system with auto-dismiss (4s), max 5 visible, color-coded by type (notifications.svelte.ts + ToastContainer.svelte) (Phase 5)
+- Agent dispatcher toast integration: notifications on agent complete, error, and sidecar crash (Phase 5)
+- Settings dialog with default shell, working directory, and max panes configuration (SettingsDialog.svelte) (Phase 5)
+- Settings persistence: key-value settings table in SQLite, Tauri commands settings_get/set/list, settings-bridge.ts adapter (Phase 5)
+- Keyboard shortcuts: Ctrl+W close focused pane, Ctrl+, open settings dialog (Phase 5)
 - SQLite session persistence with rusqlite (bundled, WAL mode) — sessions table + layout_state singleton (Phase 4)
 - Session CRUD: save, delete, update_title, touch with 7 Tauri commands (Phase 4)
 - Layout restore on app startup — panes and preset restored from database (Phase 4)
