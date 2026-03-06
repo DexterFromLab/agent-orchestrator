@@ -3,7 +3,7 @@
 ## Goal
 Redesign BTerminal from a GTK3 terminal emulator into a **multi-session Claude agent dashboard** optimized for 32:9 ultrawide (5120x1440). Simultaneous visibility of all active sessions, agent tree visualization, inline markdown rendering, maximum information density.
 
-## Status: All 6 Phases Complete + extras (MVP + post-MVP, packaging, SSH, ctx, themes — Rev 3)
+## Status: Phases 1-6 Complete + Phase 7 (Agent Teams) in progress — Rev 4
 
 ---
 
@@ -106,7 +106,7 @@ When SDK changes its message format, only the adapter needs updating.
 See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 
 - **MVP:** Phases 1-4 (scaffolding, terminal+layout, agent SDK, session mgmt+markdown)
-- **Post-MVP:** Phases 5-6 (agent tree, polish, packaging)
+- **Post-MVP:** Phases 5-7 (agent tree, polish, packaging, agent teams)
 
 ---
 
@@ -139,12 +139,14 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 | Deno-first sidecar with Node.js fallback | SidecarCommand struct abstracts runtime. resolve_sidecar_command() checks Deno first (runs TS directly, no build step), falls back to Node.js. Both bundled in tauri.conf.json resources. | 2026-03-06 |
 | Session groups/folders | group_name column in sessions table with ALTER TABLE migration. Pane.group field in layout store. Collapsible group headers in sidebar. Right-click to set group. | 2026-03-06 |
 | Auto-update signing key | Generated minisign keypair. Pubkey set in tauri.conf.json. Private key for TAURI_SIGNING_PRIVATE_KEY GitHub secret. | 2026-03-06 |
+| Agent teams: frontend routing only | Subagent panes created by frontend dispatcher, not separate sidecar processes. Parent sidecar handles all messages; routing uses SDK's parentId field. Avoids process explosion for nested subagents. | 2026-03-06 |
+| SUBAGENT_TOOL_NAMES detection | Detect subagent spawn by tool_call name ('Agent', 'Task', 'dispatch_agent'). Simple Set lookup, easily extensible. | 2026-03-06 |
 
 ## Open Questions
 
 1. **Node.js or Deno for sidecar?** Resolved: Deno-first with Node.js fallback. SidecarCommand struct in sidecar.rs abstracts the choice. Deno preferred (runs TS directly, compiles to single binary). Falls back to Node.js if Deno not in PATH.
 2. **Multi-machine support?** Remote agents via WebSocket. Phase 7+ feature.
-3. **Agent Teams integration?** Experimental Anthropic feature. Natural fit but adds complexity. Phase 7+.
+3. **Agent Teams integration?** Phase 7 — frontend routing implemented (subagent pane spawning, parent/child navigation). Needs real-world testing with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 4. **Electron escape hatch threshold?** If Canvas xterm.js proves >50ms latency on target system with 4 panes, switch to Electron. Benchmark in Phase 2.
 
 ## Error Handling Strategy

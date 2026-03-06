@@ -211,9 +211,27 @@ Architecture decision: Uses `claude` CLI with `--output-format stream-json` inst
 
 Build status: TypeScript 0 errors, Rust 0 errors (1 pre-existing warning), all tests green.
 
+### Session: 2026-03-06 (continued) — Agent Teams / Subagent Support
+
+#### Agent Teams Frontend Support
+- [x] Agent store: AgentSession extended with parentSessionId?, parentToolUseId?, childSessionIds[] for parent-child hierarchy
+- [x] Agent store: createAgentSession() accepts optional parent param, registers bidirectional parent/child links
+- [x] Agent store: findChildByToolUseId(parentId, toolUseId), getChildSessions(parentId) query functions
+- [x] Agent store: removeAgentSession() cleans up parent's childSessionIds on removal
+- [x] Agent dispatcher: SUBAGENT_TOOL_NAMES detection ('Agent', 'Task', 'dispatch_agent') on tool_call events
+- [x] Agent dispatcher: spawnSubagentPane() creates child session + layout pane, auto-groups under parent title
+- [x] Agent dispatcher: toolUseToChildPane Map routes messages with parentId to correct child pane
+- [x] Agent dispatcher: handleAgentEvent() splits messages — parentId-bearing go to child panes, rest to parent
+- [x] AgentPane: parent link bar (SUB badge + navigate-to-parent button)
+- [x] AgentPane: children bar (chips per child subagent, status-colored, clickable to focus)
+- [x] SessionList: subagent panes show '↳' icon instead of '*'
+
+Design: No separate sidecar process per subagent. Parent's sidecar handles all; routing is purely frontend based on SDK's parentId field.
+
 ### Next Steps
 - [ ] Set TAURI_SIGNING_PRIVATE_KEY secret in GitHub repo settings
 - [ ] Deno sidecar: test with real claude CLI, benchmark startup time vs Node.js
 - [ ] E2E testing with Playwright/WebDriver (when display server available)
 - [ ] Multi-machine support (remote agents via WebSocket)
-- [ ] Agent Teams integration
+- [ ] Test agent teams with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+- [ ] Update dispatcher tests for new subagent routing logic

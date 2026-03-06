@@ -151,7 +151,7 @@ bterminal-v2/
   - [x] Init -> model badge
   - [x] Cost -> USD/tokens/turns/duration summary
   - [x] Errors -> highlighted error card
-  - [ ] Subagent spawn -> tree node + optional new pane (Phase 5)
+  - [x] Subagent spawn -> auto-creates child agent pane with parent/child navigation (Phase 7)
 - [x] Agent status indicator (starting/running/done/error)
 - [x] Start/stop agent from UI (prompt form + stop button)
 - [x] Auto-scroll with scroll-lock on user scroll-up
@@ -229,6 +229,22 @@ bterminal-v2/
 - [x] release.yml: TAURI_SIGNING_PRIVATE_KEY env vars passed to build step
 - [x] Auto-update signing key generated, pubkey set in tauri.conf.json
 - [ ] TAURI_SIGNING_PRIVATE_KEY secret must be set in GitHub repo settings
+
+---
+
+## Phase 7: Agent Teams / Subagent Support [status: in progress] — Post-MVP
+
+- [x] Agent store parent/child hierarchy — parentSessionId, parentToolUseId, childSessionIds fields on AgentSession
+- [x] Agent store functions — findChildByToolUseId(), getChildSessions(), parent-aware createAgentSession()
+- [x] Agent dispatcher subagent detection — SUBAGENT_TOOL_NAMES Set ('Agent', 'Task', 'dispatch_agent')
+- [x] Agent dispatcher message routing — parentId-bearing messages routed to child panes via toolUseToChildPane Map
+- [x] Agent dispatcher pane spawning — spawnSubagentPane() creates child session + layout pane, auto-grouped under parent
+- [x] AgentPane parent navigation — SUB badge + button to focus parent agent
+- [x] AgentPane children bar — clickable chips per child subagent with status colors (running/done/error)
+- [x] SessionList subagent icon — '↳' for subagent panes
+- [ ] Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+- [ ] Update dispatcher tests for subagent routing
+- [ ] Subagent cost aggregation in parent pane
 
 ### System Requirements
 - Node.js 20+ (for Agent SDK sidecar)
