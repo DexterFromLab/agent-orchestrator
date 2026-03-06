@@ -10,7 +10,7 @@ import {
   setAgentModel,
   appendAgentMessages,
   updateAgentCost,
-} from './stores/agents';
+} from './stores/agents.svelte';
 
 let unlistenFn: (() => void) | null = null;
 

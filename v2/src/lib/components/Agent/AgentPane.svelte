@@ -6,7 +6,7 @@
     createAgentSession,
     removeAgentSession,
     type AgentSession,
-  } from '../../stores/agents';
+  } from '../../stores/agents.svelte';
   import type {
     AgentMessage,
     TextContent,
@@ -49,7 +49,7 @@
     const ready = await isAgentReady();
     if (!ready) {
       createAgentSession(sessionId, text);
-      const { updateAgentStatus } = await import('../../stores/agents');
+      const { updateAgentStatus } = await import('../../stores/agents.svelte');
       updateAgentStatus(sessionId, 'error', 'Sidecar not ready — agent features unavailable');
       return;
     }

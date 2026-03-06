@@ -7,7 +7,7 @@
     getActivePreset,
     setPreset,
     type LayoutPreset,
-  } from '../../stores/layout';
+  } from '../../stores/layout.svelte';
 
   let panes = $derived(getPanes());
   let preset = $derived(getActivePreset());

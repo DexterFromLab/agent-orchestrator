@@ -8,7 +8,7 @@
     getPaneGridArea,
     focusPane,
     removePane,
-  } from '../../stores/layout';
+  } from '../../stores/layout.svelte';
 
   let gridTemplate = $derived(getGridTemplate());
   let panes = $derived(getPanes());
