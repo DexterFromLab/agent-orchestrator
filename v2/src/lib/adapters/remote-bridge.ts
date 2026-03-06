@@ -120,3 +120,24 @@ export async function onRemoteError(
     callback(event.payload);
   });
 }
+
+export interface RemoteReconnectingEvent {
+  machineId: string;
+  backoffSecs: number;
+}
+
+export async function onRemoteMachineReconnecting(
+  callback: (msg: RemoteReconnectingEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<RemoteReconnectingEvent>('remote-machine-reconnecting', (event) => {
+    callback(event.payload);
+  });
+}
+
+export async function onRemoteMachineReconnectReady(
+  callback: (msg: RemoteMachineEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<RemoteMachineEvent>('remote-machine-reconnect-ready', (event) => {
+    callback(event.payload);
+  });
+}

@@ -9,6 +9,8 @@ import {
   onRemoteMachineReady,
   onRemoteMachineDisconnected,
   onRemoteError,
+  onRemoteMachineReconnecting,
+  onRemoteMachineReconnectReady,
   type RemoteMachineConfig,
   type RemoteMachineInfo,
 } from '../adapters/remote-bridge';
@@ -92,6 +94,24 @@ export async function initMachineListeners(): Promise<void> {
     if (machine) {
       machine.status = 'error';
       notify('error', `Error from ${machine.label}: ${msg.error}`);
+    }
+  });
+
+  await onRemoteMachineReconnecting((msg) => {
+    const machine = machines.find(m => m.id === msg.machineId);
+    if (machine) {
+      machine.status = 'reconnecting';
+      notify('info', `Reconnecting to ${machine.label} in ${msg.backoffSecs}s…`);
+    }
+  });
+
+  await onRemoteMachineReconnectReady((msg) => {
+    const machine = machines.find(m => m.id === msg.machineId);
+    if (machine) {
+      notify('info', `${machine.label} reachable — reconnecting…`);
+      connectMachine(msg.machineId).catch((e) => {
+        notify('error', `Auto-reconnect failed for ${machine.label}: ${e}`);
+      });
     }
   });
 }

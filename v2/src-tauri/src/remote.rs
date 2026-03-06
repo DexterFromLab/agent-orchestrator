@@ -269,14 +269,14 @@ impl RemoteManager {
                         "backoffSecs": delay.as_secs(),
                     }));
 
-                    // Try to get config for reconnection
-                    let config = {
+                    // Try to get URL for TCP probe
+                    let url = {
                         let machines = reconnect_machines.lock().await;
-                        machines.get(&reconnect_mid).map(|m| (m.config.url.clone(), m.config.token.clone()))
+                        machines.get(&reconnect_mid).map(|m| m.config.url.clone())
                     };
 
-                    if let Some((url, token)) = config {
-                        if attempt_ws_connect(&url, &token).await.is_ok() {
+                    if let Some(url) = url {
+                        if attempt_tcp_probe(&url).await.is_ok() {
                             log::info!("Reconnection probe succeeded for {reconnect_mid}");
                             // Mark as ready for reconnection — frontend should call connect()
                             let _ = reconnect_app.emit("remote-machine-reconnect-ready", &serde_json::json!({
@@ -412,30 +412,25 @@ impl RemoteManager {
     }
 }
 
-/// Probe whether a relay is reachable (connect + immediate close).
-async fn attempt_ws_connect(url: &str, token: &str) -> Result<(), String> {
-    let request = tokio_tungstenite::tungstenite::http::Request::builder()
-        .uri(url)
-        .header("Authorization", format!("Bearer {token}"))
-        .header("Sec-WebSocket-Key", tokio_tungstenite::tungstenite::handshake::client::generate_key())
-        .header("Sec-WebSocket-Version", "13")
-        .header("Connection", "Upgrade")
-        .header("Upgrade", "websocket")
-        .header("Host", extract_host(url).unwrap_or_default())
-        .body(())
-        .map_err(|e| format!("Request build failed: {e}"))?;
+/// Probe whether a relay is reachable via TCP connect only (no WS upgrade).
+/// This avoids allocating per-connection resources (PtyManager, SidecarManager) on the relay.
+async fn attempt_tcp_probe(url: &str) -> Result<(), String> {
+    let host = extract_host(url).ok_or_else(|| "Invalid URL".to_string())?;
+    // Parse host:port, default to 9750 if no port
+    let addr = if host.contains(':') {
+        host.clone()
+    } else {
+        format!("{host}:9750")
+    };
 
-    let (ws, _) = tokio::time::timeout(
+    tokio::time::timeout(
         std::time::Duration::from_secs(5),
-        tokio_tungstenite::connect_async(request),
+        tokio::net::TcpStream::connect(&addr),
     )
     .await
     .map_err(|_| "Connection timeout".to_string())?
-    .map_err(|e| format!("Connection failed: {e}"))?;
+    .map_err(|e| format!("TCP connect failed: {e}"))?;
 
-    // Close immediately — this was just a probe
-    let (mut tx, _) = ws.split();
-    let _ = tx.close().await;
     Ok(())
 }
 
