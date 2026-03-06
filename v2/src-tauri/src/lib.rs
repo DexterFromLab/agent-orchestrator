@@ -4,13 +4,17 @@ mod watcher;
 mod session;
 
 use pty::{PtyManager, PtyOptions};
+use session::{Session, SessionDb, LayoutState};
 use sidecar::{AgentQueryOptions, SidecarManager};
+use watcher::FileWatcherManager;
 use std::sync::Arc;
 use tauri::State;
 
 struct AppState {
     pty_manager: Arc<PtyManager>,
     sidecar_manager: Arc<SidecarManager>,
+    session_db: Arc<SessionDb>,
+    file_watcher: Arc<FileWatcherManager>,
 }
 
 // --- PTY commands ---
@@ -64,14 +68,90 @@ fn agent_ready(state: State<'_, AppState>) -> bool {
     state.sidecar_manager.is_ready()
 }
 
+#[tauri::command]
+fn agent_restart(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    state.sidecar_manager.restart(&app)
+}
+
+// --- File watcher commands ---
+
+#[tauri::command]
+fn file_watch(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    pane_id: String,
+    path: String,
+) -> Result<String, String> {
+    state.file_watcher.watch(&app, &pane_id, &path)
+}
+
+#[tauri::command]
+fn file_unwatch(state: State<'_, AppState>, pane_id: String) {
+    state.file_watcher.unwatch(&pane_id);
+}
+
+#[tauri::command]
+fn file_read(state: State<'_, AppState>, path: String) -> Result<String, String> {
+    state.file_watcher.read_file(&path)
+}
+
+// --- Session persistence commands ---
+
+#[tauri::command]
+fn session_list(state: State<'_, AppState>) -> Result<Vec<Session>, String> {
+    state.session_db.list_sessions()
+}
+
+#[tauri::command]
+fn session_save(state: State<'_, AppState>, session: Session) -> Result<(), String> {
+    state.session_db.save_session(&session)
+}
+
+#[tauri::command]
+fn session_delete(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state.session_db.delete_session(&id)
+}
+
+#[tauri::command]
+fn session_update_title(state: State<'_, AppState>, id: String, title: String) -> Result<(), String> {
+    state.session_db.update_title(&id, &title)
+}
+
+#[tauri::command]
+fn session_touch(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state.session_db.touch_session(&id)
+}
+
+#[tauri::command]
+fn layout_save(state: State<'_, AppState>, layout: LayoutState) -> Result<(), String> {
+    state.session_db.save_layout(&layout)
+}
+
+#[tauri::command]
+fn layout_load(state: State<'_, AppState>) -> Result<LayoutState, String> {
+    state.session_db.load_layout()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let pty_manager = Arc::new(PtyManager::new());
     let sidecar_manager = Arc::new(SidecarManager::new());
 
+    // Initialize session database in app data directory
+    let data_dir = dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("bterminal");
+    let session_db = Arc::new(
+        SessionDb::open(&data_dir).expect("Failed to open session database")
+    );
+
+    let file_watcher = Arc::new(FileWatcherManager::new());
+
     let app_state = AppState {
         pty_manager,
         sidecar_manager: sidecar_manager.clone(),
+        session_db,
+        file_watcher,
     };
 
     tauri::Builder::default()
@@ -84,6 +164,17 @@ pub fn run() {
             agent_query,
             agent_stop,
             agent_ready,
+            agent_restart,
+            file_watch,
+            file_unwatch,
+            file_read,
+            session_list,
+            session_save,
+            session_delete,
+            session_update_title,
+            session_touch,
+            layout_save,
+            layout_load,
         ])
         .setup(move |app| {
             if cfg!(debug_assertions) {

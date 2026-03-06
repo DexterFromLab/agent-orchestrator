@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import SessionList from './lib/components/Sidebar/SessionList.svelte';
   import TilingGrid from './lib/components/Layout/TilingGrid.svelte';
-  import { addPane, focusPaneByIndex, getPanes } from './lib/stores/layout.svelte';
+  import { addPane, focusPaneByIndex, getPanes, restoreFromDb } from './lib/stores/layout.svelte';
   import { startAgentDispatcher, stopAgentDispatcher } from './lib/agent-dispatcher';
 
   function newTerminal() {
@@ -27,6 +27,7 @@
 
   onMount(() => {
     startAgentDispatcher();
+    restoreFromDb();
 
     function handleKeydown(e: KeyboardEvent) {
       // Ctrl+N — new terminal

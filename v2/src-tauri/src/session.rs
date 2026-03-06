@@ -1,2 +1,175 @@
 // Session persistence via rusqlite
-// Phase 4: CRUD, layout save/restore
+// Stores sessions, layout preferences, and last-used state
+
+use rusqlite::{Connection, params};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Session {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub session_type: String,
+    pub title: String,
+    pub shell: Option<String>,
+    pub cwd: Option<String>,
+    pub args: Option<Vec<String>>,
+    pub created_at: i64,
+    pub last_used_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LayoutState {
+    pub preset: String,
+    pub pane_ids: Vec<String>,
+}
+
+pub struct SessionDb {
+    conn: Mutex<Connection>,
+}
+
+impl SessionDb {
+    pub fn open(data_dir: &PathBuf) -> Result<Self, String> {
+        std::fs::create_dir_all(data_dir)
+            .map_err(|e| format!("Failed to create data dir: {e}"))?;
+
+        let db_path = data_dir.join("sessions.db");
+        let conn = Connection::open(&db_path)
+            .map_err(|e| format!("Failed to open database: {e}"))?;
+
+        // Enable WAL mode for better concurrent read performance
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+            .map_err(|e| format!("Failed to set pragmas: {e}"))?;
+
+        let db = Self { conn: Mutex::new(conn) };
+        db.migrate()?;
+        Ok(db)
+    }
+
+    fn migrate(&self) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS sessions (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                shell TEXT,
+                cwd TEXT,
+                args TEXT,
+                created_at INTEGER NOT NULL,
+                last_used_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS layout_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                preset TEXT NOT NULL DEFAULT '1-col',
+                pane_ids TEXT NOT NULL DEFAULT '[]'
+            );
+
+            INSERT OR IGNORE INTO layout_state (id, preset, pane_ids) VALUES (1, '1-col', '[]');
+            "
+        ).map_err(|e| format!("Migration failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn list_sessions(&self) -> Result<Vec<Session>, String> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT id, type, title, shell, cwd, args, created_at, last_used_at FROM sessions ORDER BY last_used_at DESC")
+            .map_err(|e| format!("Query prepare failed: {e}"))?;
+
+        let sessions = stmt
+            .query_map([], |row| {
+                let args_json: Option<String> = row.get(5)?;
+                let args: Option<Vec<String>> = args_json.and_then(|j| serde_json::from_str(&j).ok());
+                Ok(Session {
+                    id: row.get(0)?,
+                    session_type: row.get(1)?,
+                    title: row.get(2)?,
+                    shell: row.get(3)?,
+                    cwd: row.get(4)?,
+                    args,
+                    created_at: row.get(6)?,
+                    last_used_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| format!("Query failed: {e}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Row read failed: {e}"))?;
+
+        Ok(sessions)
+    }
+
+    pub fn save_session(&self, session: &Session) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        let args_json = session.args.as_ref().map(|a| serde_json::to_string(a).unwrap_or_default());
+        conn.execute(
+            "INSERT OR REPLACE INTO sessions (id, type, title, shell, cwd, args, created_at, last_used_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                session.id,
+                session.session_type,
+                session.title,
+                session.shell,
+                session.cwd,
+                args_json,
+                session.created_at,
+                session.last_used_at,
+            ],
+        ).map_err(|e| format!("Insert failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn delete_session(&self, id: &str) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])
+            .map_err(|e| format!("Delete failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn update_title(&self, id: &str, title: &str) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE sessions SET title = ?1 WHERE id = ?2",
+            params![title, id],
+        ).map_err(|e| format!("Update failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn touch_session(&self, id: &str) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        conn.execute(
+            "UPDATE sessions SET last_used_at = ?1 WHERE id = ?2",
+            params![now, id],
+        ).map_err(|e| format!("Touch failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn save_layout(&self, layout: &LayoutState) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        let pane_ids_json = serde_json::to_string(&layout.pane_ids).unwrap_or_default();
+        conn.execute(
+            "UPDATE layout_state SET preset = ?1, pane_ids = ?2 WHERE id = 1",
+            params![layout.preset, pane_ids_json],
+        ).map_err(|e| format!("Layout save failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn load_layout(&self) -> Result<LayoutState, String> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT preset, pane_ids FROM layout_state WHERE id = 1")
+            .map_err(|e| format!("Layout query failed: {e}"))?;
+
+        stmt.query_row([], |row| {
+            let preset: String = row.get(0)?;
+            let pane_ids_json: String = row.get(1)?;
+            let pane_ids: Vec<String> = serde_json::from_str(&pane_ids_json).unwrap_or_default();
+            Ok(LayoutState { preset, pane_ids })
+        }).map_err(|e| format!("Layout read failed: {e}"))
+    }
+}

@@ -1,3 +1,14 @@
+import {
+  listSessions,
+  saveSession,
+  deleteSession,
+  updateSessionTitle,
+  touchSession,
+  saveLayout,
+  loadLayout,
+  type PersistedSession,
+} from '../adapters/session-bridge';
+
 export type LayoutPreset = '1-col' | '2-col' | '3-col' | '2x2' | 'master-stack';
 
 export type PaneType = 'terminal' | 'agent' | 'markdown' | 'empty';
@@ -15,6 +26,33 @@ export interface Pane {
 let panes = $state<Pane[]>([]);
 let activePreset = $state<LayoutPreset>('1-col');
 let focusedPaneId = $state<string | null>(null);
+let initialized = false;
+
+// --- Persistence helpers (fire-and-forget with error logging) ---
+
+function persistSession(pane: Pane): void {
+  const now = Math.floor(Date.now() / 1000);
+  const session: PersistedSession = {
+    id: pane.id,
+    type: pane.type,
+    title: pane.title,
+    shell: pane.shell,
+    cwd: pane.cwd,
+    args: pane.args,
+    created_at: now,
+    last_used_at: now,
+  };
+  saveSession(session).catch(e => console.warn('Failed to persist session:', e));
+}
+
+function persistLayout(): void {
+  saveLayout({
+    preset: activePreset,
+    pane_ids: panes.map(p => p.id),
+  }).catch(e => console.warn('Failed to persist layout:', e));
+}
+
+// --- Public API ---
 
 export function getPanes(): Pane[] {
   return panes;
@@ -32,6 +70,8 @@ export function addPane(pane: Omit<Pane, 'focused'>): void {
   panes.push({ ...pane, focused: false });
   focusPane(pane.id);
   autoPreset();
+  persistSession({ ...pane, focused: false });
+  persistLayout();
 }
 
 export function removePane(id: string): void {
@@ -40,11 +80,14 @@ export function removePane(id: string): void {
     focusedPaneId = panes.length > 0 ? panes[0].id : null;
   }
   autoPreset();
+  deleteSession(id).catch(e => console.warn('Failed to delete session:', e));
+  persistLayout();
 }
 
 export function focusPane(id: string): void {
   focusedPaneId = id;
   panes = panes.map(p => ({ ...p, focused: p.id === id }));
+  touchSession(id).catch(e => console.warn('Failed to touch session:', e));
 }
 
 export function focusPaneByIndex(index: number): void {
@@ -55,6 +98,53 @@ export function focusPaneByIndex(index: number): void {
 
 export function setPreset(preset: LayoutPreset): void {
   activePreset = preset;
+  persistLayout();
+}
+
+export function renamePaneTitle(id: string, title: string): void {
+  const pane = panes.find(p => p.id === id);
+  if (pane) {
+    pane.title = title;
+    updateSessionTitle(id, title).catch(e => console.warn('Failed to update title:', e));
+  }
+}
+
+/** Restore panes and layout from SQLite on app startup */
+export async function restoreFromDb(): Promise<void> {
+  if (initialized) return;
+  initialized = true;
+
+  try {
+    const [sessions, layout] = await Promise.all([listSessions(), loadLayout()]);
+
+    if (layout.preset) {
+      activePreset = layout.preset as LayoutPreset;
+    }
+
+    // Restore panes in layout order, falling back to DB order
+    const sessionMap = new Map(sessions.map(s => [s.id, s]));
+    const orderedIds = layout.pane_ids.length > 0 ? layout.pane_ids : sessions.map(s => s.id);
+
+    for (const id of orderedIds) {
+      const s = sessionMap.get(id);
+      if (!s) continue;
+      panes.push({
+        id: s.id,
+        type: s.type as PaneType,
+        title: s.title,
+        shell: s.shell ?? undefined,
+        cwd: s.cwd ?? undefined,
+        args: s.args ?? undefined,
+        focused: false,
+      });
+    }
+
+    if (panes.length > 0) {
+      focusPane(panes[0].id);
+    }
+  } catch (e) {
+    console.warn('Failed to restore sessions from DB:', e);
+  }
 }
 
 function autoPreset(): void {

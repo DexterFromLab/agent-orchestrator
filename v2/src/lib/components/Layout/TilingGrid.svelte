@@ -2,6 +2,7 @@
   import PaneContainer from './PaneContainer.svelte';
   import TerminalPane from '../Terminal/TerminalPane.svelte';
   import AgentPane from '../Agent/AgentPane.svelte';
+  import MarkdownPane from '../Markdown/MarkdownPane.svelte';
   import {
     getPanes,
     getGridTemplate,
@@ -54,9 +55,15 @@
               cwd={pane.cwd}
               onExit={() => removePane(pane.id)}
             />
+          {:else if pane.type === 'markdown'}
+            <MarkdownPane
+              paneId={pane.id}
+              filePath={pane.cwd ?? ''}
+              onExit={() => removePane(pane.id)}
+            />
           {:else}
             <div class="placeholder">
-              <p>{pane.type} pane — coming in Phase 4</p>
+              <p>{pane.type} pane — coming soon</p>
             </div>
           {/if}
         </PaneContainer>

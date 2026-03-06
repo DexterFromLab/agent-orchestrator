@@ -33,15 +33,46 @@
       title: `Agent ${num}`,
     });
   }
+
+  let fileInputEl: HTMLInputElement | undefined = $state();
+
+  function openMarkdown() {
+    fileInputEl?.click();
+  }
+
+  function handleFileSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    // Tauri file paths from input elements include the full path
+    const path = (file as any).path ?? file.name;
+    const id = crypto.randomUUID();
+    addPane({
+      id,
+      type: 'markdown',
+      title: file.name,
+      cwd: path,
+    });
+    input.value = '';
+  }
 </script>
 
 <div class="session-list">
   <div class="header">
     <h2>Sessions</h2>
     <div class="header-buttons">
+      <button class="new-btn" onclick={openMarkdown} title="Open markdown file">M</button>
       <button class="new-btn" onclick={newAgent} title="New agent (Ctrl+Shift+N)">A</button>
       <button class="new-btn" onclick={newTerminal} title="New terminal (Ctrl+N)">+</button>
     </div>
+    <input
+      bind:this={fileInputEl}
+      type="file"
+      accept=".md,.markdown,.txt"
+      onchange={handleFileSelect}
+      style="display: none;"
+    />
   </div>
 
   <div class="layout-presets">
@@ -65,7 +96,7 @@
       {#each panes as pane (pane.id)}
         <li class="pane-item" class:focused={pane.focused}>
           <button class="pane-btn" onclick={() => focusPane(pane.id)}>
-            <span class="pane-icon">{pane.type === 'terminal' ? '>' : pane.type === 'agent' ? '*' : '#'}</span>
+            <span class="pane-icon">{pane.type === 'terminal' ? '>' : pane.type === 'agent' ? '*' : pane.type === 'markdown' ? 'M' : '#'}</span>
             <span class="pane-name">{pane.title}</span>
           </button>
           <button class="remove-btn" onclick={() => removePane(pane.id)}>&times;</button>
