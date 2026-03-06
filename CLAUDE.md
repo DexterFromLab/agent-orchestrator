@@ -67,8 +67,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Settings/SettingsDialog.svelte` | Settings modal (shell, cwd, max panes, theme) |
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |
-| `v2/sidecar/agent-runner.ts` | Node.js sidecar (spawns claude CLI) |
-| `v2/sidecar/agent-runner-deno.ts` | Deno sidecar (preferred when deno available) |
+| `v2/sidecar/agent-runner.ts` | Node.js sidecar (uses @anthropic-ai/claude-agent-sdk) |
+| `v2/sidecar/agent-runner-deno.ts` | Deno sidecar (preferred, uses npm:@anthropic-ai/claude-agent-sdk) |
 | `v2/src/lib/adapters/sdk-messages.test.ts` | Vitest tests for SDK message adapter (25 tests) |
 | `v2/src/lib/adapters/agent-bridge.test.ts` | Vitest tests for agent IPC bridge (11 tests) |
 | `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (28 tests) |
@@ -87,8 +87,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Tauri 2.x (Rust backend) + Svelte 5 (frontend)
 - Cargo workspace: bterminal-core (shared), bterminal-relay (remote binary), src-tauri (Tauri app)
 - xterm.js with Canvas addon (no WebGL on WebKit2GTK)
-- Agent sessions via `claude` CLI subprocess with `--output-format stream-json`
-- Sidecar manages claude processes (Deno-first + Node.js fallback, stdio NDJSON to Rust)
+- Agent sessions via `@anthropic-ai/claude-agent-sdk` query() function (migrated from raw CLI spawning)
+- Sidecar uses SDK internally (Deno-first + Node.js fallback, stdio NDJSON to Rust)
 - portable-pty for terminal management (in bterminal-core)
 - Multi-machine: bterminal-relay WebSocket server + RemoteManager WebSocket client
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup
@@ -96,7 +96,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Rust deps (src-tauri): tauri, bterminal-core (path), rusqlite (bundled), dirs, notify, serde, tokio, tokio-tungstenite, futures-util, tauri-plugin-updater
 - Rust deps (bterminal-core): portable-pty, uuid, serde, serde_json, log
 - Rust deps (bterminal-relay): bterminal-core, tokio, tokio-tungstenite, clap, env_logger, futures-util
-- npm deps: @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, marked, shiki, vitest (dev)
+- npm deps: @anthropic-ai/claude-agent-sdk, @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, marked, shiki, vitest (dev)
 - Source: `v2/` directory
 
 ## Build / Run

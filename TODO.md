@@ -2,7 +2,7 @@
 
 ## Active
 
-- [ ] **Deno sidecar real-world testing** -- Integrated into sidecar.rs (Deno-first + Node.js fallback). Needs testing with real claude CLI and startup time benchmark vs Node.js.
+- [ ] **AgentPane onDestroy session kill bug** -- AgentPane.svelte onDestroy calls stopAgent() on component unmount, killing running sessions when panes are switched/collapsed. Fix: decouple session lifecycle from component lifecycle.
 - [ ] **E2E testing (Playwright/WebDriver)** -- Scaffold at v2/tests/e2e/README.md. Needs display server to run. Test: open terminal, run command, open agent, verify output.
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines (local + 1 remote). Verify PTY + agent operations over WebSocket.
 - [ ] **Multi-machine TLS/certificate pinning** -- Add TLS support to bterminal-relay and certificate pinning in RemoteManager for production security.
@@ -10,7 +10,8 @@
 
 ## Completed
 
-- [x] **Sidecar CLAUDE* env var leak fix** -- Both sidecar runners now strip ALL CLAUDE-prefixed env vars before spawning claude CLI. Prevents silent hang when BTerminal launched from Claude Code terminal. | Done: 2026-03-06
+- [x] **Sidecar SDK migration** -- Migrated both sidecar runners from raw `claude` CLI spawning to `@anthropic-ai/claude-agent-sdk` query(). Fixes silent hang bug (CLI #6775). SDK handles subprocess internally. Added ^0.2.70 dependency, build:sidecar script, updated Deno permissions. | Done: 2026-03-06
+- [x] **Sidecar CLAUDE* env var leak fix** -- Both sidecar runners now strip ALL CLAUDE-prefixed env vars via SDK `env` option. Prevents nesting detection when BTerminal launched from Claude Code terminal. | Done: 2026-03-06
 - [x] **Multi-machine reconnection** -- Exponential backoff reconnection (1s-30s cap) in RemoteManager, attempt_tcp_probe() (TCP-only), frontend reconnection listeners + auto-reconnect. | Done: 2026-03-06
 - [x] **Relay command response propagation** -- Structured responses (pty_created, pong, error) with commandId correlation, send_error() helper. | Done: 2026-03-06
 - [x] **Multi-machine support (Phases A-D)** -- bterminal-core crate extraction, bterminal-relay WebSocket binary, RemoteManager, frontend integration. | Done: 2026-03-06

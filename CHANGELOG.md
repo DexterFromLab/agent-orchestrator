@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `@anthropic-ai/claude-agent-sdk` ^0.2.70 npm dependency for sidecar agent session management
+- `build:sidecar` npm script for esbuild bundling of agent-runner.ts with SDK as external
+
+### Changed
+- Sidecar agent runners migrated from raw `claude` CLI spawning (`child_process.spawn`/`Deno.Command`) to `@anthropic-ai/claude-agent-sdk` query() function — fixes silent hang when CLI spawned with piped stdio (known bug github.com/anthropics/claude-code/issues/6775)
+- agent-runner.ts: sessions now use `{ query: Query, controller: AbortController }` map instead of `ChildProcess` map; stop uses `controller.abort()` instead of `child.kill()`
+- agent-runner-deno.ts: sessions now use `AbortController` map; uses `npm:@anthropic-ai/claude-agent-sdk` import specifier
+- Deno sidecar permissions expanded: added `--allow-write` and `--allow-net` flags in sidecar.rs (required by SDK)
+- CLAUDE* env var stripping now passes clean env via SDK's `env` option in query() instead of filtering process.env before spawn
+- SDK query() options: `permissionMode: 'bypassPermissions'`, `allowDangerouslySkipPermissions: true`, 10 allowedTools (Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, TodoWrite, NotebookEdit)
+
+### Previously Added
 - Exponential backoff reconnection in RemoteManager: on disconnect, spawns async task with 1s/2s/4s/8s/16s/30s-cap backoff, uses attempt_tcp_probe() (TCP-only, no WS upgrade, 5s timeout, default port 9750), emits remote-machine-reconnecting and remote-machine-reconnect-ready events
 - Frontend reconnection listeners: onRemoteMachineReconnecting and onRemoteMachineReconnectReady in remote-bridge.ts; machines store sets status to 'reconnecting' and auto-calls connectMachine() on ready
 - Relay command response propagation: bterminal-relay now sends structured responses (pty_created, pong, error) back to client via shared event channel with commandId correlation
