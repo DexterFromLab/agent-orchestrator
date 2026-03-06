@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) all 6 phases complete plus extras (SSH management, ctx integration, theme flavors, detached pane mode, auto-updater). Packaging: .deb + AppImage via GitHub Actions CI.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-6 complete plus Phase 7 (agent teams/subagent support) in progress. Packaging: .deb + AppImage via GitHub Actions CI.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -22,7 +22,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `install-v2.sh` | v2 build-from-source installer (Node.js 20+, Rust 1.77+, system libs) |
 | `.github/workflows/release.yml` | CI: builds .deb + AppImage on v* tags, uploads to GitHub Releases |
 | `docs/task_plan.md` | v2 architecture decisions and strategies |
-| `docs/phases.md` | v2 implementation phases (1-6) |
+| `docs/phases.md` | v2 implementation phases (1-7) |
 | `docs/findings.md` | v2 research findings |
 | `docs/progress.md` | Session progress log |
 | `v2/src-tauri/src/pty.rs` | PTY backend (portable-pty, PtyManager) |
@@ -32,13 +32,13 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/watcher.rs` | FileWatcherManager (notify crate, file change events) |
 | `v2/src-tauri/src/ctx.rs` | CtxDb (read-only access to ~/.claude-context/context.db) |
 | `v2/src/lib/stores/layout.svelte.ts` | Layout store (panes, presets, groups, persistence, Svelte 5 runes) |
-| `v2/src/lib/stores/agents.svelte.ts` | Agent session store (messages, cost) |
+| `v2/src/lib/stores/agents.svelte.ts` | Agent session store (messages, cost, parent/child hierarchy) |
 | `v2/src/lib/components/Terminal/TerminalPane.svelte` | xterm.js terminal pane |
 | `v2/src/lib/components/Agent/AgentPane.svelte` | Agent session pane (prompt, messages, cost) |
 | `v2/src/lib/adapters/pty-bridge.ts` | PTY IPC wrapper (Tauri invoke/listen) |
 | `v2/src/lib/adapters/agent-bridge.ts` | Agent IPC wrapper (Tauri invoke/listen) |
 | `v2/src/lib/adapters/sdk-messages.ts` | SDK message adapter (stream-json parser) |
-| `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + toast notifications |
+| `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + subagent pane spawning + toast notifications |
 | `v2/src/lib/adapters/file-bridge.ts` | File watcher IPC wrapper |
 | `v2/src/lib/adapters/settings-bridge.ts` | Settings IPC wrapper (get/set/list) |
 | `v2/src/lib/adapters/ctx-bridge.ts` | ctx database IPC wrapper |
@@ -74,7 +74,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Context DB: `~/.claude-context/context.db`
 - Theme: Catppuccin Mocha
 
-## v2 Stack (all phases complete, branch: v2-mission-control)
+## v2 Stack (Phases 1-6 complete, Phase 7 in progress, branch: v2-mission-control)
 
 - Tauri 2.x (Rust backend) + Svelte 5 (frontend)
 - xterm.js with Canvas addon (no WebGL on WebKit2GTK)

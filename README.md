@@ -2,7 +2,7 @@
 
 Terminal with session panel (MobaXterm-style), built with GTK 3 + VTE. Catppuccin Mocha theme.
 
-> **v2 all phases complete + extras:** Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. Features: multi-pane terminal with PTY backend and copy/paste, agent panes with structured output, tree visualization with subtree cost and session resume, session groups/folders with collapsible sidebar headers, SSH session management, ctx context database viewer, SQLite session persistence with layout restore, live markdown file viewer with Shiki syntax highlighting, global status bar with cost tracking, toast notifications, settings dialog with theme flavors (Catppuccin Latte/Frappe/Macchiato/Mocha) and live hot-swap, detached pane mode (pop-out windows), pane drag-resize handles, auto-updater plugin with signing key configured, Deno-first sidecar with Node.js fallback, CSS Grid tiling, .deb + AppImage packaging, GitHub Actions CI, 104 vitest + 29 cargo tests. Branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
+> **v2 Phases 1-6 complete, Phase 7 (agent teams) in progress:** Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. Features: multi-pane terminal with PTY backend and copy/paste, agent panes with structured output, tree visualization with subtree cost and session resume, **subagent/agent-teams support** (auto-spawns child panes for subagents with parent/child navigation), session groups/folders with collapsible sidebar headers, SSH session management, ctx context database viewer, SQLite session persistence with layout restore, live markdown file viewer with Shiki syntax highlighting, global status bar with cost tracking, toast notifications, settings dialog with theme flavors (Catppuccin Latte/Frappe/Macchiato/Mocha) and live hot-swap, detached pane mode (pop-out windows), pane drag-resize handles, auto-updater plugin with signing key configured, Deno-first sidecar with Node.js fallback, CSS Grid tiling, .deb + AppImage packaging, GitHub Actions CI, 104 vitest + 29 cargo tests. Branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
 
 ![BTerminal](screenshot.png)
 
@@ -114,7 +114,7 @@ Context database: `~/.claude-context/context.db`
 | Document | Description |
 |----------|-------------|
 | [docs/task_plan.md](docs/task_plan.md) | v2 architecture decisions, error handling, testing strategy |
-| [docs/phases.md](docs/phases.md) | v2 implementation phases (1-6) with checklists |
+| [docs/phases.md](docs/phases.md) | v2 implementation phases (1-7) with checklists |
 | [docs/findings.md](docs/findings.md) | Research findings (Agent SDK, Tauri, xterm.js, performance) |
 | [docs/progress.md](docs/progress.md) | Session-by-session progress log |
 

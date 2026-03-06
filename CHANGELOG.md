@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Agent teams/subagent support (Phase 7): auto-detects subagent tool calls ('Agent', 'Task', 'dispatch_agent'), spawns child agent panes with parent/child navigation, routes messages via parentId field
+- Agent store parent/child hierarchy: AgentSession extended with parentSessionId, parentToolUseId, childSessionIds; findChildByToolUseId() and getChildSessions() query functions
+- AgentPane parent link bar: SUB badge with navigate-to-parent button for subagent panes
+- AgentPane children bar: clickable chips per child subagent with status-colored indicators (running/done/error)
+- SessionList subagent icon: subagent panes show '↳' instead of '*' in sidebar
 - Session groups/folders: group_name column in sessions table, setPaneGroup in layout store, collapsible group headers in sidebar with arrow/count, right-click pane to set group
 - Auto-update signing key: generated minisign keypair, pubkey configured in tauri.conf.json updater section
 - Deno-first sidecar: SidecarCommand struct in sidecar.rs, resolve_sidecar_command() prefers Deno (runs TS directly) with Node.js fallback, both runners bundled via tauri.conf.json resources
@@ -26,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tempfile dev dependency for Rust test isolation
 
 ### Changed
+- Agent dispatcher refactored to split messages: parentId-bearing messages routed to child panes via toolUseToChildPane Map, main session messages stay in parent
+- Agent store createAgentSession() now accepts optional parent parameter for registering bidirectional parent/child links
+- Agent store removeAgentSession() cleans up parent's childSessionIds on removal
 - Sidecar manager refactored from Node.js-only to Deno-first with Node.js fallback (SidecarCommand abstraction)
 - Session struct: added group_name field with serde default
 - SessionDb: added update_group method, list/save queries updated for group_name column
