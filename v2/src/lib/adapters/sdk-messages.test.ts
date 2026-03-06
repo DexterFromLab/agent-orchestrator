@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { adaptSDKMessage } from './sdk-messages';
-import type { InitContent, TextContent, ThinkingContent, ToolCallContent, ToolResultContent, StatusContent, CostContent, ErrorContent } from './sdk-messages';
+import type { InitContent, TextContent, ThinkingContent, ToolCallContent, ToolResultContent, StatusContent, CostContent } from './sdk-messages';
 
 // Mock crypto.randomUUID for deterministic IDs when uuid is missing
 beforeEach(() => {
