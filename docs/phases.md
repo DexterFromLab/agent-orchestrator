@@ -132,7 +132,7 @@ bterminal-v2/
 ## Phase 3: Agent SDK Integration [status: complete] — MVP
 
 ### Backend
-- [x] Node.js sidecar: spawns `claude` CLI with `--output-format stream-json` (not Agent SDK query() — avoids npm dep + version churn)
+- [x] Node.js/Deno sidecar: uses `@anthropic-ai/claude-agent-sdk` query() function (migrated from raw CLI spawning due to piped stdio hang bug #6775)
 - [x] Sidecar communication: Rust spawns Node.js, stdio NDJSON
 - [x] Sidecar lifecycle: auto-start on app launch, shutdown on exit
 - [x] Sidecar lifecycle: detect crash, offer restart in UI (agent_restart command + restart button)

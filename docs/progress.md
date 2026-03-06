@@ -72,7 +72,7 @@
 - [x] AgentPane component: prompt input, message rendering, stop button, cost display (AgentPane.svelte, 420 lines)
 - [x] UI integration: Ctrl+Shift+N for new agent, sidebar agent button, TilingGrid routing
 
-Architecture decision: Uses `claude` CLI with `--output-format stream-json` instead of Agent SDK `query()` API. Avoids SDK npm dependency and version churn while getting identical structured output.
+Architecture decision: Initially used `claude` CLI with `--output-format stream-json`. Migrated to `@anthropic-ai/claude-agent-sdk` query() due to CLI piped stdio hang bug (#6775). SDK outputs same message format, so adapter unchanged.
 
 ### Bug Fix: Svelte 5 Rune File Extensions (2026-03-06)
 - [x] Diagnosed blank screen / "rune_outside_svelte" runtime error
@@ -354,9 +354,28 @@ Design: No separate sidecar process per subagent. Parent's sidecar handles all; 
 - [x] Fixed agent-runner-deno.ts: same approach, iterate Deno.env.toObject() and skip CLAUDE-prefixed keys
 - [x] Pre-built dist/agent-runner.mjs already updated with the fix
 
+### Session: 2026-03-06 (continued) — Sidecar SDK Migration
+
+#### Migration from CLI Spawning to Agent SDK
+- [x] Diagnosed root cause of silent agent sessions: claude CLI v2.1.69 hangs when spawned via child_process.spawn() with piped stdio (known bug: github.com/anthropics/claude-code/issues/6775)
+- [x] Migrated agent-runner.ts from `child_process.spawn('claude', ...)` to `@anthropic-ai/claude-agent-sdk` query() function
+- [x] Migrated agent-runner-deno.ts from `Deno.Command('claude', ...)` to `import { query } from "npm:@anthropic-ai/claude-agent-sdk"`
+- [x] Added @anthropic-ai/claude-agent-sdk ^0.2.70 as npm dependency
+- [x] SDK query() returns async iterable of messages — same format as CLI stream-json, so sdk-messages.ts adapter unchanged
+- [x] Session stop now uses AbortController.abort() instead of process.kill()
+- [x] CLAUDE* env var stripping preserved via SDK's `env` option in query() options
+- [x] Updated sidecar.rs Deno permissions: added --allow-write and --allow-net (required by SDK)
+- [x] Added build:sidecar script to package.json (esbuild bundle with @anthropic-ai/claude-agent-sdk as external)
+- [x] SDK options: permissionMode: 'bypassPermissions', allowDangerouslySkipPermissions: true, 10 allowedTools
+- [x] Tested standalone: SDK sidecar successfully produced agent output
+- [x] All 114 vitest tests pass, Rust compiles clean
+
+#### Bug Found (not yet fixed)
+- [ ] AgentPane.svelte onDestroy calls stopAgent() on component unmount — kills running sessions when panes are switched/collapsed, not just when explicitly closed
+
 ### Next Steps
+- [ ] Fix AgentPane onDestroy session killing bug
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections
-- [ ] Deno sidecar: test with real claude CLI, benchmark startup time vs Node.js
 - [ ] E2E testing with Playwright/WebDriver (when display server available)
 - [ ] Test agent teams with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1

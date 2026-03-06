@@ -74,12 +74,13 @@ The Agent SDK cannot run in Rust or the webview. Solution:
 └─────────────────────────────────────────────────────┘
 ```
 
-- Rust spawns Node.js child process on app launch (auto-start in setup)
+- Rust spawns Node.js/Deno child process on app launch (auto-start in setup, Deno-first)
 - Communication: stdio with newline-delimited JSON (simple, no socket server)
-- Node.js process runs a thin wrapper that spawns `claude -p --output-format stream-json` and forwards NDJSON events
+- Node.js/Deno process uses `@anthropic-ai/claude-agent-sdk` query() function which handles claude subprocess management internally
+- SDK messages forwarded as-is via NDJSON — same format as CLI stream-json
 - If sidecar crashes: detect via process exit, show error in UI, offer restart
 - **Packaging:** Bundle the sidecar JS as a single file (esbuild bundle). Require Node.js 20+ as system dependency. Document in install.sh.
-- **Future:** Could replace Node.js with Deno (single binary, no npm) for better packaging.
+- **Deno-first:** SidecarCommand struct abstracts runtime. Deno preferred (runs TS directly, no build step). Falls back to Node.js if Deno not in PATH.
 
 ### SDK Abstraction Layer
 
@@ -124,7 +125,8 @@ See [phases.md](phases.md) for the full phased implementation plan.
 | SDK abstraction layer | SDK is 0.2.x, 127 versions in 5 months. Must insulate UI from wire format changes | 2026-03-05 |
 | MVP = Phases 1-4 | Ship usable tool before tackling tree viz, packaging, polish | 2026-03-05 |
 | Canvas addon (not WebGL) | WebKit2GTK has no WebGL. Explicit Canvas addon avoids silent fallback | 2026-03-05 |
-| claude CLI over Agent SDK query() | Use `claude -p --output-format stream-json` instead of SDK npm package. Avoids dependency + version churn, identical structured output | 2026-03-06 |
+| claude CLI over Agent SDK query() | SUPERSEDED — initially used `claude -p --output-format stream-json` to avoid SDK dep. CLI hangs with piped stdio (bug #6775). Migrated to `@anthropic-ai/claude-agent-sdk` query() which handles subprocess internally | 2026-03-06 |
+| Agent SDK migration | Replaced raw CLI spawning with @anthropic-ai/claude-agent-sdk query(). SDK handles subprocess management, auth, nesting detection. Messages same format as stream-json so adapter unchanged. AbortController for session stop. | 2026-03-06 |
 | `.svelte.ts` for rune stores | Svelte 5 `$state`/`$derived` runes require `.svelte.ts` extension (not `.ts`). Compiler silently passes `.ts` but runes fail at runtime. All store files must use `.svelte.ts`. | 2026-03-06 |
 | SQLite settings table for app config | Key-value `settings` table in session.rs for persisting user preferences (shell, cwd, max panes). Simple and extensible without schema migrations. | 2026-03-06 |
 | Toast notifications over persistent log | Ephemeral toasts (4s auto-dismiss, max 5) for agent events rather than a persistent notification log. Keeps UI clean; persistent logs can be added later if needed. | 2026-03-06 |
@@ -150,7 +152,7 @@ See [phases.md](phases.md) for the full phased implementation plan.
 
 ## Open Questions
 
-1. **Node.js or Deno for sidecar?** Resolved: Deno-first with Node.js fallback. SidecarCommand struct in sidecar.rs abstracts the choice. Deno preferred (runs TS directly, compiles to single binary). Falls back to Node.js if Deno not in PATH.
+1. **Node.js or Deno for sidecar?** Resolved: Deno-first with Node.js fallback. SidecarCommand struct in sidecar.rs abstracts the choice. Deno preferred (runs TS directly, compiles to single binary). Falls back to Node.js if Deno not in PATH. Both now use `@anthropic-ai/claude-agent-sdk` query() instead of raw CLI spawning.
 2. **Multi-machine support?** Resolved: Implemented (Phases A-D complete). See [multi-machine.md](multi-machine.md) for architecture. bterminal-core crate extracted, bterminal-relay binary built, RemoteManager + frontend integration done. Reconnection with exponential backoff implemented. Remaining: real-world testing, TLS.
 3. **Agent Teams integration?** Phase 7 — frontend routing implemented (subagent pane spawning, parent/child navigation). Needs real-world testing with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 4. **Electron escape hatch threshold?** If Canvas xterm.js proves >50ms latency on target system with 4 panes, switch to Electron. Benchmark in Phase 2.
@@ -182,3 +184,4 @@ See [phases.md](phases.md) for the full phased implementation plan.
 | Error | Cause | Fix | Date |
 |---|---|---|---|
 | Blank screen, "rune_outside_svelte" runtime error | Store files used `.ts` extension but contain Svelte 5 `$state`/`$derived` runes. Runes only work in `.svelte` and `.svelte.ts` files. Compiler silently passes but fails at runtime. | Renamed stores to `.svelte.ts`, updated all import paths to use `.svelte` suffix | 2026-03-06 |
+| Agent sessions produce no output (silent hang) | Claude CLI v2.1.69 hangs when spawned via child_process.spawn() with piped stdio. Known bug: github.com/anthropics/claude-code/issues/6775 | Migrated sidecar from raw CLI spawning to `@anthropic-ai/claude-agent-sdk` query() function. SDK handles subprocess management internally. | 2026-03-06 |
