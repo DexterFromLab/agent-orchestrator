@@ -220,6 +220,8 @@ impl SidecarManager {
                             "--allow-run".to_string(),
                             "--allow-env".to_string(),
                             "--allow-read".to_string(),
+                            "--allow-write".to_string(),
+                            "--allow-net".to_string(),
                             deno_path.to_string_lossy().to_string(),
                         ],
                     });

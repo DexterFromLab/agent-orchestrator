@@ -1,15 +1,15 @@
 // Agent Runner — Node.js sidecar entry point
 // Spawned by Rust backend, communicates via stdio NDJSON
-// Manages claude CLI subprocess with --output-format stream-json
+// Uses @anthropic-ai/claude-agent-sdk for proper Claude session management
 
 import { stdin, stdout, stderr } from 'process';
 import { createInterface } from 'readline';
-import { spawn, type ChildProcess } from 'child_process';
+import { query, type Query } from '@anthropic-ai/claude-agent-sdk';
 
 const rl = createInterface({ input: stdin });
 
 // Active agent sessions keyed by session ID
-const sessions = new Map<string, ChildProcess>();
+const sessions = new Map<string, { query: Query; controller: AbortController }>();
 
 function send(msg: Record<string, unknown>) {
   stdout.write(JSON.stringify(msg) + '\n');
@@ -59,7 +59,7 @@ function handleMessage(msg: Record<string, unknown>) {
   }
 }
 
-function handleQuery(msg: QueryMessage) {
+async function handleQuery(msg: QueryMessage) {
   const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId } = msg;
 
   if (sessions.has(sessionId)) {
@@ -67,114 +67,91 @@ function handleQuery(msg: QueryMessage) {
     return;
   }
 
-  const args = [
-    '-p',
-    '--output-format', 'stream-json',
-    '--verbose',
-  ];
+  log(`Starting agent session ${sessionId} via SDK`);
 
-  if (maxTurns) {
-    args.push('--max-turns', String(maxTurns));
-  }
+  const controller = new AbortController();
 
-  if (maxBudgetUsd) {
-    args.push('--max-budget-usd', String(maxBudgetUsd));
-  }
-
-  if (resumeSessionId) {
-    args.push('--resume', resumeSessionId);
-  }
-
-  args.push(prompt);
-
-  log(`Starting agent session ${sessionId}: claude ${args.join(' ')}`);
-
-  // Strip all CLAUDE* env vars to prevent nesting detection by claude CLI.
-  // When BTerminal is launched from a Claude Code terminal, these leak in.
-  const cleanEnv: Record<string, string> = {};
+  // Strip CLAUDE* env vars to prevent nesting detection by the spawned CLI
+  const cleanEnv: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (!key.startsWith('CLAUDE') && value !== undefined) {
+    if (!key.startsWith('CLAUDE')) {
       cleanEnv[key] = value;
     }
   }
 
-  const child = spawn('claude', args, {
-    cwd: cwd || process.cwd(),
-    env: cleanEnv,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
+  try {
+    const q = query({
+      prompt,
+      options: {
+        abortController: controller,
+        cwd: cwd || process.cwd(),
+        env: cleanEnv,
+        maxTurns: maxTurns ?? undefined,
+        maxBudgetUsd: maxBudgetUsd ?? undefined,
+        resume: resumeSessionId ?? undefined,
+        allowedTools: [
+          'Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep',
+          'WebSearch', 'WebFetch', 'TodoWrite', 'NotebookEdit',
+        ],
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+      },
+    });
 
-  sessions.set(sessionId, child);
+    sessions.set(sessionId, { query: q, controller });
+    send({ type: 'agent_started', sessionId });
 
-  send({ type: 'agent_started', sessionId });
-
-  // Parse NDJSON from claude's stdout
-  const childRl = createInterface({ input: child.stdout! });
-  childRl.on('line', (line: string) => {
-    try {
-      const sdkMsg = JSON.parse(line);
+    for await (const message of q) {
+      // Forward SDK messages as-is — they use the same format as CLI stream-json
+      const sdkMsg = message as Record<string, unknown>;
       send({
         type: 'agent_event',
         sessionId,
         event: sdkMsg,
       });
-    } catch {
-      // Non-JSON output from claude (shouldn't happen with stream-json)
-      log(`Non-JSON from claude stdout: ${line}`);
     }
-  });
 
-  // Capture stderr for debugging
-  const stderrRl = createInterface({ input: child.stderr! });
-  stderrRl.on('line', (line: string) => {
-    log(`[claude:${sessionId}] ${line}`);
-    send({
-      type: 'agent_log',
-      sessionId,
-      message: line,
-    });
-  });
-
-  child.on('error', (err: Error) => {
-    log(`Claude process error for ${sessionId}: ${err.message}`);
-    sessions.delete(sessionId);
-    send({
-      type: 'agent_error',
-      sessionId,
-      message: err.message,
-    });
-  });
-
-  child.on('exit', (code: number | null, signal: string | null) => {
-    log(`Claude process exited for ${sessionId}: code=${code} signal=${signal}`);
+    // Session completed normally
     sessions.delete(sessionId);
     send({
       type: 'agent_stopped',
       sessionId,
-      exitCode: code,
-      signal,
+      exitCode: 0,
+      signal: null,
     });
-  });
+  } catch (err: unknown) {
+    sessions.delete(sessionId);
+    const errMsg = err instanceof Error ? err.message : String(err);
+
+    if (errMsg.includes('aborted') || errMsg.includes('AbortError')) {
+      log(`Agent session ${sessionId} aborted`);
+      send({
+        type: 'agent_stopped',
+        sessionId,
+        exitCode: null,
+        signal: 'SIGTERM',
+      });
+    } else {
+      log(`Agent session ${sessionId} error: ${errMsg}`);
+      send({
+        type: 'agent_error',
+        sessionId,
+        message: errMsg,
+      });
+    }
+  }
 }
 
 function handleStop(msg: StopMessage) {
   const { sessionId } = msg;
-  const child = sessions.get(sessionId);
-  if (!child) {
+  const session = sessions.get(sessionId);
+  if (!session) {
     send({ type: 'error', sessionId, message: 'Session not found' });
     return;
   }
 
   log(`Stopping agent session ${sessionId}`);
-  child.kill('SIGTERM');
-
-  // Force kill after 5s if still running
-  setTimeout(() => {
-    if (sessions.has(sessionId)) {
-      log(`Force killing agent session ${sessionId}`);
-      child.kill('SIGKILL');
-    }
-  }, 5000);
+  session.controller.abort();
 }
 
 log('Sidecar started');

@@ -1,14 +1,15 @@
-// Agent Runner — Deno sidecar entry point (experimental)
+// Agent Runner — Deno sidecar entry point
 // Drop-in replacement for agent-runner.ts using Deno APIs
-// Build: deno compile --allow-run --allow-env --allow-read agent-runner-deno.ts -o dist/agent-runner
-// Run:   deno run --allow-run --allow-env --allow-read agent-runner-deno.ts
+// Uses @anthropic-ai/claude-agent-sdk via npm: specifier
+// Run: deno run --allow-run --allow-env --allow-read --allow-write --allow-net agent-runner-deno.ts
 
 import { TextLineStream } from "https://deno.land/std@0.224.0/streams/text_line_stream.ts";
+import { query } from "npm:@anthropic-ai/claude-agent-sdk";
 
 const encoder = new TextEncoder();
 
-// Active agent sessions keyed by session ID
-const sessions = new Map<string, Deno.ChildProcess>();
+// Active sessions with abort controllers
+const sessions = new Map<string, AbortController>();
 
 function send(msg: Record<string, unknown>) {
   Deno.stdout.writeSync(encoder.encode(JSON.stringify(msg) + "\n"));
@@ -49,7 +50,7 @@ function handleMessage(msg: Record<string, unknown>) {
   }
 }
 
-function handleQuery(msg: QueryMessage) {
+async function handleQuery(msg: QueryMessage) {
   const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId } = msg;
 
   if (sessions.has(sessionId)) {
@@ -57,93 +58,89 @@ function handleQuery(msg: QueryMessage) {
     return;
   }
 
-  const args = ["-p", "--output-format", "stream-json", "--verbose"];
+  log(`Starting agent session ${sessionId} via SDK`);
 
-  if (maxTurns) args.push("--max-turns", String(maxTurns));
-  if (maxBudgetUsd) args.push("--max-budget-usd", String(maxBudgetUsd));
-  if (resumeSessionId) args.push("--resume", resumeSessionId);
-  args.push(prompt);
+  const controller = new AbortController();
 
-  log(`Starting agent session ${sessionId}: claude ${args.join(" ")}`);
-
-  // Strip all CLAUDE* env vars to prevent nesting detection by claude CLI
-  const env: Record<string, string> = {};
+  // Strip CLAUDE* env vars to prevent nesting detection
+  const cleanEnv: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(Deno.env.toObject())) {
     if (!key.startsWith("CLAUDE")) {
-      env[key] = value;
+      cleanEnv[key] = value;
     }
   }
 
-  const command = new Deno.Command("claude", {
-    args,
-    cwd: cwd || Deno.cwd(),
-    env,
-    stdin: "piped",
-    stdout: "piped",
-    stderr: "piped",
-  });
+  try {
+    const q = query({
+      prompt,
+      options: {
+        abortController: controller,
+        cwd: cwd || Deno.cwd(),
+        env: cleanEnv,
+        maxTurns: maxTurns ?? undefined,
+        maxBudgetUsd: maxBudgetUsd ?? undefined,
+        resume: resumeSessionId ?? undefined,
+        allowedTools: [
+          "Bash", "Read", "Write", "Edit", "Glob", "Grep",
+          "WebSearch", "WebFetch", "TodoWrite", "NotebookEdit",
+        ],
+        permissionMode: "bypassPermissions",
+        allowDangerouslySkipPermissions: true,
+      },
+    });
 
-  const child = command.spawn();
-  sessions.set(sessionId, child);
-  send({ type: "agent_started", sessionId });
+    sessions.set(sessionId, controller);
+    send({ type: "agent_started", sessionId });
 
-  // Parse NDJSON from claude's stdout
-  (async () => {
-    const lines = child.stdout
-      .pipeThrough(new TextDecoderStream())
-      .pipeThrough(new TextLineStream());
-    for await (const line of lines) {
-      try {
-        const sdkMsg = JSON.parse(line);
-        send({ type: "agent_event", sessionId, event: sdkMsg });
-      } catch {
-        log(`Non-JSON from claude stdout: ${line}`);
-      }
+    for await (const message of q) {
+      const sdkMsg = message as Record<string, unknown>;
+      send({
+        type: "agent_event",
+        sessionId,
+        event: sdkMsg,
+      });
     }
-  })();
 
-  // Capture stderr
-  (async () => {
-    const lines = child.stderr
-      .pipeThrough(new TextDecoderStream())
-      .pipeThrough(new TextLineStream());
-    for await (const line of lines) {
-      log(`[claude:${sessionId}] ${line}`);
-      send({ type: "agent_log", sessionId, message: line });
-    }
-  })();
-
-  // Wait for exit
-  child.status.then((status) => {
-    log(`Claude process exited for ${sessionId}: code=${status.code} signal=${status.signal}`);
     sessions.delete(sessionId);
     send({
       type: "agent_stopped",
       sessionId,
-      exitCode: status.code,
-      signal: status.signal,
+      exitCode: 0,
+      signal: null,
     });
-  });
+  } catch (err: unknown) {
+    sessions.delete(sessionId);
+    const errMsg = err instanceof Error ? err.message : String(err);
+
+    if (errMsg.includes("aborted") || errMsg.includes("AbortError")) {
+      log(`Agent session ${sessionId} aborted`);
+      send({
+        type: "agent_stopped",
+        sessionId,
+        exitCode: null,
+        signal: "SIGTERM",
+      });
+    } else {
+      log(`Agent session ${sessionId} error: ${errMsg}`);
+      send({
+        type: "agent_error",
+        sessionId,
+        message: errMsg,
+      });
+    }
+  }
 }
 
 function handleStop(msg: StopMessage) {
   const { sessionId } = msg;
-  const child = sessions.get(sessionId);
-  if (!child) {
+  const controller = sessions.get(sessionId);
+  if (!controller) {
     send({ type: "error", sessionId, message: "Session not found" });
     return;
   }
 
   log(`Stopping agent session ${sessionId}`);
-  child.kill("SIGTERM");
-
-  // Force kill after 5s
-  setTimeout(() => {
-    if (sessions.has(sessionId)) {
-      log(`Force killing agent session ${sessionId}`);
-      child.kill("SIGKILL");
-    }
-  }, 5000);
+  controller.abort();
 }
 
 // Main: read NDJSON from stdin
