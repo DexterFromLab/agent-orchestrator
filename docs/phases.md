@@ -254,12 +254,39 @@ bterminal-v2/
 
 ---
 
-## Future: Multi-Machine Support [status: designed]
+## Multi-Machine Support (Phases A-D) [status: complete]
 
-Architecture designed in [multi-machine.md](multi-machine.md). Extends BTerminal to manage agents and terminals on remote machines over WebSocket.
+Architecture designed in [multi-machine.md](multi-machine.md). Implementation extends BTerminal to manage agents and terminals on remote machines over WebSocket.
 
-### Implementation Phases (A-D)
-- [ ] **Phase A:** Extract `bterminal-core` crate (PtyManager + SidecarManager shared code)
-- [ ] **Phase B:** Build `bterminal-relay` binary (WebSocket server, token auth, CLI flags)
-- [ ] **Phase C:** Add `RemoteManager` to controller (remote.rs, WebSocket client connections)
-- [ ] **Phase D:** Frontend integration (bridge adapters with remoteMachineId routing, machine management UI)
+### Phase A: Extract `bterminal-core` crate [status: complete]
+- [x] Created Cargo workspace at v2/ level (v2/Cargo.toml with members)
+- [x] Extracted PtyManager and SidecarManager into shared `bterminal-core` crate
+- [x] Created EventSink trait to abstract Tauri event emission (bterminal-core/src/event.rs)
+- [x] TauriEventSink in src-tauri/src/event_sink.rs implements EventSink
+- [x] src-tauri pty.rs and sidecar.rs now thin re-exports from bterminal-core
+
+### Phase B: Build `bterminal-relay` binary [status: complete]
+- [x] WebSocket server using tokio-tungstenite with token auth
+- [x] CLI flags: --port, --token, --insecure (clap)
+- [x] Routes RelayCommand to PtyManager/SidecarManager, forwards RelayEvent over WebSocket
+- [x] Rate limiting on auth failures (10 attempts, 5min lockout)
+- [x] Per-connection isolated PTY + sidecar managers
+
+### Phase C: Add `RemoteManager` to controller [status: complete]
+- [x] New remote.rs module in src-tauri — WebSocket client connections to relay instances
+- [x] Machine lifecycle: add/remove/connect/disconnect
+- [x] 12 new Tauri commands for remote operations
+- [x] Heartbeat ping every 15s
+
+### Phase D: Frontend integration [status: complete]
+- [x] remote-bridge.ts adapter for machine management + remote events
+- [x] machines.svelte.ts store for remote machine state
+- [x] Layout store: Pane.remoteMachineId field
+- [x] agent-bridge.ts and pty-bridge.ts route to remote commands when remoteMachineId is set
+- [x] SettingsDialog "Remote Machines" section (add/remove/connect/disconnect)
+- [x] Sidebar auto-groups remote panes by machine label
+
+### Remaining Work
+- [ ] Reconnection logic with exponential backoff
+- [ ] Real-world relay testing (2 machines)
+- [ ] TLS/certificate pinning

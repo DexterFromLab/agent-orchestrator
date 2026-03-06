@@ -2,7 +2,7 @@
 
 Terminal with session panel (MobaXterm-style), built with GTK 3 + VTE. Catppuccin Mocha theme.
 
-> **v2 Phases 1-7 complete:** Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. Features: multi-pane terminal with PTY backend and copy/paste, agent panes with structured output, tree visualization with subtree cost and session resume, **subagent/agent-teams support** (auto-spawns child panes for subagents with parent/child navigation and recursive cost aggregation), session groups/folders with collapsible sidebar headers, SSH session management, ctx context database viewer, SQLite session persistence with layout restore, live markdown file viewer with Shiki syntax highlighting, global status bar with cost tracking, toast notifications, settings dialog with theme flavors (Catppuccin Latte/Frappe/Macchiato/Mocha) and live hot-swap, detached pane mode (pop-out windows), pane drag-resize handles, auto-updater plugin with signing key configured, Deno-first sidecar with Node.js fallback, CSS Grid tiling, .deb + AppImage packaging, GitHub Actions CI, 114 vitest + 29 cargo tests. Branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
+> **v2 Phases 1-7 + Multi-Machine (A-D) complete:** Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. Features: multi-pane terminal with PTY backend and copy/paste, agent panes with structured output, tree visualization with subtree cost and session resume, **subagent/agent-teams support** (auto-spawns child panes for subagents with parent/child navigation and recursive cost aggregation), **multi-machine support** (bterminal-relay WebSocket server + RemoteManager for managing agents/terminals on remote machines), session groups/folders with collapsible sidebar headers, SSH session management, ctx context database viewer, SQLite session persistence with layout restore, live markdown file viewer with Shiki syntax highlighting, global status bar with cost tracking, toast notifications, settings dialog with theme flavors (Catppuccin Latte/Frappe/Macchiato/Mocha) and live hot-swap, detached pane mode (pop-out windows), pane drag-resize handles, auto-updater plugin with signing key configured, Deno-first sidecar with Node.js fallback, CSS Grid tiling, .deb + AppImage packaging, GitHub Actions CI, 114 vitest + 29 cargo tests. Branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
 
 ![BTerminal](screenshot.png)
 
@@ -108,6 +108,37 @@ Context database: `~/.claude-context/context.db`
 | `Ctrl+Shift+C` | Copy |
 | `Ctrl+Shift+V` | Paste |
 | `Ctrl+PageUp/Down` | Previous/next tab |
+
+## Multi-Machine Support (v2)
+
+BTerminal v2 can manage agents and terminals running on remote machines via the `bterminal-relay` binary.
+
+### Architecture
+
+```
+BTerminal (Controller) --WebSocket--> bterminal-relay (Remote Machine)
+                                      ├── PtyManager (remote terminals)
+                                      └── SidecarManager (remote agents)
+```
+
+### Running the Relay
+
+On each remote machine:
+
+```bash
+# Build the relay binary
+cd v2 && cargo build --release -p bterminal-relay
+
+# Start with token auth
+./target/release/bterminal-relay --port 9750 --token <secret>
+
+# Dev mode (allow unencrypted ws://)
+./target/release/bterminal-relay --port 9750 --token <secret> --insecure
+```
+
+Add remote machines in BTerminal Settings > Remote Machines (label, URL, token). Remote panes auto-group by machine label in the sidebar.
+
+See [docs/multi-machine.md](docs/multi-machine.md) for full architecture details.
 
 ## Documentation
 

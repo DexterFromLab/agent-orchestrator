@@ -4,10 +4,14 @@
 
 - [ ] **Deno sidecar real-world testing** -- Integrated into sidecar.rs (Deno-first + Node.js fallback). Needs testing with real claude CLI and startup time benchmark vs Node.js.
 - [ ] **E2E testing (Playwright/WebDriver)** -- Scaffold at v2/tests/e2e/README.md. Needs display server to run. Test: open terminal, run command, open agent, verify output.
-- [ ] **Multi-machine support** -- Architecture designed in [docs/multi-machine.md](docs/multi-machine.md). Next: Phase A (extract bterminal-core crate), then Phase B (bterminal-relay binary).
+- [ ] **Multi-machine reconnection** -- Implement exponential backoff reconnection logic (1s-30s cap) in RemoteManager for dropped WebSocket connections.
+- [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines (local + 1 remote). Verify PTY + agent operations over WebSocket.
+- [ ] **Multi-machine TLS/certificate pinning** -- Add TLS support to bterminal-relay and certificate pinning in RemoteManager for production security.
 - [ ] **Agent Teams real-world testing** -- Frontend routing implemented (Phase 7). Needs testing with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 and real subagent spawning.
 
 ## Completed
+
+- [x] **Multi-machine support (Phases A-D)** -- bterminal-core crate extraction, bterminal-relay WebSocket binary, RemoteManager, frontend integration. | Done: 2026-03-06
 
 - [x] **Set TAURI_SIGNING_PRIVATE_KEY secret** -- Set via `gh secret set` on DexterFromLab/BTerminal. | Done: 2026-03-06
 - [x] **Dispatcher tests for subagent routing** -- 10 new tests covering spawn, dedup, child message routing, init/cost forwarding, fallbacks. Total: 28 dispatcher tests. | Done: 2026-03-06

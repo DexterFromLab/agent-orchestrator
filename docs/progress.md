@@ -264,8 +264,57 @@ Design: No separate sidecar process per subagent. Parent's sidecar handles all; 
 - [x] 4-phase implementation plan: A (extract bterminal-core crate), B (relay binary), C (RemoteManager), D (frontend)
 - [x] Updated TODO.md and docs/task_plan.md to reference the design
 
+### Session: 2026-03-06 (continued) — Multi-Machine Implementation (Phases A-D)
+
+#### Phase A: bterminal-core crate extraction
+- [x] Created Cargo workspace at v2/ level (v2/Cargo.toml, workspace members: src-tauri, bterminal-core, bterminal-relay)
+- [x] Extracted PtyManager into v2/bterminal-core/src/pty.rs
+- [x] Extracted SidecarManager into v2/bterminal-core/src/sidecar.rs
+- [x] Created EventSink trait (v2/bterminal-core/src/event.rs) to abstract event emission
+- [x] TauriEventSink (v2/src-tauri/src/event_sink.rs) implements EventSink for Tauri AppHandle
+- [x] src-tauri/src/pty.rs and sidecar.rs now thin re-export wrappers
+- [x] Cargo.lock moved from src-tauri/ to workspace root (v2/)
+
+#### Phase B: bterminal-relay binary
+- [x] New Rust binary at v2/bterminal-relay/ with WebSocket server (tokio-tungstenite)
+- [x] Token auth via Authorization: Bearer header on WebSocket upgrade
+- [x] CLI flags: --port (default 9750), --token (required), --insecure (allow ws://)
+- [x] Routes RelayCommand types (pty_create/write/resize/close, agent_query/stop, sidecar_restart, ping)
+- [x] Forwards RelayEvent types (pty_data/exit, sidecar_message/exited, error, pong, ready)
+- [x] Rate limiting: 10 failed auth attempts triggers 5-minute lockout
+- [x] Per-connection isolated PtyManager + SidecarManager instances
+
+#### Phase C: RemoteManager in controller
+- [x] New v2/src-tauri/src/remote.rs module — RemoteManager struct
+- [x] WebSocket client connections to relay instances (tokio-tungstenite)
+- [x] RemoteMachine struct: id, label, url, token, status (Connected/Connecting/Disconnected/Error)
+- [x] Machine lifecycle: add_machine, remove_machine, connect, disconnect
+- [x] 12 new Tauri commands: remote_add_machine, remote_remove_machine, remote_connect, remote_disconnect, remote_list_machines, remote_pty_spawn/write/resize/kill, remote_agent_query/stop, remote_sidecar_restart
+- [x] Heartbeat ping every 15s to detect stale connections
+
+#### Phase D: Frontend integration
+- [x] v2/src/lib/adapters/remote-bridge.ts — IPC adapter for machine management + remote events
+- [x] v2/src/lib/stores/machines.svelte.ts — Svelte 5 store for remote machine state
+- [x] Layout store: added remoteMachineId?: string to Pane interface
+- [x] agent-bridge.ts: routes to remote_agent_query/stop when pane has remoteMachineId
+- [x] pty-bridge.ts: routes to remote_pty_spawn/write/resize/kill when pane has remoteMachineId
+- [x] SettingsDialog: new "Remote Machines" section (add/remove/connect/disconnect UI)
+- [x] SessionList sidebar: auto-groups remote panes by machine label
+
+#### Verification
+- cargo check --workspace: clean (0 errors)
+- vitest: 114/114 tests passing
+- svelte-check: clean (0 errors)
+
+#### New dependencies added
+- bterminal-core: serde, serde_json, log, portable-pty, uuid (extracted from src-tauri)
+- bterminal-relay: tokio, tokio-tungstenite, clap, env_logger, futures-util
+- src-tauri: tokio-tungstenite, tokio, futures-util, uuid (added for RemoteManager)
+
 ### Next Steps
+- [ ] Reconnection logic with exponential backoff
+- [ ] Real-world relay testing (2 machines)
+- [ ] TLS/certificate pinning for relay connections
 - [ ] Deno sidecar: test with real claude CLI, benchmark startup time vs Node.js
 - [ ] E2E testing with Playwright/WebDriver (when display server available)
-- [ ] Multi-machine Phase A: extract bterminal-core crate
 - [ ] Test agent teams with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1

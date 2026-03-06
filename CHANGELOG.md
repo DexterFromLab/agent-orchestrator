@@ -8,7 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Multi-machine support architecture design (`docs/multi-machine.md`): bterminal-relay binary, WebSocket NDJSON protocol, RemoteManager, pre-shared token + TLS auth, autonomous relay model, 4-phase implementation plan (A: extract bterminal-core crate, B: relay binary, C: RemoteManager, D: frontend integration)
+- bterminal-core shared crate with EventSink trait: extracted PtyManager and SidecarManager into reusable crate at v2/bterminal-core/, EventSink trait abstracts event emission for both Tauri and WebSocket contexts
+- bterminal-relay WebSocket server binary: standalone Rust binary at v2/bterminal-relay/ with token auth (--port, --token, --insecure CLI flags), rate limiting (10 attempts, 5min lockout), per-connection isolated PTY + sidecar managers
+- RemoteManager for multi-machine WebSocket connections: v2/src-tauri/src/remote.rs manages WebSocket client connections to relay instances, 12 new Tauri commands for remote operations, heartbeat ping every 15s
+- Remote machine management UI in settings: SettingsDialog "Remote Machines" section for add/remove/connect/disconnect
+- Auto-grouping of remote panes in sidebar: remote panes auto-grouped by machine label in SessionList
+- remote-bridge.ts adapter for remote machine IPC operations
+- machines.svelte.ts store for remote machine state management (Svelte 5 runes)
+- Pane.remoteMachineId field in layout store for local vs remote routing
+- TauriEventSink (event_sink.rs) implementing EventSink trait for Tauri AppHandle
+- Multi-machine support architecture design (`docs/multi-machine.md`): WebSocket NDJSON protocol, pre-shared token + TLS auth, autonomous relay model
 - Subagent cost aggregation: getTotalCost() recursive helper in agents store aggregates cost across parent + all child sessions; total cost displayed in parent pane done-bar when children present
 - 10 new subagent routing tests in agent-dispatcher.test.ts: spawn, dedup, child message routing, init/cost forwarding, fallbacks (28 total dispatcher tests, 114 vitest tests overall)
 - TAURI_SIGNING_PRIVATE_KEY secret set in GitHub repo for auto-update signing
@@ -35,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tempfile dev dependency for Rust test isolation
 
 ### Changed
+- PtyManager and SidecarManager extracted from src-tauri to bterminal-core shared crate (src-tauri now has thin re-export wrappers)
+- Cargo workspace structure at v2/ level: members = [src-tauri, bterminal-core, bterminal-relay], Cargo.lock moved from src-tauri/ to workspace root
+- agent-bridge.ts and pty-bridge.ts extended with remote routing (check remoteMachineId, route to remote_* commands)
 - Agent dispatcher refactored to split messages: parentId-bearing messages routed to child panes via toolUseToChildPane Map, main session messages stay in parent
 - Agent store createAgentSession() now accepts optional parent parameter for registering bidirectional parent/child links
 - Agent store removeAgentSession() cleans up parent's childSessionIds on removal

@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- Phases 1-7 complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, 114 vitest + 29 cargo tests.
+- Phases 1-7 + multi-machine (A-D) complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, 114 vitest + 29 cargo tests.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -43,6 +43,12 @@
 - Theme flavors (Latte/Frappe/Macchiato/Mocha) override CSS variables at runtime. Open terminals hot-swap via onThemeChange() callback registry in theme.svelte.ts.
 - Detached pane mode: App.svelte checks URL param `?detached=1` and renders a single pane without sidebar/grid chrome. Used for pop-out windows.
 - Shiki syntax highlighting uses lazy singleton pattern (avoid repeated WASM init). 13 languages preloaded. Used in MarkdownPane and AgentPane text messages.
+- Cargo workspace at v2/ level: members = [src-tauri, bterminal-core, bterminal-relay]. Cargo.lock is at workspace root (v2/), not in src-tauri/.
+- EventSink trait (bterminal-core/src/event.rs) abstracts event emission. PtyManager and SidecarManager are in bterminal-core, not src-tauri. src-tauri has thin re-exports.
+- RemoteManager (src-tauri/src/remote.rs) manages WebSocket client connections to bterminal-relay instances. 12 Tauri commands prefixed with `remote_`.
+- remote-bridge.ts adapter wraps remote machine management IPC. machines.svelte.ts store tracks remote machine state.
+- Pane.remoteMachineId?: string routes operations through RemoteManager instead of local managers. Bridge adapters (pty-bridge, agent-bridge) check this field.
+- bterminal-relay binary (v2/bterminal-relay/) is a standalone WebSocket server with token auth, rate limiting, and per-connection isolated managers.
 
 ## Memora Tags
 

@@ -1,4 +1,6 @@
-# Multi-Machine Support — Architecture Design
+# Multi-Machine Support — Architecture & Implementation
+
+**Status: Implemented (Phases A-D complete, 2026-03-06)**
 
 ## Overview
 
@@ -240,38 +242,45 @@ New "Machines" section in settings:
 
 Stored in SQLite `settings` table as JSON: `remote_machines` key.
 
-## Implementation Plan
+## Implementation (All Phases Complete)
 
-### Phase A: Extract `bterminal-core` crate
+### Phase A: Extract `bterminal-core` crate [DONE]
 
-- Extract `PtyManager` and `SidecarManager` into a shared crate
-- `src-tauri` depends on `bterminal-core` instead of owning the code
-- Zero behavior change — purely structural refactor
-- **Estimate:** ~2h of mechanical refactoring
+- Cargo workspace at v2/ level (v2/Cargo.toml with members: src-tauri, bterminal-core, bterminal-relay)
+- PtyManager and SidecarManager extracted to v2/bterminal-core/
+- EventSink trait (bterminal-core/src/event.rs) abstracts event emission
+- TauriEventSink (src-tauri/src/event_sink.rs) implements EventSink for AppHandle
+- src-tauri pty.rs and sidecar.rs are thin re-export wrappers
 
-### Phase B: Build `bterminal-relay` binary
+### Phase B: Build `bterminal-relay` binary [DONE]
 
-- WebSocket server using `tokio-tungstenite`
-- Token auth on upgrade
-- Routes commands to `bterminal-core` managers
-- Forwards events back over WebSocket
-- Includes `--port`, `--token`, `--insecure` CLI flags
-- **Ships as:** single static Rust binary (~5MB), `cargo install bterminal-relay`
+- v2/bterminal-relay/src/main.rs — WebSocket server (tokio-tungstenite)
+- Token auth on WebSocket upgrade (Authorization: Bearer header)
+- CLI: --port (default 9750), --token (required), --insecure (allow ws://)
+- Routes RelayCommand to bterminal-core managers, forwards RelayEvent over WebSocket
+- Rate limiting: 10 failed auth attempts triggers 5-minute lockout
+- Per-connection isolated PtyManager + SidecarManager instances
 
-### Phase C: Add `RemoteManager` to controller
+### Phase C: Add `RemoteManager` to controller [DONE]
 
-- New `remote.rs` module in `src-tauri`
-- Manages WebSocket client connections
-- Tauri commands: `remote_add`, `remote_remove`, `remote_connect`, `remote_disconnect`
-- Forwards remote events as Tauri events (same `sidecar-message` / `pty-data` events, tagged with machine ID)
+- v2/src-tauri/src/remote.rs — RemoteManager struct with WebSocket client connections
+- 12 Tauri commands: remote_add_machine, remote_remove_machine, remote_connect, remote_disconnect, remote_list_machines, remote_pty_spawn/write/resize/kill, remote_agent_query/stop, remote_sidecar_restart
+- Heartbeat ping every 15s
 
-### Phase D: Frontend integration
+### Phase D: Frontend integration [DONE]
 
-- Extend bridge adapters with `remoteMachineId` routing
-- Add machine management UI in settings
-- Add machine status indicators in sidebar
-- Add reconnection banner in pane chrome
-- Test with 2 machines (local + 1 remote)
+- v2/src/lib/adapters/remote-bridge.ts — machine management IPC adapter
+- v2/src/lib/stores/machines.svelte.ts — remote machine state store
+- Pane.remoteMachineId field in layout store
+- agent-bridge.ts and pty-bridge.ts route to remote commands when remoteMachineId is set
+- SettingsDialog "Remote Machines" section
+- Sidebar auto-groups remote panes by machine label
+
+### Remaining Work
+
+- [ ] Reconnection logic with exponential backoff (1s-30s cap)
+- [ ] Real-world relay testing (2 machines)
+- [ ] TLS/certificate pinning
 
 ## Security Considerations
 

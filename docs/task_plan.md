@@ -3,7 +3,7 @@
 ## Goal
 Redesign BTerminal from a GTK3 terminal emulator into a **multi-session Claude agent dashboard** optimized for 32:9 ultrawide (5120x1440). Simultaneous visibility of all active sessions, agent tree visualization, inline markdown rendering, maximum information density.
 
-## Status: Phases 1-7 Complete — Rev 4
+## Status: Phases 1-7 + Multi-Machine (A-D) Complete — Rev 5
 
 ---
 
@@ -103,10 +103,11 @@ When SDK changes its message format, only the adapter needs updating.
 
 ## Implementation Phases
 
-See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
+See [phases.md](phases.md) for the full phased implementation plan.
 
 - **MVP:** Phases 1-4 (scaffolding, terminal+layout, agent SDK, session mgmt+markdown)
 - **Post-MVP:** Phases 5-7 (agent tree, polish, packaging, agent teams)
+- **Multi-Machine:** Phases A-D (bterminal-core extraction, relay binary, RemoteManager, frontend)
 
 ---
 
@@ -141,11 +142,16 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 | Auto-update signing key | Generated minisign keypair. Pubkey set in tauri.conf.json. Private key for TAURI_SIGNING_PRIVATE_KEY GitHub secret. | 2026-03-06 |
 | Agent teams: frontend routing only | Subagent panes created by frontend dispatcher, not separate sidecar processes. Parent sidecar handles all messages; routing uses SDK's parentId field. Avoids process explosion for nested subagents. | 2026-03-06 |
 | SUBAGENT_TOOL_NAMES detection | Detect subagent spawn by tool_call name ('Agent', 'Task', 'dispatch_agent'). Simple Set lookup, easily extensible. | 2026-03-06 |
+| Cargo workspace at v2/ level | Extract bterminal-core shared crate for PtyManager + SidecarManager. Workspace members: src-tauri, bterminal-core, bterminal-relay. Enables code reuse between Tauri app and relay binary. | 2026-03-06 |
+| EventSink trait for event abstraction | Generic trait (emit method) decouples PtyManager/SidecarManager from Tauri. TauriEventSink wraps AppHandle; relay uses WebSocket EventSink. | 2026-03-06 |
+| bterminal-relay as standalone binary | Rust binary with WebSocket server for remote machine management. Token auth + rate limiting. Per-connection isolated managers. | 2026-03-06 |
+| RemoteManager WebSocket client | Controller-side WebSocket client in remote.rs. Manages connections to multiple relays with heartbeat ping. 12 new Tauri commands for remote operations. | 2026-03-06 |
+| Frontend remote routing via remoteMachineId | Pane.remoteMachineId field determines local vs remote. Bridge adapters route to appropriate Tauri commands transparently. | 2026-03-06 |
 
 ## Open Questions
 
 1. **Node.js or Deno for sidecar?** Resolved: Deno-first with Node.js fallback. SidecarCommand struct in sidecar.rs abstracts the choice. Deno preferred (runs TS directly, compiles to single binary). Falls back to Node.js if Deno not in PATH.
-2. **Multi-machine support?** Designed. See [multi-machine.md](multi-machine.md) for full architecture (bterminal-relay binary, WebSocket NDJSON, RemoteManager). Implementation in 4 phases (A-D).
+2. **Multi-machine support?** Resolved: Implemented (Phases A-D complete). See [multi-machine.md](multi-machine.md) for architecture. bterminal-core crate extracted, bterminal-relay binary built, RemoteManager + frontend integration done. Remaining: reconnection logic, real-world testing, TLS.
 3. **Agent Teams integration?** Phase 7 — frontend routing implemented (subagent pane spawning, parent/child navigation). Needs real-world testing with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 4. **Electron escape hatch threshold?** If Canvas xterm.js proves >50ms latency on target system with 4 panes, switch to Electron. Benchmark in Phase 2.
 
