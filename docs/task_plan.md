@@ -145,7 +145,7 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 ## Open Questions
 
 1. **Node.js or Deno for sidecar?** Resolved: Deno-first with Node.js fallback. SidecarCommand struct in sidecar.rs abstracts the choice. Deno preferred (runs TS directly, compiles to single binary). Falls back to Node.js if Deno not in PATH.
-2. **Multi-machine support?** Remote agents via WebSocket. Phase 7+ feature.
+2. **Multi-machine support?** Designed. See [multi-machine.md](multi-machine.md) for full architecture (bterminal-relay binary, WebSocket NDJSON, RemoteManager). Implementation in 4 phases (A-D).
 3. **Agent Teams integration?** Phase 7 — frontend routing implemented (subagent pane spawning, parent/child navigation). Needs real-world testing with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 4. **Electron escape hatch threshold?** If Canvas xterm.js proves >50ms latency on target system with 4 panes, switch to Electron. Benchmark in Phase 2.
 

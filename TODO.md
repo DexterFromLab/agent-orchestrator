@@ -4,7 +4,7 @@
 
 - [ ] **Deno sidecar real-world testing** -- Integrated into sidecar.rs (Deno-first + Node.js fallback). Needs testing with real claude CLI and startup time benchmark vs Node.js.
 - [ ] **E2E testing (Playwright/WebDriver)** -- Scaffold at v2/tests/e2e/README.md. Needs display server to run. Test: open terminal, run command, open agent, verify output.
-- [ ] **Multi-machine support** -- Remote agents via WebSocket (Phase 7+ feature).
+- [ ] **Multi-machine support** -- Architecture designed in [docs/multi-machine.md](docs/multi-machine.md). Next: Phase A (extract bterminal-core crate), then Phase B (bterminal-relay binary).
 - [ ] **Agent Teams real-world testing** -- Frontend routing implemented (Phase 7). Needs testing with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 and real subagent spawning.
 
 ## Completed
