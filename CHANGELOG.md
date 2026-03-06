@@ -7,12 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- SQLite session persistence with rusqlite (bundled, WAL mode) — sessions table + layout_state singleton (Phase 4)
+- Session CRUD: save, delete, update_title, touch with 7 Tauri commands (Phase 4)
+- Layout restore on app startup — panes and preset restored from database (Phase 4)
+- File watcher backend using notify crate v6 — watches files, emits Tauri events on change (Phase 4)
+- MarkdownPane component with marked.js rendering, Catppuccin-themed styles, and live reload (Phase 4)
+- Sidebar "M" button for opening markdown/text files via file picker (Phase 4)
+- Session bridge adapter for Tauri IPC (session + layout persistence wrappers) (Phase 4)
+- File bridge adapter for Tauri IPC (watch, unwatch, read, onChange wrappers) (Phase 4)
+- Sidecar crash detection — dispatcher listens for process exit, marks running sessions as error (Phase 3 polish)
+- Sidecar restart UI — "Restart Sidecar" button in AgentPane error bar (Phase 3 polish)
+- Auto-scroll lock — disables auto-scroll when user scrolls up, shows "Scroll to bottom" button (Phase 3 polish)
+- Agent restart Tauri command (agent_restart) (Phase 3 polish)
+- Agent pane with prompt input, structured message rendering, stop button, and cost display (Phase 3)
+
 ### Fixed
 - Svelte 5 rune stores (layout, agents, sessions) renamed from `.ts` to `.svelte.ts` — runes only work in `.svelte` and `.svelte.ts` files, plain `.ts` caused "rune_outside_svelte" runtime error (blank screen)
 - Updated all import paths to use `.svelte` suffix for store modules
-
-### Added
-- Agent pane with prompt input, structured message rendering, stop button, and cost display (Phase 3)
 - Node.js sidecar manager (Rust) for spawning and communicating with agent-runner via stdio NDJSON (Phase 3)
 - Agent-runner sidecar: spawns `claude` CLI with `--output-format stream-json` for structured agent output (Phase 3)
 - SDK message adapter parsing stream-json into 9 typed message types: init, text, thinking, tool_call, tool_result, status, cost, error, unknown (Phase 3)

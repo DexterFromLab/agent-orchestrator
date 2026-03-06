@@ -80,9 +80,25 @@ Architecture decision: Uses `claude` CLI with `--output-format stream-json` inst
 - [x] Renamed: `layout.ts` -> `layout.svelte.ts`, `agents.ts` -> `agents.svelte.ts`, `sessions.ts` -> `sessions.svelte.ts`
 - [x] Updated all import paths in 5 files to use `.svelte` suffix (e.g., `from './stores/layout.svelte'`)
 
+### Phase 3 Polish (2026-03-06)
+- [x] Sidecar crash detection: dispatcher listens for sidecar-exited event, marks running sessions as error
+- [x] Restart UI: "Restart Sidecar" button in AgentPane error bar, calls agent_restart command
+- [x] Auto-scroll lock: scroll handler disables auto-scroll when user scrolls >50px from bottom, "Scroll to bottom" button appears
+
+### Phase 4: Session Management + Markdown Viewer (2026-03-06)
+- [x] rusqlite 0.31 (bundled) + dirs 5 + notify 6 added to Cargo.toml
+- [x] SessionDb: SQLite with WAL mode, sessions table + layout_state singleton
+- [x] Session CRUD: list, save, delete, update_title, touch (7 Tauri commands)
+- [x] Frontend session-bridge.ts: typed invoke wrappers for all session/layout commands
+- [x] Layout store wired to persistence: addPane/removePane/focusPane/setPreset all persist
+- [x] restoreFromDb() on app startup restores panes in layout order
+- [x] FileWatcherManager: notify crate watches files, emits Tauri "file-changed" events
+- [x] MarkdownPane component: marked.js rendering, Catppuccin-themed styles, live reload
+- [x] Sidebar "M" button opens file picker for .md/.markdown/.txt files
+- [x] TilingGrid routes markdown pane type to MarkdownPane component
+
 ### Next Steps
 - [ ] Markdown rendering in agent text messages
-- [ ] Sidecar crash detection and restart UI
-- [ ] Auto-scroll lock on user scroll-up
 - [ ] Testing: vitest for sdk-messages adapter, cargo test for sidecar
-- [ ] Begin Phase 4: Session Management + Markdown Viewer
+- [ ] Phase 5: Agent Tree + Polish
+- [ ] Phase 6: Packaging + Distribution

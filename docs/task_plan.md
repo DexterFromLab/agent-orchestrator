@@ -3,7 +3,7 @@
 ## Goal
 Redesign BTerminal from a GTK3 terminal emulator into a **multi-session Claude agent dashboard** optimized for 32:9 ultrawide (5120x1440). Simultaneous visibility of all active sessions, agent tree visualization, inline markdown rendering, maximum information density.
 
-## Status: BUILDING (Phase 3 in progress — Rev 2)
+## Status: MVP COMPLETE (Phase 4 done — Rev 2)
 
 ---
 

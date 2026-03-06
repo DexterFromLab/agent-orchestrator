@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- Phase 3 (Agent SDK Integration) core is complete. Needs testing and polish (markdown rendering, sidecar crash detection, auto-scroll lock).
+- MVP complete (Phases 1-4). Phase 3 polish done (crash detection, restart UI, auto-scroll lock). Phase 4 done (SQLite sessions, file watcher, markdown viewer).
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -30,6 +30,9 @@
 - Agent dispatcher (`src/lib/agent-dispatcher.ts`) is a singleton that routes sidecar events to the agent store.
 - Maximum 4 active xterm.js instances to avoid WebKit2GTK memory issues.
 - Store files using Svelte 5 runes (`$state`, `$derived`) MUST have `.svelte.ts` extension (not `.ts`). Import with `.svelte` suffix. Plain `.ts` compiles but fails at runtime with "rune_outside_svelte".
+- Session persistence uses rusqlite (bundled) with WAL mode. Data dir: `dirs::data_dir()/bterminal/sessions.db`.
+- Layout store persists to SQLite on every addPane/removePane/setPreset change (fire-and-forget). Restores on app startup via `restoreFromDb()`.
+- File watcher uses notify crate v6, watches parent directory (NonRecursive), emits `file-changed` Tauri events.
 
 ## Memora Tags
 

@@ -107,19 +107,19 @@ bterminal-v2/
 
 ---
 
-## Phase 3: Agent SDK Integration [status: in_progress] — MVP
+## Phase 3: Agent SDK Integration [status: complete] — MVP
 
 ### Backend
 - [x] Node.js sidecar: spawns `claude` CLI with `--output-format stream-json` (not Agent SDK query() — avoids npm dep + version churn)
 - [x] Sidecar communication: Rust spawns Node.js, stdio NDJSON
 - [x] Sidecar lifecycle: auto-start on app launch, shutdown on exit
-- [ ] Sidecar lifecycle: detect crash, offer restart in UI
-- [x] Tauri commands: agent_query, agent_stop, agent_ready
+- [x] Sidecar lifecycle: detect crash, offer restart in UI (agent_restart command + restart button)
+- [x] Tauri commands: agent_query, agent_stop, agent_ready, agent_restart
 
 ### Frontend
 - [x] SDK message adapter: parses stream-json into 9 typed AgentMessage types (abstraction layer)
 - [x] Agent bridge: Tauri IPC adapter (invoke + event listeners)
-- [x] Agent dispatcher: singleton routing sidecar events to store
+- [x] Agent dispatcher: singleton routing sidecar events to store, crash detection
 - [x] Agent store: session state, message history, cost tracking (Svelte 5 $state)
 - [x] Agent pane: renders structured messages
   - [x] Text -> plain text (markdown rendering deferred)
@@ -132,7 +132,7 @@ bterminal-v2/
   - [ ] Subagent spawn -> tree node + optional new pane (Phase 5)
 - [x] Agent status indicator (starting/running/done/error)
 - [x] Start/stop agent from UI (prompt form + stop button)
-- [ ] Auto-scroll with scroll-lock on user scroll-up
+- [x] Auto-scroll with scroll-lock on user scroll-up
 - [ ] Session resume (SDK `resume: sessionId`)
 - [x] Keyboard: Ctrl+Shift+N new agent
 - [x] Sidebar: agent session button
@@ -141,21 +141,23 @@ bterminal-v2/
 
 ---
 
-## Phase 4: Session Management + Markdown Viewer [status: not_started] — MVP
+## Phase 4: Session Management + Markdown Viewer [status: complete] — MVP
 
 ### Sessions
-- [ ] SQLite persistence for sessions (rusqlite)
-- [ ] Session types: SSH, Claude CLI, Agent SDK, Local Shell
-- [ ] Session CRUD in sidebar
-- [ ] Session groups/folders
-- [ ] Remember last layout on restart
+- [x] SQLite persistence for sessions (rusqlite with bundled feature)
+- [x] Session types: terminal, agent, markdown (SSH via terminal args)
+- [x] Session CRUD: save, delete, update_title, touch (last_used_at)
+- [ ] Session groups/folders (deferred — not needed for MVP)
+- [x] Remember last layout on restart (preset + pane_ids in layout_state table)
+- [x] Auto-restore panes on app startup (restoreFromDb in layout store)
 
 ### Markdown Viewer
-- [ ] File watcher (notify crate) -> Tauri events -> frontend
-- [ ] Markdown rendering (marked.js or remark)
-- [ ] Syntax highlighting (Shiki)
-- [ ] Open from sidebar or from agent output file references
-- [ ] Debounce file watcher (200ms)
+- [x] File watcher (notify crate v6) -> Tauri events -> frontend
+- [x] Markdown rendering (marked.js)
+- [ ] Syntax highlighting (Shiki) — deferred, adds significant bundle size
+- [x] Open from sidebar (file picker button "M")
+- [x] Catppuccin-themed markdown styles (h1-h3, code, pre, tables, blockquotes)
+- [x] Live reload on file change
 
 **Milestone: After Phase 4 = MVP ship.** Full session management, structured agent panes, terminal panes, markdown viewer.
 
