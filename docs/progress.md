@@ -109,8 +109,22 @@ Architecture decision: Uses `claude` CLI with `--output-format stream-json` inst
 - [x] CSS grid update: app.css grid-template-rows '1fr' -> '1fr auto' for status bar row
 - [x] App.svelte: integrated StatusBar, ToastContainer, SettingsDialog components
 
+### Phase 6: Packaging + Distribution (2026-03-06)
+- [x] Created install-v2.sh — build-from-source installer with 6-step dependency check process
+  - Checks Node.js 20+, Rust 1.77+, system libs (WebKit2GTK, GTK3, GLib, etc.)
+  - Prompts to install missing packages via apt
+  - Builds with `npx tauri build`, installs to ~/.local/bin/bterminal-v2
+  - Creates desktop entry and installs SVG icon
+- [x] Updated v2/src-tauri/tauri.conf.json: bundle targets ["deb", "appimage"], category, descriptions, deb depends, appimage settings
+- [x] Regenerated all icons in v2/src-tauri/icons/ from bterminal.svg as RGBA PNGs (32x32, 128x128, 256x256, 512x512, .ico)
+- [x] Created .github/workflows/release.yml — CI workflow triggered on v* tags
+  - Ubuntu 22.04 runner, caches Rust/npm deps
+  - Builds .deb + AppImage, uploads as GitHub Release artifacts via softprops/action-gh-release@v2
+- [x] Build verified: .deb (4.3 MB), AppImage (103 MB) both built successfully
+- [ ] Tauri auto-update plugin deferred (needs signing key + update server)
+
 ### Next Steps
 - [ ] Markdown rendering in agent text messages
 - [ ] Testing: vitest for sdk-messages adapter, cargo test for sidecar
 - [ ] Phase 5 remaining: click tree node -> focus pane, subtree cost display, ctx integration
-- [ ] Phase 6: Packaging + Distribution
+- [ ] Tauri auto-update plugin (signing key + update server)

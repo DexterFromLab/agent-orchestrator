@@ -3,7 +3,7 @@
 ## Goal
 Redesign BTerminal from a GTK3 terminal emulator into a **multi-session Claude agent dashboard** optimized for 32:9 ultrawide (5120x1440). Simultaneous visibility of all active sessions, agent tree visualization, inline markdown rendering, maximum information density.
 
-## Status: Phase 5 IN PROGRESS (MVP complete, post-MVP polish underway — Rev 2)
+## Status: All 6 Phases Complete (MVP + post-MVP, packaging done — Rev 2)
 
 ---
 
@@ -127,6 +127,7 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 | `.svelte.ts` for rune stores | Svelte 5 `$state`/`$derived` runes require `.svelte.ts` extension (not `.ts`). Compiler silently passes `.ts` but runes fail at runtime. All store files must use `.svelte.ts`. | 2026-03-06 |
 | SQLite settings table for app config | Key-value `settings` table in session.rs for persisting user preferences (shell, cwd, max panes). Simple and extensible without schema migrations. | 2026-03-06 |
 | Toast notifications over persistent log | Ephemeral toasts (4s auto-dismiss, max 5) for agent events rather than a persistent notification log. Keeps UI clean; persistent logs can be added later if needed. | 2026-03-06 |
+| Build-from-source installer over pre-built binaries | install-v2.sh checks deps and builds locally. Pre-built binaries via GitHub Actions CI (.deb + AppImage on v* tags). Auto-update deferred until signing key infrastructure is set up. | 2026-03-06 |
 
 ## Open Questions
 

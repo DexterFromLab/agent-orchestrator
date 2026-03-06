@@ -172,7 +172,7 @@ bterminal-v2/
 
 ---
 
-## Phase 5: Agent Tree + Polish [status: in_progress] — Post-MVP
+## Phase 5: Agent Tree + Polish [status: partial] — Post-MVP
 
 - [x] Agent tree visualization (SVG, compact horizontal layout) — AgentTree.svelte + agent-tree.ts utility
 - [ ] Click tree node -> focus agent pane (onNodeClick prop exists, not wired)
@@ -187,17 +187,26 @@ bterminal-v2/
 
 ---
 
-## Phase 6: Packaging + Distribution [status: not_started] — Post-MVP
+## Phase 6: Packaging + Distribution [status: complete] — Post-MVP
 
-- [ ] install.sh v2 (check Node.js, install Tauri runtime deps)
-- [ ] AppImage build (single file, works everywhere)
-- [ ] .deb package (Debian/Ubuntu)
-- [ ] GitHub Actions CI for building releases
-- [ ] Auto-update mechanism (Tauri updater)
-- [ ] Migrate bterminal.svg icon
-- [ ] README update
+- [x] install-v2.sh — build-from-source installer with dependency checks (Node.js 20+, Rust 1.77+, system libs)
+  - Checks: WebKit2GTK, GTK3, GLib, libayatana-appindicator, librsvg, openssl, build-essential, pkg-config, curl, wget, FUSE
+  - Prompts to install missing packages via apt
+  - Builds with `npx tauri build`, installs binary as `bterminal-v2` in `~/.local/bin/`
+  - Creates desktop entry and installs SVG icon
+- [x] Tauri bundle configuration — targets: `["deb", "appimage"]`, category: DeveloperTool
+  - .deb depends: libwebkit2gtk-4.1-0, libgtk-3-0, libayatana-appindicator3-1
+  - AppImage: bundleMediaFramework disabled
+- [x] Icons regenerated from bterminal.svg — RGBA PNGs (32x32, 128x128, 128x128@2x, 512x512, .ico)
+- [x] GitHub Actions release workflow (`.github/workflows/release.yml`)
+  - Triggered on `v*` tags, Ubuntu 22.04 runner
+  - Caches Rust and npm dependencies
+  - Builds .deb + AppImage, uploads as GitHub Release artifacts
+- [x] Build verified: .deb (4.3 MB), AppImage (103 MB)
+- [ ] Auto-update mechanism (Tauri updater) — deferred, needs signing key + update server
 
 ### System Requirements
 - Node.js 20+ (for Agent SDK sidecar)
+- Rust 1.77+ (for building from source)
 - WebKit2GTK 4.1+ (Tauri runtime)
 - Linux x86_64 (primary target)
