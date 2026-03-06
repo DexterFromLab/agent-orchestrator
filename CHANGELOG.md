@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Session groups/folders: group_name column in sessions table, setPaneGroup in layout store, collapsible group headers in sidebar with arrow/count, right-click pane to set group
+- Auto-update signing key: generated minisign keypair, pubkey configured in tauri.conf.json updater section
+- Deno-first sidecar: SidecarCommand struct in sidecar.rs, resolve_sidecar_command() prefers Deno (runs TS directly) with Node.js fallback, both runners bundled via tauri.conf.json resources
+- Vitest integration tests: layout.test.ts (30 tests), agent-bridge.test.ts (11 tests), agent-dispatcher.test.ts (18 tests) — total 104 vitest tests passing
+- E2E test scaffold: v2/tests/e2e/README.md documenting WebDriver approach
 - Terminal copy/paste: Ctrl+Shift+C copies selection, Ctrl+Shift+V pastes from clipboard to PTY (TerminalPane.svelte)
 - Terminal theme hot-swap: onThemeChange() callback registry in theme.svelte.ts, open terminals update immediately when flavor changes
 - Agent tree node click: clicking a tree node scrolls to the corresponding message in the agent pane (scrollIntoView smooth)
@@ -21,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tempfile dev dependency for Rust test isolation
 
 ### Changed
+- Sidecar manager refactored from Node.js-only to Deno-first with Node.js fallback (SidecarCommand abstraction)
+- Session struct: added group_name field with serde default
+- SessionDb: added update_group method, list/save queries updated for group_name column
+- SessionList sidebar: uses Svelte 5 snippets for grouped pane rendering with collapsible headers
 - Agent tree NODE_H increased from 32 to 40 to accommodate subtree cost display
 - release.yml build step now passes TAURI_SIGNING_PRIVATE_KEY and PASSWORD env vars from secrets
 - release.yml uploads latest.json alongside .deb and .AppImage artifacts

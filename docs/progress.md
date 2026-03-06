@@ -178,8 +178,42 @@ Architecture decision: Uses `claude` CLI with `--output-format stream-json` inst
 - [x] session.rs tests: SessionDb CRUD (sessions, SSH sessions, settings, layout), uses tempfile::tempdir()
 - [x] ctx.rs tests: CtxDb error handling with missing database (conn=None)
 
+### Session: 2026-03-06 (continued) — Session Groups, Auto-Update Key, Deno Sidecar, Tests
+
+#### Auto-Update Signing Key
+- [x] Generated Tauri signing keypair (minisign)
+- [x] Set pubkey in tauri.conf.json updater.pubkey field (base64 encoded)
+- [x] Private key to be stored as TAURI_SIGNING_PRIVATE_KEY GitHub secret by user
+
+#### Session Groups/Folders
+- [x] Added group_name column to sessions table (session.rs, ALTER TABLE migration with pragma_table_info check)
+- [x] Session struct: added group_name field with #[serde(default)]
+- [x] SessionDb: update_group(id, group_name) method + save/list queries updated
+- [x] Tauri command: session_update_group registered in lib.rs
+- [x] Frontend: updateSessionGroup() in session-bridge.ts
+- [x] Layout store: Pane.group? field, setPaneGroup(id, group) function in layout.svelte.ts
+- [x] SessionList.svelte: grouped sidebar with collapsible headers (arrow + count), right-click to set group via prompt()
+- [x] Svelte 5 snippet pattern used for paneItem to avoid duplication across grouped/ungrouped rendering
+
+#### Deno Sidecar Integration (upgraded from PoC)
+- [x] SidecarCommand struct in sidecar.rs: { program, args } abstracts runtime choice
+- [x] resolve_sidecar_command(): Deno-first resolution (checks agent-runner-deno.ts + deno availability), Node.js fallback
+- [x] Both sidecar runners bundled in tauri.conf.json resources array
+- [x] Graceful fallback: if Deno binary not found in PATH, falls back to Node.js with log warning
+
+#### E2E/Integration Tests
+- [x] layout.test.ts (30 tests): addPane, removePane, focusPane, setPreset, autoPreset, getGridTemplate, getPaneGridArea, renamePaneTitle, setPaneGroup
+- [x] agent-bridge.test.ts (11 tests): Tauri IPC mock pattern with vi.hoisted(), invoke/listen wrappers
+- [x] agent-dispatcher.test.ts (18 tests): sidecar event routing, crash detection, vi.useFakeTimers() for async setTimeout
+- [x] sdk-messages.test.ts rewrite (25 tests): removed unused ErrorContent import
+- [x] E2E scaffold: v2/tests/e2e/README.md documenting WebDriver approach
+- [x] Total: 104 vitest tests + 29 cargo tests, all passing
+
+Build status: TypeScript 0 errors, Rust 0 errors (1 pre-existing warning), all tests green.
+
 ### Next Steps
-- [ ] Auto-update signing key generation + TAURI_SIGNING_PRIVATE_KEY secret in GitHub repo
-- [ ] Deno sidecar: test with real claude CLI, benchmark vs Node.js, integrate with sidecar.rs
-- [ ] E2E testing with Playwright
-- [ ] Session groups/folders in sidebar
+- [ ] Set TAURI_SIGNING_PRIVATE_KEY secret in GitHub repo settings
+- [ ] Deno sidecar: test with real claude CLI, benchmark startup time vs Node.js
+- [ ] E2E testing with Playwright/WebDriver (when display server available)
+- [ ] Multi-machine support (remote agents via WebSocket)
+- [ ] Agent Teams integration

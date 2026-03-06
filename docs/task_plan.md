@@ -136,10 +136,13 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 | Vitest for frontend tests | Vitest over Jest — zero-config with Vite, same transform pipeline, faster. Test config in vite.config.ts. | 2026-03-06 |
 | Deno sidecar evaluation | Proof-of-concept agent-runner-deno.ts created. Deno compiles to single binary (better packaging). Same NDJSON protocol. Not yet integrated. | 2026-03-06 |
 | Splitter overlays for pane resize | Fixed-position divs outside CSS Grid (avoids layout interference). Mouse drag updates customColumns/customRows state. Resets on preset change. | 2026-03-06 |
+| Deno-first sidecar with Node.js fallback | SidecarCommand struct abstracts runtime. resolve_sidecar_command() checks Deno first (runs TS directly, no build step), falls back to Node.js. Both bundled in tauri.conf.json resources. | 2026-03-06 |
+| Session groups/folders | group_name column in sessions table with ALTER TABLE migration. Pane.group field in layout store. Collapsible group headers in sidebar. Right-click to set group. | 2026-03-06 |
+| Auto-update signing key | Generated minisign keypair. Pubkey set in tauri.conf.json. Private key for TAURI_SIGNING_PRIVATE_KEY GitHub secret. | 2026-03-06 |
 
 ## Open Questions
 
-1. **Node.js or Deno for sidecar?** Node.js has the SDK package. Deno would be a single binary (better packaging) but needs SDK compatibility testing. → Start Node.js, evaluate Deno later.
+1. **Node.js or Deno for sidecar?** Resolved: Deno-first with Node.js fallback. SidecarCommand struct in sidecar.rs abstracts the choice. Deno preferred (runs TS directly, compiles to single binary). Falls back to Node.js if Deno not in PATH.
 2. **Multi-machine support?** Remote agents via WebSocket. Phase 7+ feature.
 3. **Agent Teams integration?** Experimental Anthropic feature. Natural fit but adds complexity. Phase 7+.
 4. **Electron escape hatch threshold?** If Canvas xterm.js proves >50ms latency on target system with 4 panes, switch to Electron. Benchmark in Phase 2.

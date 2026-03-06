@@ -20,7 +20,7 @@ bterminal-v2/
     src/
       main.rs              # Tauri app entry
       pty.rs               # PTY management (portable-pty, not plugin)
-      sidecar.rs           # Node.js sidecar lifecycle (spawn, restart, health)
+      sidecar.rs           # Sidecar lifecycle (Deno-first + Node.js fallback, SidecarCommand)
       watcher.rs           # File watcher for markdown viewer
       session.rs           # Session + SSH session persistence (SQLite via rusqlite)
       ctx.rs               # Read-only ctx context DB access
@@ -75,6 +75,7 @@ bterminal-v2/
     app.css
   sidecar/
     agent-runner.ts          # Node.js sidecar entry point
+    agent-runner-deno.ts     # Deno sidecar (preferred when deno available)
     package.json             # Agent SDK dependency
     esbuild.config.ts        # Bundle to single file
   package.json
@@ -168,7 +169,7 @@ bterminal-v2/
 - [x] SQLite persistence for sessions (rusqlite with bundled feature)
 - [x] Session types: terminal, agent, markdown (SSH via terminal args)
 - [x] Session CRUD: save, delete, update_title, touch (last_used_at)
-- [ ] Session groups/folders (deferred — not needed for MVP)
+- [x] Session groups/folders — group_name column, setPaneGroup, grouped sidebar with collapsible headers
 - [x] Remember last layout on restart (preset + pane_ids in layout_state table)
 - [x] Auto-restore panes on app startup (restoreFromDb in layout store)
 
@@ -226,7 +227,8 @@ bterminal-v2/
 - [x] Auto-updater plugin integrated (tauri-plugin-updater Rust + @tauri-apps/plugin-updater npm + updater.ts)
 - [x] Auto-update latest.json generation in CI (version, platform URL, signature from .sig file)
 - [x] release.yml: TAURI_SIGNING_PRIVATE_KEY env vars passed to build step
-- [ ] Auto-update signing key generation + TAURI_SIGNING_PRIVATE_KEY secret in GitHub repo
+- [x] Auto-update signing key generated, pubkey set in tauri.conf.json
+- [ ] TAURI_SIGNING_PRIVATE_KEY secret must be set in GitHub repo settings
 
 ### System Requirements
 - Node.js 20+ (for Agent SDK sidecar)

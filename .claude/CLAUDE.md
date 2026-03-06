@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- All 6 phases complete + extras (SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, testing).
+- All 6 phases complete + extras (SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, 104 vitest + 29 cargo tests).
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -26,12 +26,13 @@
 
 - WebKit2GTK has no WebGL — xterm.js must use Canvas addon explicitly.
 - Agent sessions use `claude` CLI with `--output-format stream-json` (not Agent SDK npm package). All output goes through the adapter layer (`src/lib/adapters/sdk-messages.ts`).
-- Node.js sidecar (`sidecar/agent-runner.ts`) spawns claude subprocesses, communicates with Rust via stdio NDJSON.
+- Sidecar uses Deno-first + Node.js fallback (`sidecar/agent-runner-deno.ts` preferred, `sidecar/agent-runner.ts` fallback). SidecarCommand struct in sidecar.rs abstracts runtime. Communicates with Rust via stdio NDJSON.
 - Agent dispatcher (`src/lib/agent-dispatcher.ts`) is a singleton that routes sidecar events to the agent store.
 - Maximum 4 active xterm.js instances to avoid WebKit2GTK memory issues.
 - Store files using Svelte 5 runes (`$state`, `$derived`) MUST have `.svelte.ts` extension (not `.ts`). Import with `.svelte` suffix. Plain `.ts` compiles but fails at runtime with "rune_outside_svelte".
 - Session persistence uses rusqlite (bundled) with WAL mode. Data dir: `dirs::data_dir()/bterminal/sessions.db`.
-- Layout store persists to SQLite on every addPane/removePane/setPreset change (fire-and-forget). Restores on app startup via `restoreFromDb()`.
+- Layout store persists to SQLite on every addPane/removePane/setPreset/setPaneGroup change (fire-and-forget). Restores on app startup via `restoreFromDb()`.
+- Session groups: Pane.group? field in layout store, group_name column in sessions table, collapsible group headers in sidebar. Right-click pane to set group.
 - File watcher uses notify crate v6, watches parent directory (NonRecursive), emits `file-changed` Tauri events.
 - Settings use key-value `settings` table in SQLite (session.rs). Frontend: `settings-bridge.ts` adapter, `SettingsDialog.svelte` component.
 - Notifications use ephemeral toast system: `notifications.svelte.ts` store (max 5, 4s auto-dismiss), `ToastContainer.svelte` display. Agent dispatcher emits toasts on agent complete/error/crash.

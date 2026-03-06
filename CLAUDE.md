@@ -27,11 +27,11 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `docs/progress.md` | Session progress log |
 | `v2/src-tauri/src/pty.rs` | PTY backend (portable-pty, PtyManager) |
 | `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings) |
-| `v2/src-tauri/src/sidecar.rs` | SidecarManager (Node.js lifecycle, NDJSON) |
+| `v2/src-tauri/src/sidecar.rs` | SidecarManager (Deno-first + Node.js fallback, SidecarCommand, NDJSON) |
 | `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions) |
 | `v2/src-tauri/src/watcher.rs` | FileWatcherManager (notify crate, file change events) |
 | `v2/src-tauri/src/ctx.rs` | CtxDb (read-only access to ~/.claude-context/context.db) |
-| `v2/src/lib/stores/layout.svelte.ts` | Layout store (panes, presets, persistence, Svelte 5 runes) |
+| `v2/src/lib/stores/layout.svelte.ts` | Layout store (panes, presets, groups, persistence, Svelte 5 runes) |
 | `v2/src/lib/stores/agents.svelte.ts` | Agent session store (messages, cost) |
 | `v2/src/lib/components/Terminal/TerminalPane.svelte` | xterm.js terminal pane |
 | `v2/src/lib/components/Agent/AgentPane.svelte` | Agent session pane (prompt, messages, cost) |
@@ -57,12 +57,15 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (pane counts, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
 | `v2/src/lib/components/Settings/SettingsDialog.svelte` | Settings modal (shell, cwd, max panes, theme) |
-| `v2/src/lib/adapters/session-bridge.ts` | Session/layout persistence IPC wrapper |
+| `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |
 | `v2/sidecar/agent-runner.ts` | Node.js sidecar (spawns claude CLI) |
-| `v2/sidecar/agent-runner-deno.ts` | Deno sidecar proof-of-concept (experimental) |
-| `v2/src/lib/adapters/sdk-messages.test.ts` | Vitest tests for SDK message adapter |
-| `v2/src/lib/utils/agent-tree.test.ts` | Vitest tests for agent tree builder |
+| `v2/sidecar/agent-runner-deno.ts` | Deno sidecar (preferred when deno available) |
+| `v2/src/lib/adapters/sdk-messages.test.ts` | Vitest tests for SDK message adapter (25 tests) |
+| `v2/src/lib/adapters/agent-bridge.test.ts` | Vitest tests for agent IPC bridge (11 tests) |
+| `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (18 tests) |
+| `v2/src/lib/stores/layout.test.ts` | Vitest tests for layout store (30 tests) |
+| `v2/src/lib/utils/agent-tree.test.ts` | Vitest tests for agent tree builder (20 tests) |
 
 ## v1 Stack
 
@@ -76,7 +79,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Tauri 2.x (Rust backend) + Svelte 5 (frontend)
 - xterm.js with Canvas addon (no WebGL on WebKit2GTK)
 - Agent sessions via `claude` CLI subprocess with `--output-format stream-json`
-- Node.js sidecar manages claude processes (stdio NDJSON to Rust)
+- Sidecar manages claude processes (Deno-first + Node.js fallback, stdio NDJSON to Rust)
 - portable-pty for terminal management
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup
 - File watcher (notify crate) for live markdown viewer
