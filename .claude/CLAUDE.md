@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- MVP complete (Phases 1-4). Phase 3 polish done (crash detection, restart UI, auto-scroll lock). Phase 4 done (SQLite sessions, file watcher, markdown viewer).
+- MVP complete (Phases 1-4). Phase 5 (Agent Tree + Polish) in progress: agent tree viz, status bar, notifications, settings dialog done. Remaining: tree node click-to-focus, subtree cost display, ctx integration.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -33,6 +33,10 @@
 - Session persistence uses rusqlite (bundled) with WAL mode. Data dir: `dirs::data_dir()/bterminal/sessions.db`.
 - Layout store persists to SQLite on every addPane/removePane/setPreset change (fire-and-forget). Restores on app startup via `restoreFromDb()`.
 - File watcher uses notify crate v6, watches parent directory (NonRecursive), emits `file-changed` Tauri events.
+- Settings use key-value `settings` table in SQLite (session.rs). Frontend: `settings-bridge.ts` adapter, `SettingsDialog.svelte` component.
+- Notifications use ephemeral toast system: `notifications.svelte.ts` store (max 5, 4s auto-dismiss), `ToastContainer.svelte` display. Agent dispatcher emits toasts on agent complete/error/crash.
+- StatusBar component spans full grid width (grid-column: 1 / -1), shows pane counts, active agents, tokens, cost.
+- Agent tree (AgentTree.svelte) uses SVG with recursive layout. Tree data built by `agent-tree.ts` utility from agent messages.
 
 ## Memora Tags
 

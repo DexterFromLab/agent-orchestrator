@@ -36,19 +36,28 @@ bterminal-v2/
           TerminalPane.svelte  # xterm.js terminal pane
         Agent/
           AgentPane.svelte     # SDK agent structured output
-          AgentTree.svelte     # Subagent tree visualization
-          ToolCallCard.svelte  # Individual tool call display
+          AgentTree.svelte     # Subagent tree visualization (SVG)
         Markdown/
           MarkdownPane.svelte  # Live markdown file viewer
         Sidebar/
           SessionList.svelte   # Session browser
+        StatusBar/
+          StatusBar.svelte     # Global status bar (pane counts, cost)
+        Notifications/
+          ToastContainer.svelte # Toast notification display
+        Settings/
+          SettingsDialog.svelte # Settings modal dialog
       stores/
         sessions.svelte.ts   # Session state ($state runes)
         agents.svelte.ts     # Active agent tracking
         layout.svelte.ts     # Pane layout state
+        notifications.svelte.ts # Toast notification state
       adapters/
         sdk-messages.ts      # SDK message abstraction layer
         pty-bridge.ts        # PTY IPC wrapper
+        settings-bridge.ts   # Settings IPC wrapper
+      utils/
+        agent-tree.ts        # Agent tree builder (hierarchy from messages)
       styles/
         catppuccin.css       # Theme CSS variables
     app.css
@@ -163,15 +172,17 @@ bterminal-v2/
 
 ---
 
-## Phase 5: Agent Tree + Polish [status: not_started] — Post-MVP
+## Phase 5: Agent Tree + Polish [status: in_progress] — Post-MVP
 
-- [ ] Agent tree visualization (SVG, compact horizontal layout)
-- [ ] Click tree node -> focus agent pane
-- [ ] Aggregate cost per subtree
-- [ ] Global status bar (total cost, active agents, uptime)
-- [ ] Notification system (agent done, error)
-- [ ] Global keyboard shortcuts
-- [ ] Settings dialog
+- [x] Agent tree visualization (SVG, compact horizontal layout) — AgentTree.svelte + agent-tree.ts utility
+- [ ] Click tree node -> focus agent pane (onNodeClick prop exists, not wired)
+- [ ] Aggregate cost per subtree (subtreeCost util exists, not displayed in UI)
+- [x] Global status bar (terminal/agent counts, active agents pulse, token/cost totals) — StatusBar.svelte
+- [x] Notification system (toast: success/error/warning/info, auto-dismiss 4s, max 5) — notifications.svelte.ts + ToastContainer.svelte
+- [x] Agent dispatcher toast integration (agent complete, error, sidecar crash notifications)
+- [x] Global keyboard shortcuts — Ctrl+W close focused pane, Ctrl+, open settings
+- [x] Settings dialog (default shell, cwd, max panes) — SettingsDialog.svelte + settings-bridge.ts
+- [x] Settings backend — settings table in SQLite (session.rs), Tauri commands settings_get/set/list (lib.rs)
 - [ ] ctx integration (port from v1)
 
 ---

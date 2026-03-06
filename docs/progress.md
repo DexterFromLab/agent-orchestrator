@@ -97,8 +97,20 @@ Architecture decision: Uses `claude` CLI with `--output-format stream-json` inst
 - [x] Sidebar "M" button opens file picker for .md/.markdown/.txt files
 - [x] TilingGrid routes markdown pane type to MarkdownPane component
 
+### Phase 5: Agent Tree + Polish (2026-03-06, in progress)
+- [x] Agent tree visualization (SVG): AgentTree.svelte component with horizontal tree layout, bezier edges, status-colored nodes; agent-tree.ts utility (buildAgentTree, countTreeNodes, subtreeCost)
+- [x] Agent tree toggle in AgentPane: collapsible tree view shown when tool_call messages exist
+- [x] Global status bar: StatusBar.svelte showing terminal/agent pane counts, active agents with pulse animation, total tokens and cost
+- [x] Notification system: notifications.svelte.ts store (notify, dismissNotification, max 5 toasts, 4s auto-dismiss) + ToastContainer.svelte (slide-in animation, color-coded by type)
+- [x] Agent dispatcher notifications: toast on agent_stopped (success), agent_error (error), sidecar crash (error), cost result (success with cost/turns)
+- [x] Settings dialog: SettingsDialog.svelte modal (default shell, cwd, max panes) with settings-bridge.ts adapter
+- [x] Settings backend: settings table (key/value) in session.rs, Tauri commands settings_get/set/list in lib.rs
+- [x] Keyboard shortcuts: Ctrl+W close focused pane, Ctrl+, open settings dialog
+- [x] CSS grid update: app.css grid-template-rows '1fr' -> '1fr auto' for status bar row
+- [x] App.svelte: integrated StatusBar, ToastContainer, SettingsDialog components
+
 ### Next Steps
 - [ ] Markdown rendering in agent text messages
 - [ ] Testing: vitest for sdk-messages adapter, cargo test for sidecar
-- [ ] Phase 5: Agent Tree + Polish
+- [ ] Phase 5 remaining: click tree node -> focus pane, subtree cost display, ctx integration
 - [ ] Phase 6: Packaging + Distribution
