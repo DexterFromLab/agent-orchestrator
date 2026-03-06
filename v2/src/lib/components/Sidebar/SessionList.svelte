@@ -43,7 +43,8 @@
     }
   }
 
-  function paneIcon(type: string): string {
+  function paneIcon(type: string, title: string): string {
+    if (type === 'agent' && title.startsWith('Sub: ')) return '↳';
     switch (type) {
       case 'terminal': return '>';
       case 'agent': return '*';
@@ -153,7 +154,7 @@
       {#snippet paneItem(pane: Pane)}
         <li class="pane-item" class:focused={pane.focused}>
           <button class="pane-btn" onclick={() => focusPane(pane.id)} oncontextmenu={(e) => { e.preventDefault(); setGroup(pane.id); }}>
-            <span class="pane-icon">{paneIcon(pane.type)}</span>
+            <span class="pane-icon">{paneIcon(pane.type, pane.title)}</span>
             <span class="pane-name">{pane.title}</span>
           </button>
           <button class="remove-btn" onclick={() => removePane(pane.id)}>&times;</button>

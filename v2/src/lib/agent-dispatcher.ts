@@ -3,7 +3,7 @@
 
 import { onSidecarMessage, onSidecarExited, restartAgent, type SidecarMessage } from './adapters/agent-bridge';
 import { adaptSDKMessage } from './adapters/sdk-messages';
-import type { InitContent, CostContent } from './adapters/sdk-messages';
+import type { InitContent, CostContent, ToolCallContent } from './adapters/sdk-messages';
 import {
   updateAgentStatus,
   setAgentSdkSessionId,
@@ -11,7 +11,10 @@ import {
   appendAgentMessages,
   updateAgentCost,
   getAgentSessions,
+  createAgentSession,
+  findChildByToolUseId,
 } from './stores/agents.svelte';
+import { addPane, getPanes } from './stores/layout.svelte';
 import { notify } from './stores/notifications.svelte';
 
 let unlistenMsg: (() => void) | null = null;
@@ -100,15 +103,44 @@ export async function startAgentDispatcher(): Promise<void> {
   });
 }
 
+// Tool names that indicate a subagent spawn
+const SUBAGENT_TOOL_NAMES = new Set(['Agent', 'Task', 'dispatch_agent']);
+
+// Map toolUseId -> child session pane id for routing
+const toolUseToChildPane = new Map<string, string>();
+
 function handleAgentEvent(sessionId: string, event: Record<string, unknown>): void {
   const messages = adaptSDKMessage(event);
 
+  // Route messages with parentId to the appropriate child pane
+  const mainMessages: typeof messages = [];
+  const childBuckets = new Map<string, typeof messages>();
+
   for (const msg of messages) {
+    if (msg.parentId && toolUseToChildPane.has(msg.parentId)) {
+      const childPaneId = toolUseToChildPane.get(msg.parentId)!;
+      if (!childBuckets.has(childPaneId)) childBuckets.set(childPaneId, []);
+      childBuckets.get(childPaneId)!.push(msg);
+    } else {
+      mainMessages.push(msg);
+    }
+  }
+
+  // Process main session messages
+  for (const msg of mainMessages) {
     switch (msg.type) {
       case 'init': {
         const init = msg.content as InitContent;
         setAgentSdkSessionId(sessionId, init.sessionId);
         setAgentModel(sessionId, init.model);
+        break;
+      }
+
+      case 'tool_call': {
+        const tc = msg.content as ToolCallContent;
+        if (SUBAGENT_TOOL_NAMES.has(tc.name)) {
+          spawnSubagentPane(sessionId, tc);
+        }
         break;
       }
 
@@ -133,9 +165,70 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
     }
   }
 
-  if (messages.length > 0) {
-    appendAgentMessages(sessionId, messages);
+  if (mainMessages.length > 0) {
+    appendAgentMessages(sessionId, mainMessages);
   }
+
+  // Append messages to child panes and update their status
+  for (const [childPaneId, childMsgs] of childBuckets) {
+    for (const msg of childMsgs) {
+      if (msg.type === 'init') {
+        const init = msg.content as InitContent;
+        setAgentSdkSessionId(childPaneId, init.sessionId);
+        setAgentModel(childPaneId, init.model);
+        updateAgentStatus(childPaneId, 'running');
+      } else if (msg.type === 'cost') {
+        const cost = msg.content as CostContent;
+        updateAgentCost(childPaneId, {
+          costUsd: cost.totalCostUsd,
+          inputTokens: cost.inputTokens,
+          outputTokens: cost.outputTokens,
+          numTurns: cost.numTurns,
+          durationMs: cost.durationMs,
+        });
+        updateAgentStatus(childPaneId, cost.isError ? 'error' : 'done');
+      }
+    }
+    appendAgentMessages(childPaneId, childMsgs);
+  }
+}
+
+function spawnSubagentPane(parentSessionId: string, tc: ToolCallContent): void {
+  // Don't create duplicate pane for same tool_use
+  if (toolUseToChildPane.has(tc.toolUseId)) return;
+  const existing = findChildByToolUseId(parentSessionId, tc.toolUseId);
+  if (existing) {
+    toolUseToChildPane.set(tc.toolUseId, existing.id);
+    return;
+  }
+
+  const childId = crypto.randomUUID();
+  const prompt = typeof tc.input === 'object' && tc.input !== null
+    ? (tc.input as Record<string, unknown>).prompt as string ?? tc.name
+    : tc.name;
+  const label = typeof tc.input === 'object' && tc.input !== null
+    ? (tc.input as Record<string, unknown>).name as string ?? tc.name
+    : tc.name;
+
+  // Register routing
+  toolUseToChildPane.set(tc.toolUseId, childId);
+
+  // Create agent session with parent link
+  createAgentSession(childId, prompt, {
+    sessionId: parentSessionId,
+    toolUseId: tc.toolUseId,
+  });
+  updateAgentStatus(childId, 'running');
+
+  // Create layout pane, auto-grouped under parent's title
+  const parentPane = getPanes().find(p => p.id === parentSessionId);
+  const groupName = parentPane?.title ?? `Agent ${parentSessionId.slice(0, 8)}`;
+  addPane({
+    id: childId,
+    type: 'agent',
+    title: `Sub: ${label}`,
+    group: groupName,
+  });
 }
 
 export function stopAgentDispatcher(): void {

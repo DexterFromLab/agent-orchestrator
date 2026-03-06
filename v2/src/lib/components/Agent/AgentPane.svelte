@@ -6,8 +6,10 @@
     getAgentSession,
     createAgentSession,
     removeAgentSession,
+    getChildSessions,
     type AgentSession,
   } from '../../stores/agents.svelte';
+  import { focusPane } from '../../stores/layout.svelte';
   import { isSidecarAlive, setSidecarAlive } from '../../agent-dispatcher';
   import AgentTree from './AgentTree.svelte';
   import { getHighlighter, highlightCode, escapeHtml } from '../../utils/highlight';
@@ -37,6 +39,8 @@
   let restarting = $state(false);
   let showTree = $state(false);
   let hasToolCalls = $derived(session?.messages.some(m => m.type === 'tool_call') ?? false);
+  let parentSession = $derived(session?.parentSessionId ? getAgentSession(session.parentSessionId) : undefined);
+  let childSessions = $derived(session ? getChildSessions(session.id) : []);
 
   const mdRenderer = new Renderer();
   mdRenderer.code = function({ text, lang }: { text: string; lang?: string }) {
@@ -188,6 +192,24 @@
       </form>
     </div>
   {:else}
+    {#if parentSession}
+      <div class="parent-link">
+        <span class="parent-badge">SUB</span>
+        <button class="parent-btn" onclick={() => focusPane(parentSession!.id)}>
+          ← {parentSession.prompt ? parentSession.prompt.slice(0, 40) : 'Parent agent'}
+        </button>
+      </div>
+    {/if}
+    {#if childSessions.length > 0}
+      <div class="children-bar">
+        <span class="children-label">{childSessions.length} subagent{childSessions.length > 1 ? 's' : ''}</span>
+        {#each childSessions as child (child.id)}
+          <button class="child-chip" class:running={child.status === 'running'} class:done={child.status === 'done'} class:error={child.status === 'error'} onclick={() => focusPane(child.id)}>
+            {child.prompt.slice(0, 20)}{child.prompt.length > 20 ? '...' : ''}
+          </button>
+        {/each}
+      </div>
+    {/if}
     {#if hasToolCalls}
       <div class="tree-toggle">
         <button class="tree-btn" onclick={() => showTree = !showTree}>
@@ -319,6 +341,71 @@
     color: var(--text-primary);
     font-size: 13px;
   }
+
+  .parent-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    font-size: 11px;
+  }
+
+  .parent-badge {
+    background: var(--ctp-mauve);
+    color: var(--ctp-crust);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .parent-btn {
+    background: none;
+    border: none;
+    color: var(--ctp-mauve);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0;
+    font-family: inherit;
+  }
+
+  .parent-btn:hover { color: var(--text-primary); text-decoration: underline; }
+
+  .children-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+
+  .children-label {
+    color: var(--text-muted);
+    font-size: 10px;
+    margin-right: 4px;
+  }
+
+  .child-chip {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .child-chip:hover { color: var(--text-primary); border-color: var(--accent); }
+  .child-chip.running { border-color: var(--ctp-blue); color: var(--ctp-blue); }
+  .child-chip.done { border-color: var(--ctp-green); color: var(--ctp-green); }
+  .child-chip.error { border-color: var(--ctp-red); color: var(--ctp-red); }
 
   .tree-toggle {
     padding: 4px 12px;

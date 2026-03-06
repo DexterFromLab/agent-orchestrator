@@ -18,6 +18,10 @@ export interface AgentSession {
   numTurns: number;
   durationMs: number;
   error?: string;
+  // Agent Teams: parent/child hierarchy
+  parentSessionId?: string;
+  parentToolUseId?: string;
+  childSessionIds: string[];
 }
 
 let sessions = $state<AgentSession[]>([]);
@@ -30,7 +34,7 @@ export function getAgentSession(id: string): AgentSession | undefined {
   return sessions.find(s => s.id === id);
 }
 
-export function createAgentSession(id: string, prompt: string): void {
+export function createAgentSession(id: string, prompt: string, parent?: { sessionId: string; toolUseId: string }): void {
   sessions.push({
     id,
     status: 'starting',
@@ -41,7 +45,18 @@ export function createAgentSession(id: string, prompt: string): void {
     outputTokens: 0,
     numTurns: 0,
     durationMs: 0,
+    parentSessionId: parent?.sessionId,
+    parentToolUseId: parent?.toolUseId,
+    childSessionIds: [],
   });
+
+  // Register as child of parent
+  if (parent) {
+    const parentSession = sessions.find(s => s.id === parent.sessionId);
+    if (parentSession) {
+      parentSession.childSessionIds.push(id);
+    }
+  }
 }
 
 export function updateAgentStatus(id: string, status: AgentStatus, error?: string): void {
@@ -86,6 +101,24 @@ export function updateAgentCost(
   session.durationMs = cost.durationMs;
 }
 
+/** Find a child session that was spawned by a specific tool_use */
+export function findChildByToolUseId(parentId: string, toolUseId: string): AgentSession | undefined {
+  return sessions.find(s => s.parentSessionId === parentId && s.parentToolUseId === toolUseId);
+}
+
+/** Get all child sessions for a given parent */
+export function getChildSessions(parentId: string): AgentSession[] {
+  return sessions.filter(s => s.parentSessionId === parentId);
+}
+
 export function removeAgentSession(id: string): void {
+  // Also remove from parent's childSessionIds
+  const session = sessions.find(s => s.id === id);
+  if (session?.parentSessionId) {
+    const parent = sessions.find(s => s.id === session.parentSessionId);
+    if (parent) {
+      parent.childSessionIds = parent.childSessionIds.filter(cid => cid !== id);
+    }
+  }
   sessions = sessions.filter(s => s.id !== id);
 }
