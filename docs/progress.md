@@ -323,13 +323,27 @@ Design: No separate sidecar process per subagent. Parent's sidecar handles all; 
 #### RemoteManager Reconnection
 - [x] Exponential backoff reconnection in remote.rs: spawns async tokio task on disconnect
 - [x] Backoff schedule: 1s, 2s, 4s, 8s, 16s, 30s (capped)
-- [x] attempt_ws_connect() probe function: connects with proper WebSocket upgrade + auth header, 5s timeout, immediate close
+- [x] attempt_tcp_probe() function: TCP-only connect probe (5s timeout, default port 9750) — avoids allocating per-connection resources on relay
 - [x] Emits remote-machine-reconnecting (with backoffSecs) and remote-machine-reconnect-ready Tauri events
 - [x] Cancellation: stops if machine removed (not in HashMap) or manually reconnected (status != disconnected)
 - [x] Fixed scoping: disconnection cleanup uses inner block to release mutex before emitting event
 
 #### RemoteManager PTY Creation Confirmation
 - [x] Handles pty_created event type from relay: emits remote-pty-created Tauri event with machineId, ptyId, commandId
+
+### Session: 2026-03-06 (continued) — Reconnection Hardening
+
+#### TCP Probe Refactor
+- [x] Replaced attempt_ws_connect() with attempt_tcp_probe() in remote.rs: TCP-only connect (no WS upgrade), 5s timeout, default port 9750
+- [x] Avoids allocating per-connection resources (PtyManager, SidecarManager) on the relay during reconnection probes
+- [x] Probe no longer needs auth token — only checks TCP reachability
+
+#### Frontend Reconnection Listeners
+- [x] Added onRemoteMachineReconnecting() listener in remote-bridge.ts: receives machineId + backoffSecs
+- [x] Added onRemoteMachineReconnectReady() listener in remote-bridge.ts: receives machineId when probe succeeds
+- [x] machines.svelte.ts: reconnecting handler sets machine status to 'reconnecting', shows toast with backoff duration
+- [x] machines.svelte.ts: reconnect-ready handler auto-calls connectMachine() to re-establish full WebSocket connection
+- [x] Updated docs/multi-machine.md to reflect TCP probe and frontend listener changes
 
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)

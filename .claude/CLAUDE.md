@@ -49,7 +49,7 @@
 - remote-bridge.ts adapter wraps remote machine management IPC. machines.svelte.ts store tracks remote machine state.
 - Pane.remoteMachineId?: string routes operations through RemoteManager instead of local managers. Bridge adapters (pty-bridge, agent-bridge) check this field.
 - bterminal-relay binary (v2/bterminal-relay/) is a standalone WebSocket server with token auth, rate limiting, and per-connection isolated managers. Commands return structured responses (pty_created, pong, error) with commandId for correlation via send_error() helper.
-- RemoteManager reconnection: exponential backoff (1s-30s cap) on disconnect, attempt_ws_connect() probe, emits remote-machine-reconnecting and remote-machine-reconnect-ready events.
+- RemoteManager reconnection: exponential backoff (1s-30s cap) on disconnect, attempt_tcp_probe() (TCP-only, no WS upgrade), emits remote-machine-reconnecting and remote-machine-reconnect-ready events. Frontend listeners in remote-bridge.ts; machines store auto-reconnects on ready.
 
 ## Memora Tags
 

@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Exponential backoff reconnection in RemoteManager: on disconnect, spawns async task with 1s/2s/4s/8s/16s/30s-cap backoff, uses attempt_ws_connect() probe (5s timeout), emits remote-machine-reconnecting and remote-machine-reconnect-ready events
+- Exponential backoff reconnection in RemoteManager: on disconnect, spawns async task with 1s/2s/4s/8s/16s/30s-cap backoff, uses attempt_tcp_probe() (TCP-only, no WS upgrade, 5s timeout, default port 9750), emits remote-machine-reconnecting and remote-machine-reconnect-ready events
+- Frontend reconnection listeners: onRemoteMachineReconnecting and onRemoteMachineReconnectReady in remote-bridge.ts; machines store sets status to 'reconnecting' and auto-calls connectMachine() on ready
 - Relay command response propagation: bterminal-relay now sends structured responses (pty_created, pong, error) back to client via shared event channel with commandId correlation
 - send_error() helper in bterminal-relay for consistent error reporting across all command handlers
 - PTY creation confirmation flow: pty_create command returns pty_created event with session ID and commandId; RemoteManager emits remote-pty-created Tauri event
@@ -48,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tempfile dev dependency for Rust test isolation
 
 ### Changed
+- RemoteManager reconnection probe refactored from attempt_ws_connect() (full WS handshake + auth) to attempt_tcp_probe() (TCP-only connect, no resource allocation on relay)
 - bterminal-relay command handlers refactored: all error paths now use send_error() helper instead of log::error!() only; pong response sent via event channel instead of no-op
 - RemoteManager disconnect handler: scoped mutex release before event emission to prevent deadlocks; spawns reconnection task
 - PtyManager and SidecarManager extracted from src-tauri to bterminal-core shared crate (src-tauri now has thin re-export wrappers)

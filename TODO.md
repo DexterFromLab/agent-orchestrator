@@ -10,7 +10,7 @@
 
 ## Completed
 
-- [x] **Multi-machine reconnection** -- Exponential backoff reconnection (1s-30s cap) in RemoteManager, attempt_ws_connect() probe, reconnection events. | Done: 2026-03-06
+- [x] **Multi-machine reconnection** -- Exponential backoff reconnection (1s-30s cap) in RemoteManager, attempt_tcp_probe() (TCP-only), frontend reconnection listeners + auto-reconnect. | Done: 2026-03-06
 - [x] **Relay command response propagation** -- Structured responses (pty_created, pong, error) with commandId correlation, send_error() helper. | Done: 2026-03-06
 - [x] **Multi-machine support (Phases A-D)** -- bterminal-core crate extraction, bterminal-relay WebSocket binary, RemoteManager, frontend integration. | Done: 2026-03-06
 - [x] **Agent Teams frontend support** -- Subagent pane spawning, parent/child navigation, message routing by parentId, SUBAGENT_TOOL_NAMES detection in dispatcher. | Done: 2026-03-06

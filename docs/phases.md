@@ -282,7 +282,7 @@ Architecture designed in [multi-machine.md](multi-machine.md). Implementation ex
 - [x] Heartbeat ping every 15s
 - [x] PTY creation event: emits remote-pty-created Tauri event with machineId, ptyId, commandId
 - [x] Exponential backoff reconnection on disconnect (1s/2s/4s/8s/16s/30s cap)
-- [x] attempt_ws_connect() probe function (5s timeout, auth header, immediate close)
+- [x] attempt_tcp_probe() function: TCP-only probe (5s timeout, default port 9750) — avoids allocating per-connection resources on relay during probes
 - [x] Reconnection events: remote-machine-reconnecting, remote-machine-reconnect-ready
 
 ### Phase D: Frontend integration [status: complete]

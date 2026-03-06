@@ -185,8 +185,9 @@ Controller                          Relay
 
 - Controller reconnects with exponential backoff (1s, 2s, 4s, 8s, 16s, 30s cap)
 - Reconnection runs as an async tokio task spawned on disconnect
-- Uses `attempt_ws_connect()` probe: connects with auth header, immediately closes (5s timeout)
+- Uses `attempt_tcp_probe()`: TCP connect only (no WS upgrade), 5s timeout, default port 9750. Avoids allocating per-connection resources (PtyManager, SidecarManager) on the relay during probes.
 - Emits `remote-machine-reconnecting` event (with backoff duration) and `remote-machine-reconnect-ready` when probe succeeds
+- Frontend listens via `onRemoteMachineReconnecting` and `onRemoteMachineReconnectReady` in remote-bridge.ts; machines store sets status to 'reconnecting' and auto-calls `connectMachine()` on ready
 - Cancels if machine is removed or manually reconnected (checks status == "disconnected" && connection == None)
 - On reconnect, relay sends current state snapshot (active sessions, PTY list)
 - Controller reconciles: updates pane states, re-subscribes to streams
@@ -274,7 +275,7 @@ Stored in SQLite `settings` table as JSON: `remote_machines` key.
 - 12 Tauri commands: remote_add_machine, remote_remove_machine, remote_connect, remote_disconnect, remote_list_machines, remote_pty_spawn/write/resize/kill, remote_agent_query/stop, remote_sidecar_restart
 - Heartbeat ping every 15s
 - PTY creation event: emits `remote-pty-created` Tauri event with machineId, ptyId, commandId
-- Exponential backoff reconnection on disconnect (1s/2s/4s/8s/16s/30s cap) via `attempt_ws_connect()` probe
+- Exponential backoff reconnection on disconnect (1s/2s/4s/8s/16s/30s cap) via `attempt_tcp_probe()` (TCP-only, no WS upgrade)
 - Reconnection events: `remote-machine-reconnecting`, `remote-machine-reconnect-ready`
 
 ### Phase D: Frontend integration [DONE]
