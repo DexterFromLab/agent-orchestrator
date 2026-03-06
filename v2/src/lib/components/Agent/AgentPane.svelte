@@ -7,6 +7,7 @@
     createAgentSession,
     removeAgentSession,
     getChildSessions,
+    getTotalCost,
     type AgentSession,
   } from '../../stores/agents.svelte';
   import { focusPane } from '../../stores/layout.svelte';
@@ -41,6 +42,7 @@
   let hasToolCalls = $derived(session?.messages.some(m => m.type === 'tool_call') ?? false);
   let parentSession = $derived(session?.parentSessionId ? getAgentSession(session.parentSessionId) : undefined);
   let childSessions = $derived(session ? getChildSessions(session.id) : []);
+  let totalCost = $derived(session && childSessions.length > 0 ? getTotalCost(session.id) : null);
 
   const mdRenderer = new Renderer();
   mdRenderer.code = function({ text, lang }: { text: string; lang?: string }) {
@@ -280,6 +282,9 @@
       {:else if session.status === 'done'}
         <div class="done-bar">
           <span class="cost">${session.costUsd.toFixed(4)}</span>
+          {#if totalCost && totalCost.costUsd > session.costUsd}
+            <span class="total-cost">(total: ${totalCost.costUsd.toFixed(4)})</span>
+          {/if}
           <span class="tokens">{session.inputTokens + session.outputTokens} tokens</span>
           <span class="duration">{(session.durationMs / 1000).toFixed(1)}s</span>
           {#if !autoScroll}
@@ -774,6 +779,7 @@
   }
 
   .done-bar { color: var(--ctp-green); }
+  .total-cost { color: var(--ctp-yellow); font-size: 10px; }
   .error-bar { color: var(--ctp-red); }
 
   .follow-up {

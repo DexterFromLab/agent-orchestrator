@@ -111,6 +111,25 @@ export function getChildSessions(parentId: string): AgentSession[] {
   return sessions.filter(s => s.parentSessionId === parentId);
 }
 
+/** Aggregate cost of a session plus all its children (recursive) */
+export function getTotalCost(id: string): { costUsd: number; inputTokens: number; outputTokens: number } {
+  const session = sessions.find(s => s.id === id);
+  if (!session) return { costUsd: 0, inputTokens: 0, outputTokens: 0 };
+
+  let costUsd = session.costUsd;
+  let inputTokens = session.inputTokens;
+  let outputTokens = session.outputTokens;
+
+  for (const childId of session.childSessionIds) {
+    const childCost = getTotalCost(childId);
+    costUsd += childCost.costUsd;
+    inputTokens += childCost.inputTokens;
+    outputTokens += childCost.outputTokens;
+  }
+
+  return { costUsd, inputTokens, outputTokens };
+}
+
 export function removeAgentSession(id: string): void {
   // Also remove from parent's childSessionIds
   const session = sessions.find(s => s.id === id);
