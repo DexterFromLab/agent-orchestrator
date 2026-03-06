@@ -196,6 +196,14 @@ impl RemoteManager {
                                         "payload": event.payload,
                                     }));
                                 }
+                                "pty_created" => {
+                                    // Relay confirmed PTY spawn — emit with real PTY ID
+                                    let _ = app_handle.emit("remote-pty-created", &serde_json::json!({
+                                        "machineId": mid,
+                                        "ptyId": event.session_id,
+                                        "commandId": event.payload.as_ref().and_then(|p| p.get("commandId")).and_then(|v| v.as_str()),
+                                    }));
+                                }
                                 "pong" => {} // heartbeat response, ignore
                                 "error" => {
                                     let _ = app_handle.emit("remote-error", &serde_json::json!({
@@ -218,16 +226,71 @@ impl RemoteManager {
                 }
             }
 
-            // Mark disconnected
-            if let Ok(mut machines) = machines_ref.try_lock() {
-                if let Some(machine) = machines.get_mut(&mid) {
-                    machine.status = "disconnected".to_string();
-                    machine.connection = None;
+            // Mark disconnected and clear connection
+            {
+                if let Ok(mut machines) = machines_ref.try_lock() {
+                    if let Some(machine) = machines.get_mut(&mid) {
+                        machine.status = "disconnected".to_string();
+                        machine.connection = None;
+                    }
                 }
             }
             let _ = app_handle.emit("remote-machine-disconnected", &serde_json::json!({
                 "machineId": mid,
             }));
+
+            // Exponential backoff reconnection (1s, 2s, 4s, 8s, 16s, 30s cap)
+            let reconnect_machines = machines_ref.clone();
+            let reconnect_app = app_handle.clone();
+            let reconnect_mid = mid.clone();
+            tokio::spawn(async move {
+                let mut delay = std::time::Duration::from_secs(1);
+                let max_delay = std::time::Duration::from_secs(30);
+
+                loop {
+                    tokio::time::sleep(delay).await;
+
+                    // Check if machine still exists and wants reconnection
+                    let should_reconnect = {
+                        let machines = reconnect_machines.lock().await;
+                        machines.get(&reconnect_mid)
+                            .map(|m| m.status == "disconnected" && m.connection.is_none())
+                            .unwrap_or(false)
+                    };
+
+                    if !should_reconnect {
+                        log::info!("Reconnection cancelled for machine {reconnect_mid}");
+                        break;
+                    }
+
+                    log::info!("Attempting reconnection to {reconnect_mid} (backoff: {}s)", delay.as_secs());
+                    let _ = reconnect_app.emit("remote-machine-reconnecting", &serde_json::json!({
+                        "machineId": reconnect_mid,
+                        "backoffSecs": delay.as_secs(),
+                    }));
+
+                    // Try to get config for reconnection
+                    let config = {
+                        let machines = reconnect_machines.lock().await;
+                        machines.get(&reconnect_mid).map(|m| (m.config.url.clone(), m.config.token.clone()))
+                    };
+
+                    if let Some((url, token)) = config {
+                        if attempt_ws_connect(&url, &token).await.is_ok() {
+                            log::info!("Reconnection probe succeeded for {reconnect_mid}");
+                            // Mark as ready for reconnection — frontend should call connect()
+                            let _ = reconnect_app.emit("remote-machine-reconnect-ready", &serde_json::json!({
+                                "machineId": reconnect_mid,
+                            }));
+                            break;
+                        }
+                    } else {
+                        break; // Machine removed
+                    }
+
+                    delay = std::cmp::min(delay * 2, max_delay);
+                }
+            });
         });
 
         // Combine reader + writer into one handle
@@ -347,6 +410,33 @@ impl RemoteManager {
             payload: serde_json::json!({ "id": id }),
         }).await
     }
+}
+
+/// Probe whether a relay is reachable (connect + immediate close).
+async fn attempt_ws_connect(url: &str, token: &str) -> Result<(), String> {
+    let request = tokio_tungstenite::tungstenite::http::Request::builder()
+        .uri(url)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("Sec-WebSocket-Key", tokio_tungstenite::tungstenite::handshake::client::generate_key())
+        .header("Sec-WebSocket-Version", "13")
+        .header("Connection", "Upgrade")
+        .header("Upgrade", "websocket")
+        .header("Host", extract_host(url).unwrap_or_default())
+        .body(())
+        .map_err(|e| format!("Request build failed: {e}"))?;
+
+    let (ws, _) = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        tokio_tungstenite::connect_async(request),
+    )
+    .await
+    .map_err(|_| "Connection timeout".to_string())?
+    .map_err(|e| format!("Connection failed: {e}"))?;
+
+    // Close immediately — this was just a probe
+    let (mut tx, _) = ws.split();
+    let _ = tx.close().await;
+    Ok(())
 }
 
 fn extract_host(url: &str) -> Option<String> {

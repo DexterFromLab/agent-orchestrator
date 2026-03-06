@@ -165,8 +165,9 @@ async fn handle_connection(
 
     log::info!("Client connected: {peer}");
 
-    // Set up event channel
+    // Set up event channel — shared between EventSink and command response sender
     let (event_tx, mut event_rx) = mpsc::unbounded_channel::<RelayEvent>();
+    let sink_tx = event_tx.clone();
     let sink: Arc<dyn EventSink> = Arc::new(WsEventSink { tx: event_tx });
 
     // Create managers for this connection
@@ -204,12 +205,13 @@ async fn handle_connection(
     // Process incoming commands
     let pty_mgr = pty_manager.clone();
     let sidecar_mgr = sidecar_manager.clone();
+    let response_tx = sink_tx;
     let command_reader = tokio::spawn(async move {
         while let Some(msg) = ws_rx.next().await {
             match msg {
                 Ok(Message::Text(text)) => {
                     if let Ok(cmd) = serde_json::from_str::<RelayCommand>(&text) {
-                        handle_relay_command(&pty_mgr, &sidecar_mgr, cmd).await;
+                        handle_relay_command(&pty_mgr, &sidecar_mgr, &response_tx, cmd).await;
                     }
                 }
                 Ok(Message::Close(_)) => break,
@@ -238,25 +240,35 @@ async fn handle_connection(
 async fn handle_relay_command(
     pty: &PtyManager,
     sidecar: &SidecarManager,
+    response_tx: &mpsc::UnboundedSender<RelayEvent>,
     cmd: RelayCommand,
 ) {
     match cmd.type_.as_str() {
         "ping" => {
-            // Pong is handled by the event sink — no-op here since we'd need
-            // the event channel. The WsEventSink handles it via the ready signal pattern.
-            // For pong, we emit directly.
+            let _ = response_tx.send(RelayEvent {
+                type_: "pong".to_string(),
+                session_id: None,
+                payload: None,
+            });
         }
         "pty_create" => {
             let options: PtyOptions = match serde_json::from_value(cmd.payload) {
                 Ok(opts) => opts,
                 Err(e) => {
-                    log::error!("Invalid pty_create payload: {e}");
+                    send_error(response_tx, &cmd.id, &format!("Invalid pty_create payload: {e}"));
                     return;
                 }
             };
             match pty.spawn(options) {
-                Ok(id) => log::info!("Spawned remote PTY: {id}"),
-                Err(e) => log::error!("Failed to spawn remote PTY: {e}"),
+                Ok(pty_id) => {
+                    log::info!("Spawned remote PTY: {pty_id}");
+                    let _ = response_tx.send(RelayEvent {
+                        type_: "pty_created".to_string(),
+                        session_id: Some(pty_id),
+                        payload: Some(serde_json::json!({ "commandId": cmd.id })),
+                    });
+                }
+                Err(e) => send_error(response_tx, &cmd.id, &format!("Failed to spawn PTY: {e}")),
             }
         }
         "pty_write" => {
@@ -265,7 +277,7 @@ async fn handle_relay_command(
                 cmd.payload.get("data").and_then(|v| v.as_str()),
             ) {
                 if let Err(e) = pty.write(id, data) {
-                    log::error!("Remote PTY write error: {e}");
+                    send_error(response_tx, &cmd.id, &format!("PTY write error: {e}"));
                 }
             }
         }
@@ -276,14 +288,14 @@ async fn handle_relay_command(
                 cmd.payload.get("rows").and_then(|v| v.as_u64()),
             ) {
                 if let Err(e) = pty.resize(id, cols as u16, rows as u16) {
-                    log::error!("Remote PTY resize error: {e}");
+                    send_error(response_tx, &cmd.id, &format!("PTY resize error: {e}"));
                 }
             }
         }
         "pty_close" => {
             if let Some(id) = cmd.payload.get("id").and_then(|v| v.as_str()) {
                 if let Err(e) = pty.kill(id) {
-                    log::error!("Remote PTY kill error: {e}");
+                    send_error(response_tx, &cmd.id, &format!("PTY kill error: {e}"));
                 }
             }
         }
@@ -291,28 +303,40 @@ async fn handle_relay_command(
             let options: AgentQueryOptions = match serde_json::from_value(cmd.payload) {
                 Ok(opts) => opts,
                 Err(e) => {
-                    log::error!("Invalid agent_query payload: {e}");
+                    send_error(response_tx, &cmd.id, &format!("Invalid agent_query payload: {e}"));
                     return;
                 }
             };
             if let Err(e) = sidecar.query(&options) {
-                log::error!("Remote agent query error: {e}");
+                send_error(response_tx, &cmd.id, &format!("Agent query error: {e}"));
             }
         }
         "agent_stop" => {
             if let Some(session_id) = cmd.payload.get("sessionId").and_then(|v| v.as_str()) {
                 if let Err(e) = sidecar.stop_session(session_id) {
-                    log::error!("Remote agent stop error: {e}");
+                    send_error(response_tx, &cmd.id, &format!("Agent stop error: {e}"));
                 }
             }
         }
         "sidecar_restart" => {
             if let Err(e) = sidecar.restart() {
-                log::error!("Remote sidecar restart error: {e}");
+                send_error(response_tx, &cmd.id, &format!("Sidecar restart error: {e}"));
             }
         }
         other => {
             log::warn!("Unknown relay command: {other}");
         }
     }
+}
+
+fn send_error(tx: &mpsc::UnboundedSender<RelayEvent>, cmd_id: &str, message: &str) {
+    log::error!("{message}");
+    let _ = tx.send(RelayEvent {
+        type_: "error".to_string(),
+        session_id: None,
+        payload: Some(serde_json::json!({
+            "commandId": cmd_id,
+            "message": message,
+        })),
+    });
 }
