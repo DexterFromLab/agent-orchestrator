@@ -29,6 +29,8 @@ pub struct Session {
     pub shell: Option<String>,
     pub cwd: Option<String>,
     pub args: Option<Vec<String>>,
+    #[serde(default)]
+    pub group_name: String,
     pub created_at: i64,
     pub last_used_at: i64,
 }
@@ -102,6 +104,18 @@ impl SessionDb {
             );
             "
         ).map_err(|e| format!("Migration failed: {e}"))?;
+
+        // Add group_name column if missing (v2 migration)
+        let has_group: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name='group_name'",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(0);
+        if has_group == 0 {
+            conn.execute("ALTER TABLE sessions ADD COLUMN group_name TEXT DEFAULT ''", [])
+                .map_err(|e| format!("Migration (group_name) failed: {e}"))?;
+        }
+
         Ok(())
     }
 
@@ -143,7 +157,7 @@ impl SessionDb {
     pub fn list_sessions(&self) -> Result<Vec<Session>, String> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
-            .prepare("SELECT id, type, title, shell, cwd, args, created_at, last_used_at FROM sessions ORDER BY last_used_at DESC")
+            .prepare("SELECT id, type, title, shell, cwd, args, group_name, created_at, last_used_at FROM sessions ORDER BY last_used_at DESC")
             .map_err(|e| format!("Query prepare failed: {e}"))?;
 
         let sessions = stmt
@@ -157,8 +171,9 @@ impl SessionDb {
                     shell: row.get(3)?,
                     cwd: row.get(4)?,
                     args,
-                    created_at: row.get(6)?,
-                    last_used_at: row.get(7)?,
+                    group_name: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
+                    created_at: row.get(7)?,
+                    last_used_at: row.get(8)?,
                 })
             })
             .map_err(|e| format!("Query failed: {e}"))?
@@ -172,7 +187,7 @@ impl SessionDb {
         let conn = self.conn.lock().unwrap();
         let args_json = session.args.as_ref().map(|a| serde_json::to_string(a).unwrap_or_default());
         conn.execute(
-            "INSERT OR REPLACE INTO sessions (id, type, title, shell, cwd, args, created_at, last_used_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT OR REPLACE INTO sessions (id, type, title, shell, cwd, args, group_name, created_at, last_used_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 session.id,
                 session.session_type,
@@ -180,6 +195,7 @@ impl SessionDb {
                 session.shell,
                 session.cwd,
                 args_json,
+                session.group_name,
                 session.created_at,
                 session.last_used_at,
             ],
@@ -200,6 +216,15 @@ impl SessionDb {
             "UPDATE sessions SET title = ?1 WHERE id = ?2",
             params![title, id],
         ).map_err(|e| format!("Update failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn update_group(&self, id: &str, group_name: &str) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE sessions SET group_name = ?1 WHERE id = ?2",
+            params![group_name, id],
+        ).map_err(|e| format!("Update group failed: {e}"))?;
         Ok(())
     }
 
@@ -334,6 +359,7 @@ mod tests {
             shell: Some("/bin/bash".to_string()),
             cwd: Some("/home/user".to_string()),
             args: Some(vec!["--login".to_string()]),
+            group_name: String::new(),
             created_at: 1000,
             last_used_at: 2000,
         }
@@ -449,6 +475,7 @@ mod tests {
             shell: None,
             cwd: None,
             args: None,
+            group_name: String::new(),
             created_at: 1000,
             last_used_at: 2000,
         };

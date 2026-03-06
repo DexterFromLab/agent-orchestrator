@@ -7,6 +7,7 @@ export interface PersistedSession {
   shell?: string;
   cwd?: string;
   args?: string[];
+  group_name?: string;
   created_at: number;
   last_used_at: number;
 }
@@ -34,6 +35,10 @@ export async function updateSessionTitle(id: string, title: string): Promise<voi
 
 export async function touchSession(id: string): Promise<void> {
   return invoke('session_touch', { id });
+}
+
+export async function updateSessionGroup(id: string, groupName: string): Promise<void> {
+  return invoke('session_update_group', { id, group_name: groupName });
 }
 
 export async function saveLayout(layout: PersistedLayout): Promise<void> {

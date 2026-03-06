@@ -6,12 +6,53 @@
     removePane,
     getActivePreset,
     setPreset,
+    setPaneGroup,
     type LayoutPreset,
+    type Pane,
   } from '../../stores/layout.svelte';
   import SshSessionList from '../SSH/SshSessionList.svelte';
 
   let panes = $derived(getPanes());
   let preset = $derived(getActivePreset());
+
+  let grouped = $derived.by(() => {
+    const groups = new Map<string, Pane[]>();
+    for (const pane of panes) {
+      const g = pane.group || '';
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g)!.push(pane);
+    }
+    return groups;
+  });
+
+  let collapsed = $state<Set<string>>(new Set());
+
+  function toggleGroup(name: string) {
+    if (collapsed.has(name)) {
+      collapsed = new Set([...collapsed].filter(g => g !== name));
+    } else {
+      collapsed = new Set([...collapsed, name]);
+    }
+  }
+
+  function setGroup(paneId: string) {
+    const current = panes.find(p => p.id === paneId)?.group || '';
+    const name = prompt('Group name (empty to ungroup):', current);
+    if (name !== null) {
+      setPaneGroup(paneId, name);
+    }
+  }
+
+  function paneIcon(type: string): string {
+    switch (type) {
+      case 'terminal': return '>';
+      case 'agent': return '*';
+      case 'markdown': return 'M';
+      case 'ssh': return '@';
+      case 'context': return 'C';
+      default: return '#';
+    }
+  }
 
   const presets: LayoutPreset[] = ['1-col', '2-col', '3-col', '2x2', 'master-stack'];
 
@@ -109,14 +150,33 @@
     </div>
   {:else}
     <ul class="pane-list">
-      {#each panes as pane (pane.id)}
+      {#snippet paneItem(pane: Pane)}
         <li class="pane-item" class:focused={pane.focused}>
-          <button class="pane-btn" onclick={() => focusPane(pane.id)}>
-            <span class="pane-icon">{pane.type === 'terminal' ? '>' : pane.type === 'agent' ? '*' : pane.type === 'markdown' ? 'M' : pane.type === 'ssh' ? '@' : pane.type === 'context' ? 'C' : '#'}</span>
+          <button class="pane-btn" onclick={() => focusPane(pane.id)} oncontextmenu={(e) => { e.preventDefault(); setGroup(pane.id); }}>
+            <span class="pane-icon">{paneIcon(pane.type)}</span>
             <span class="pane-name">{pane.title}</span>
           </button>
           <button class="remove-btn" onclick={() => removePane(pane.id)}>&times;</button>
         </li>
+      {/snippet}
+
+      {#if grouped.has('')}
+        {#each grouped.get('')! as pane (pane.id)}
+          {@render paneItem(pane)}
+        {/each}
+      {/if}
+
+      {#each [...grouped.entries()].filter(([k]) => k !== '') as [groupName, groupPanes] (groupName)}
+        <li class="group-header" onclick={() => toggleGroup(groupName)}>
+          <span class="group-arrow">{collapsed.has(groupName) ? '\u25B6' : '\u25BC'}</span>
+          <span>{groupName}</span>
+          <span class="group-count">{groupPanes.length}</span>
+        </li>
+        {#if !collapsed.has(groupName)}
+          {#each groupPanes as pane (pane.id)}
+            {@render paneItem(pane)}
+          {/each}
+        {/if}
       {/each}
     </ul>
   {/if}
@@ -209,6 +269,33 @@
   .hint {
     margin-top: 4px;
     font-size: 11px;
+    color: var(--ctp-overlay0);
+  }
+
+  .group-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    font-size: 11px;
+    color: var(--ctp-overlay1);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+
+  .group-header:hover {
+    color: var(--text-primary);
+  }
+
+  .group-arrow {
+    font-size: 8px;
+    width: 12px;
+  }
+
+  .group-count {
+    margin-left: auto;
+    font-size: 9px;
     color: var(--ctp-overlay0);
   }
 

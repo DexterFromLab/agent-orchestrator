@@ -126,6 +126,11 @@ fn session_touch(state: State<'_, AppState>, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn session_update_group(state: State<'_, AppState>, id: String, group_name: String) -> Result<(), String> {
+    state.session_db.update_group(&id, &group_name)
+}
+
+#[tauri::command]
 fn layout_save(state: State<'_, AppState>, layout: LayoutState) -> Result<(), String> {
     state.session_db.save_layout(&layout)
 }
@@ -239,6 +244,7 @@ pub fn run() {
             session_delete,
             session_update_title,
             session_touch,
+            session_update_group,
             layout_save,
             layout_load,
             settings_get,

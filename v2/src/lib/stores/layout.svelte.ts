@@ -6,6 +6,7 @@ import {
   touchSession,
   saveLayout,
   loadLayout,
+  updateSessionGroup,
   type PersistedSession,
 } from '../adapters/session-bridge';
 
@@ -20,6 +21,7 @@ export interface Pane {
   shell?: string;
   cwd?: string;
   args?: string[];
+  group?: string;
   focused: boolean;
 }
 
@@ -39,6 +41,7 @@ function persistSession(pane: Pane): void {
     shell: pane.shell,
     cwd: pane.cwd,
     args: pane.args,
+    group_name: pane.group ?? '',
     created_at: now,
     last_used_at: now,
   };
@@ -109,6 +112,14 @@ export function renamePaneTitle(id: string, title: string): void {
   }
 }
 
+export function setPaneGroup(id: string, group: string): void {
+  const pane = panes.find(p => p.id === id);
+  if (pane) {
+    pane.group = group || undefined;
+    updateSessionGroup(id, group).catch(e => console.warn('Failed to update group:', e));
+  }
+}
+
 /** Restore panes and layout from SQLite on app startup */
 export async function restoreFromDb(): Promise<void> {
   if (initialized) return;
@@ -135,6 +146,7 @@ export async function restoreFromDb(): Promise<void> {
         shell: s.shell ?? undefined,
         cwd: s.cwd ?? undefined,
         args: s.args ?? undefined,
+        group: s.group_name || undefined,
         focused: false,
       });
     }
