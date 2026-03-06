@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { queryAgent, stopAgent, isAgentReady } from '../../adapters/agent-bridge';
+  import { queryAgent, stopAgent, isAgentReady, restartAgent } from '../../adapters/agent-bridge';
   import {
     getAgentSession,
     createAgentSession,
     removeAgentSession,
     type AgentSession,
   } from '../../stores/agents.svelte';
+  import { isSidecarAlive, setSidecarAlive } from '../../agent-dispatcher';
   import type {
     AgentMessage,
     TextContent,
@@ -30,6 +31,7 @@
   let inputPrompt = $state(initialPrompt);
   let scrollContainer: HTMLDivElement | undefined = $state();
   let autoScroll = $state(true);
+  let restarting = $state(false);
 
   onMount(async () => {
     if (initialPrompt) {
@@ -73,10 +75,29 @@
     stopAgent(sessionId).catch(() => {});
   }
 
+  async function handleRestart() {
+    restarting = true;
+    try {
+      await restartAgent();
+      setSidecarAlive(true);
+    } catch {
+      // Still dead
+    } finally {
+      restarting = false;
+    }
+  }
+
   function scrollToBottom() {
     if (autoScroll && scrollContainer) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
+  }
+
+  function handleScroll() {
+    if (!scrollContainer) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+    // Lock auto-scroll if user scrolled up more than 50px from bottom
+    autoScroll = scrollHeight - scrollTop - clientHeight < 50;
   }
 
   // Auto-scroll when new messages arrive
@@ -121,7 +142,7 @@
       </form>
     </div>
   {:else}
-    <div class="messages" bind:this={scrollContainer}>
+    <div class="messages" bind:this={scrollContainer} onscroll={handleScroll}>
       {#each session.messages as msg (msg.id)}
         <div class="message msg-{msg.type}">
           {#if msg.type === 'init'}
@@ -173,6 +194,9 @@
         <div class="running-indicator">
           <span class="pulse"></span>
           <span>Running...</span>
+          {#if !autoScroll}
+            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollToBottom(); }}>Scroll to bottom</button>
+          {/if}
           <button class="stop-btn" onclick={handleStop}>Stop</button>
         </div>
       {:else if session.status === 'done'}
@@ -184,6 +208,11 @@
       {:else if session.status === 'error'}
         <div class="error-bar">
           <span>Error: {session.error ?? 'Unknown'}</span>
+          {#if session.error?.includes('Sidecar') || session.error?.includes('crashed')}
+            <button class="restart-btn" onclick={handleRestart} disabled={restarting}>
+              {restarting ? 'Restarting...' : 'Restart Sidecar'}
+            </button>
+          {/if}
         </div>
       {/if}
     </div>
@@ -407,11 +436,38 @@
 
   .stop-btn:hover { opacity: 0.9; }
 
+  .scroll-btn {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 10px;
+    cursor: pointer;
+  }
+
+  .scroll-btn:hover { color: var(--text-primary); }
+
+  .restart-btn {
+    margin-left: auto;
+    background: var(--ctp-peach);
+    color: var(--ctp-crust);
+    border: none;
+    border-radius: 3px;
+    padding: 2px 10px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .restart-btn:hover { opacity: 0.9; }
+  .restart-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
   .done-bar, .error-bar {
     display: flex;
     gap: 12px;
     font-size: 11px;
     font-family: var(--font-mono);
+    align-items: center;
   }
 
   .done-bar { color: var(--ctp-green); }

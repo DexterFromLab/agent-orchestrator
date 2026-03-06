@@ -159,6 +159,12 @@ impl SidecarManager {
         self.send_message(&msg)
     }
 
+    pub fn restart(&self, app: &AppHandle) -> Result<(), String> {
+        log::info!("Restarting sidecar");
+        let _ = self.shutdown();
+        self.start(app)
+    }
+
     pub fn shutdown(&self) -> Result<(), String> {
         let mut child_lock = self.child.lock().unwrap();
         if let Some(ref mut child) = *child_lock {

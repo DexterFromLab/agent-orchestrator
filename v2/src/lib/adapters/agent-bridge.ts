@@ -25,6 +25,10 @@ export async function isAgentReady(): Promise<boolean> {
   return invoke<boolean>('agent_ready');
 }
 
+export async function restartAgent(): Promise<void> {
+  return invoke('agent_restart');
+}
+
 export interface SidecarMessage {
   type: string;
   sessionId?: string;

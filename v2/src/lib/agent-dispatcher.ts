@@ -1,7 +1,7 @@
 // Agent Dispatcher — connects sidecar bridge events to agent store
 // Single listener that routes sidecar messages to the correct agent session
 
-import { onSidecarMessage, type SidecarMessage } from './adapters/agent-bridge';
+import { onSidecarMessage, onSidecarExited, type SidecarMessage } from './adapters/agent-bridge';
 import { adaptSDKMessage } from './adapters/sdk-messages';
 import type { InitContent, CostContent } from './adapters/sdk-messages';
 import {
@@ -10,14 +10,29 @@ import {
   setAgentModel,
   appendAgentMessages,
   updateAgentCost,
+  getAgentSessions,
 } from './stores/agents.svelte';
 
-let unlistenFn: (() => void) | null = null;
+let unlistenMsg: (() => void) | null = null;
+let unlistenExit: (() => void) | null = null;
+
+// Sidecar liveness — checked by UI components
+let sidecarAlive = true;
+export function isSidecarAlive(): boolean {
+  return sidecarAlive;
+}
+export function setSidecarAlive(alive: boolean): void {
+  sidecarAlive = alive;
+}
 
 export async function startAgentDispatcher(): Promise<void> {
-  if (unlistenFn) return;
+  if (unlistenMsg) return;
 
-  unlistenFn = await onSidecarMessage((msg: SidecarMessage) => {
+  sidecarAlive = true;
+
+  unlistenMsg = await onSidecarMessage((msg: SidecarMessage) => {
+    sidecarAlive = true;
+
     const sessionId = msg.sessionId;
     if (!sessionId) return;
 
@@ -39,8 +54,17 @@ export async function startAgentDispatcher(): Promise<void> {
         break;
 
       case 'agent_log':
-        // Debug logging — could route to a log panel later
         break;
+    }
+  });
+
+  unlistenExit = await onSidecarExited(() => {
+    sidecarAlive = false;
+    // Mark all running sessions as errored
+    for (const session of getAgentSessions()) {
+      if (session.status === 'running' || session.status === 'starting') {
+        updateAgentStatus(session.id, 'error', 'Sidecar crashed');
+      }
     }
   });
 }
@@ -76,15 +100,18 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
     }
   }
 
-  // Append all messages to the session history
   if (messages.length > 0) {
     appendAgentMessages(sessionId, messages);
   }
 }
 
 export function stopAgentDispatcher(): void {
-  if (unlistenFn) {
-    unlistenFn();
-    unlistenFn = null;
+  if (unlistenMsg) {
+    unlistenMsg();
+    unlistenMsg = null;
+  }
+  if (unlistenExit) {
+    unlistenExit();
+    unlistenExit = null;
   }
 }
