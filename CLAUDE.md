@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) all 6 phases complete. Packaging: .deb + AppImage via GitHub Actions CI.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) all 6 phases complete plus extras (SSH management, ctx integration, theme flavors, detached pane mode, auto-updater). Packaging: .deb + AppImage via GitHub Actions CI.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -28,8 +28,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/pty.rs` | PTY backend (portable-pty, PtyManager) |
 | `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings) |
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (Node.js lifecycle, NDJSON) |
-| `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings persistence) |
+| `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions) |
 | `v2/src-tauri/src/watcher.rs` | FileWatcherManager (notify crate, file change events) |
+| `v2/src-tauri/src/ctx.rs` | CtxDb (read-only access to ~/.claude-context/context.db) |
 | `v2/src/lib/stores/layout.svelte.ts` | Layout store (panes, presets, persistence, Svelte 5 runes) |
 | `v2/src/lib/stores/agents.svelte.ts` | Agent session store (messages, cost) |
 | `v2/src/lib/components/Terminal/TerminalPane.svelte` | xterm.js terminal pane |
@@ -40,14 +41,24 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + toast notifications |
 | `v2/src/lib/adapters/file-bridge.ts` | File watcher IPC wrapper |
 | `v2/src/lib/adapters/settings-bridge.ts` | Settings IPC wrapper (get/set/list) |
+| `v2/src/lib/adapters/ctx-bridge.ts` | ctx database IPC wrapper |
+| `v2/src/lib/adapters/ssh-bridge.ts` | SSH session IPC wrapper |
 | `v2/src/lib/utils/agent-tree.ts` | Agent tree builder (hierarchy from messages) |
+| `v2/src/lib/utils/highlight.ts` | Shiki syntax highlighter (lazy singleton, 13 languages) |
+| `v2/src/lib/utils/detach.ts` | Detached pane mode (pop-out windows via URL params) |
+| `v2/src/lib/utils/updater.ts` | Tauri auto-updater utility |
 | `v2/src/lib/stores/notifications.svelte.ts` | Toast notification store (notify, dismiss) |
+| `v2/src/lib/stores/theme.svelte.ts` | Theme flavor store (Catppuccin 4 flavors) |
+| `v2/src/lib/styles/themes.ts` | Catppuccin palette definitions (Latte/Frappe/Macchiato/Mocha) |
 | `v2/src/lib/components/Agent/AgentTree.svelte` | SVG agent tree visualization |
+| `v2/src/lib/components/Context/ContextPane.svelte` | ctx database viewer (projects, entries, search) |
+| `v2/src/lib/components/SSH/SshDialog.svelte` | SSH session create/edit modal |
+| `v2/src/lib/components/SSH/SshSessionList.svelte` | SSH session list in sidebar |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (pane counts, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
-| `v2/src/lib/components/Settings/SettingsDialog.svelte` | Settings modal dialog |
+| `v2/src/lib/components/Settings/SettingsDialog.svelte` | Settings modal (shell, cwd, max panes, theme) |
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout persistence IPC wrapper |
-| `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js, live reload) |
+| `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |
 | `v2/sidecar/agent-runner.ts` | Node.js sidecar (spawns claude CLI) |
 
 ## v1 Stack
@@ -66,8 +77,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - portable-pty for terminal management
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup
 - File watcher (notify crate) for live markdown viewer
-- Rust deps: tauri, portable-pty, rusqlite (bundled), dirs, notify, uuid, serde, tokio
-- npm deps: @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, marked
+- Rust deps: tauri, portable-pty, rusqlite (bundled), dirs, notify, uuid, serde, tokio, tauri-plugin-updater
+- npm deps: @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, marked, shiki
 - Source: `v2/` directory
 
 ## Build / Run

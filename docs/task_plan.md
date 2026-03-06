@@ -3,7 +3,7 @@
 ## Goal
 Redesign BTerminal from a GTK3 terminal emulator into a **multi-session Claude agent dashboard** optimized for 32:9 ultrawide (5120x1440). Simultaneous visibility of all active sessions, agent tree visualization, inline markdown rendering, maximum information density.
 
-## Status: All 6 Phases Complete (MVP + post-MVP, packaging done — Rev 2)
+## Status: All 6 Phases Complete + extras (MVP + post-MVP, packaging, SSH, ctx, themes — Rev 3)
 
 ---
 
@@ -128,6 +128,11 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 | SQLite settings table for app config | Key-value `settings` table in session.rs for persisting user preferences (shell, cwd, max panes). Simple and extensible without schema migrations. | 2026-03-06 |
 | Toast notifications over persistent log | Ephemeral toasts (4s auto-dismiss, max 5) for agent events rather than a persistent notification log. Keeps UI clean; persistent logs can be added later if needed. | 2026-03-06 |
 | Build-from-source installer over pre-built binaries | install-v2.sh checks deps and builds locally. Pre-built binaries via GitHub Actions CI (.deb + AppImage on v* tags). Auto-update deferred until signing key infrastructure is set up. | 2026-03-06 |
+| ctx read-only access from Rust | Open ~/.claude-context/context.db with SQLITE_OPEN_READ_ONLY. Never write — ctx CLI owns the schema. Separate CtxDb struct in ctx.rs with Option<Connection> for graceful absence. | 2026-03-06 |
+| SSH via PTY shell args | SSH sessions spawn TerminalPane with shell=/usr/bin/ssh and args=[-p, port, [-i, keyfile], user@host]. No special SSH library — PTY handles it natively. | 2026-03-06 |
+| Catppuccin 4 flavors at runtime | CSS variables overridden at runtime for non-Mocha flavors. Existing terminals don't hot-swap (limitation accepted); new terminals pick up the active theme. | 2026-03-06 |
+| Detached pane via URL params | Pop-out windows use ?detached=1&type=terminal URL params. App.svelte conditionally renders single pane without sidebar/grid chrome. Simple, no IPC needed. | 2026-03-06 |
+| Shiki over highlight.js | Shiki provides VS Code-grade syntax highlighting with Catppuccin theme. Lazy singleton pattern avoids repeated WASM init. 13 languages preloaded. | 2026-03-06 |
 
 ## Open Questions
 

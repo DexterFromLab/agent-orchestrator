@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- All 6 phases complete. Phase 5 partial: tree node click-to-focus, subtree cost display, ctx integration still pending. Phase 6 (packaging) done: install-v2.sh, .deb/.AppImage bundles, GitHub Actions CI.
+- All 6 phases complete + extras (SSH management, ctx integration, theme flavors, detached mode, auto-updater, shiki highlighting). Phase 5 minor deferred: tree node click-to-focus, subtree cost display.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -37,6 +37,11 @@
 - Notifications use ephemeral toast system: `notifications.svelte.ts` store (max 5, 4s auto-dismiss), `ToastContainer.svelte` display. Agent dispatcher emits toasts on agent complete/error/crash.
 - StatusBar component spans full grid width (grid-column: 1 / -1), shows pane counts, active agents, tokens, cost.
 - Agent tree (AgentTree.svelte) uses SVG with recursive layout. Tree data built by `agent-tree.ts` utility from agent messages.
+- ctx integration opens `~/.claude-context/context.db` as SQLITE_OPEN_READ_ONLY — never writes. CtxDb uses Option<Connection> for graceful absence if DB doesn't exist.
+- SSH sessions spawn TerminalPane with shell=/usr/bin/ssh and args array. No SSH library needed — PTY handles it natively.
+- Theme flavors (Latte/Frappe/Macchiato/Mocha) override CSS variables at runtime. Existing open terminals don't hot-swap; new terminals pick up the active theme.
+- Detached pane mode: App.svelte checks URL param `?detached=1` and renders a single pane without sidebar/grid chrome. Used for pop-out windows.
+- Shiki syntax highlighting uses lazy singleton pattern (avoid repeated WASM init). 13 languages preloaded. Used in MarkdownPane and AgentPane text messages.
 
 ## Memora Tags
 

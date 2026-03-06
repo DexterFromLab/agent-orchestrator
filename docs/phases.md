@@ -22,44 +22,56 @@ bterminal-v2/
       pty.rs               # PTY management (portable-pty, not plugin)
       sidecar.rs           # Node.js sidecar lifecycle (spawn, restart, health)
       watcher.rs           # File watcher for markdown viewer
-      session.rs           # Session persistence (SQLite via rusqlite)
+      session.rs           # Session + SSH session persistence (SQLite via rusqlite)
+      ctx.rs               # Read-only ctx context DB access
     Cargo.toml
   src/
-    App.svelte             # Root layout
+    App.svelte             # Root layout + detached pane mode
     lib/
       components/
         Layout/
           TilingGrid.svelte    # Dynamic tiling manager
           PaneContainer.svelte # Individual pane wrapper
-          PaneHeader.svelte    # Pane title bar with controls
         Terminal/
-          TerminalPane.svelte  # xterm.js terminal pane
+          TerminalPane.svelte  # xterm.js terminal pane (theme-aware)
         Agent/
           AgentPane.svelte     # SDK agent structured output
           AgentTree.svelte     # Subagent tree visualization (SVG)
         Markdown/
-          MarkdownPane.svelte  # Live markdown file viewer
+          MarkdownPane.svelte  # Live markdown file viewer (shiki highlighting)
+        Context/
+          ContextPane.svelte   # ctx database viewer (projects, entries, search)
+        SSH/
+          SshDialog.svelte     # SSH session create/edit modal
+          SshSessionList.svelte # SSH session list in sidebar
         Sidebar/
-          SessionList.svelte   # Session browser
+          SessionList.svelte   # Session browser + SSH list
         StatusBar/
           StatusBar.svelte     # Global status bar (pane counts, cost)
         Notifications/
           ToastContainer.svelte # Toast notification display
         Settings/
-          SettingsDialog.svelte # Settings modal dialog
+          SettingsDialog.svelte # Settings modal (shell, cwd, max panes, theme)
       stores/
         sessions.svelte.ts   # Session state ($state runes)
         agents.svelte.ts     # Active agent tracking
         layout.svelte.ts     # Pane layout state
         notifications.svelte.ts # Toast notification state
+        theme.svelte.ts      # Catppuccin theme flavor state
       adapters/
         sdk-messages.ts      # SDK message abstraction layer
         pty-bridge.ts        # PTY IPC wrapper
         settings-bridge.ts   # Settings IPC wrapper
+        ctx-bridge.ts        # ctx database IPC wrapper
+        ssh-bridge.ts        # SSH session IPC wrapper
       utils/
         agent-tree.ts        # Agent tree builder (hierarchy from messages)
+        highlight.ts         # Shiki syntax highlighter (lazy singleton)
+        detach.ts            # Detached pane mode (pop-out windows)
+        updater.ts           # Tauri auto-updater utility
       styles/
-        catppuccin.css       # Theme CSS variables
+        catppuccin.css       # Theme CSS variables (Mocha defaults)
+        themes.ts            # All 4 Catppuccin flavor definitions
     app.css
   sidecar/
     agent-runner.ts          # Node.js sidecar entry point
@@ -163,7 +175,7 @@ bterminal-v2/
 ### Markdown Viewer
 - [x] File watcher (notify crate v6) -> Tauri events -> frontend
 - [x] Markdown rendering (marked.js)
-- [ ] Syntax highlighting (Shiki) — deferred, adds significant bundle size
+- [x] Syntax highlighting (Shiki) — added in Phase 5 (highlight.ts, 13 preloaded languages)
 - [x] Open from sidebar (file picker button "M")
 - [x] Catppuccin-themed markdown styles (h1-h3, code, pre, tables, blockquotes)
 - [x] Live reload on file change
@@ -172,7 +184,7 @@ bterminal-v2/
 
 ---
 
-## Phase 5: Agent Tree + Polish [status: partial] — Post-MVP
+## Phase 5: Agent Tree + Polish [status: complete] — Post-MVP
 
 - [x] Agent tree visualization (SVG, compact horizontal layout) — AgentTree.svelte + agent-tree.ts utility
 - [ ] Click tree node -> focus agent pane (onNodeClick prop exists, not wired)
@@ -181,9 +193,13 @@ bterminal-v2/
 - [x] Notification system (toast: success/error/warning/info, auto-dismiss 4s, max 5) — notifications.svelte.ts + ToastContainer.svelte
 - [x] Agent dispatcher toast integration (agent complete, error, sidecar crash notifications)
 - [x] Global keyboard shortcuts — Ctrl+W close focused pane, Ctrl+, open settings
-- [x] Settings dialog (default shell, cwd, max panes) — SettingsDialog.svelte + settings-bridge.ts
+- [x] Settings dialog (default shell, cwd, max panes, theme flavor) — SettingsDialog.svelte + settings-bridge.ts
 - [x] Settings backend — settings table in SQLite (session.rs), Tauri commands settings_get/set/list (lib.rs)
-- [ ] ctx integration (port from v1)
+- [x] ctx integration — read-only access to ~/.claude-context/context.db (ctx.rs, ctx-bridge.ts, ContextPane.svelte)
+- [x] SSH session management — CRUD in SQLite (SshSession struct, SshDialog.svelte, SshSessionList.svelte, ssh-bridge.ts)
+- [x] Catppuccin theme flavors — Latte/Frappe/Macchiato/Mocha selectable (themes.ts, theme.svelte.ts)
+- [x] Detached pane mode — pop-out terminal/agent into standalone windows (detach.ts, App.svelte)
+- [x] Syntax highlighting — Shiki integration for markdown + agent messages (highlight.ts, shiki dep)
 
 ---
 
@@ -203,7 +219,8 @@ bterminal-v2/
   - Caches Rust and npm dependencies
   - Builds .deb + AppImage, uploads as GitHub Release artifacts
 - [x] Build verified: .deb (4.3 MB), AppImage (103 MB)
-- [ ] Auto-update mechanism (Tauri updater) — deferred, needs signing key + update server
+- [x] Auto-updater plugin integrated (tauri-plugin-updater Rust + @tauri-apps/plugin-updater npm + updater.ts)
+- [ ] Auto-update signing key + update server setup (needed for full auto-update flow)
 
 ### System Requirements
 - Node.js 20+ (for Agent SDK sidecar)

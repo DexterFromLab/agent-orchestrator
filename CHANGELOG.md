@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- SSH session management: SshSession CRUD in SQLite, SshDialog create/edit modal, SshSessionList grouped by folder with color dots, SSH pane type routing to TerminalPane with shell=/usr/bin/ssh (Phase 5)
+- ctx context database integration: read-only CtxDb (Rust, SQLITE_OPEN_READ_ONLY), ContextPane with project selector, tabs for entries/summaries/search, ctx-bridge adapter (Phase 5)
+- Catppuccin theme flavors: all 4 palettes (Latte/Frappe/Macchiato/Mocha) selectable via Settings dialog, theme.svelte.ts reactive store with SQLite persistence, TerminalPane theme-aware (Phase 5)
+- Detached pane mode: pop-out terminal/agent panes into standalone windows via URL params (?detached=1), detach.ts utility, App.svelte conditional rendering (Phase 5)
+- Shiki syntax highlighting: lazy singleton highlighter with catppuccin-mocha theme, 13 preloaded languages, integrated in MarkdownPane and AgentPane text messages (Phase 5)
+- Tauri auto-updater plugin: tauri-plugin-updater (Rust + npm) + updater.ts frontend utility (Phase 6)
+- Markdown rendering in agent text messages with Shiki code highlighting (Phase 5)
 - Build-from-source installer `install-v2.sh` with 6-step dependency checking (Node.js 20+, Rust 1.77+, WebKit2GTK, GTK3, and 8 other system libraries), auto-install via apt, binary install to `~/.local/bin/bterminal-v2` with desktop entry (Phase 6)
 - Tauri bundle configuration for .deb and AppImage targets with category, descriptions, and deb dependencies (Phase 6)
 - GitHub Actions release workflow (`.github/workflows/release.yml`): triggered on `v*` tags, builds on Ubuntu 22.04 with Rust/npm caching, uploads .deb + AppImage as GitHub Release artifacts (Phase 6)

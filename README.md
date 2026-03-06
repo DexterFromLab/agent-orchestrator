@@ -2,7 +2,7 @@
 
 Terminal with session panel (MobaXterm-style), built with GTK 3 + VTE. Catppuccin Mocha theme.
 
-> **v2 all phases complete:** Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. Features: multi-pane terminal with PTY backend, agent panes with structured output and tree visualization, SQLite session persistence with layout restore, live markdown file viewer, global status bar with cost tracking, toast notifications, settings dialog, CSS Grid tiling, Catppuccin theme, .deb + AppImage packaging, and GitHub Actions CI. Branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
+> **v2 all phases complete + extras:** Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. Features: multi-pane terminal with PTY backend, agent panes with structured output and tree visualization, SSH session management, ctx context database viewer, SQLite session persistence with layout restore, live markdown file viewer with Shiki syntax highlighting, global status bar with cost tracking, toast notifications, settings dialog with theme flavors (Catppuccin Latte/Frappe/Macchiato/Mocha), detached pane mode (pop-out windows), auto-updater plugin, CSS Grid tiling, .deb + AppImage packaging, and GitHub Actions CI. Branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
 
 ![BTerminal](screenshot.png)
 

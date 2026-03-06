@@ -97,13 +97,13 @@ Architecture decision: Uses `claude` CLI with `--output-format stream-json` inst
 - [x] Sidebar "M" button opens file picker for .md/.markdown/.txt files
 - [x] TilingGrid routes markdown pane type to MarkdownPane component
 
-### Phase 5: Agent Tree + Polish (2026-03-06, in progress)
+### Phase 5: Agent Tree + Polish (2026-03-06, complete)
 - [x] Agent tree visualization (SVG): AgentTree.svelte component with horizontal tree layout, bezier edges, status-colored nodes; agent-tree.ts utility (buildAgentTree, countTreeNodes, subtreeCost)
 - [x] Agent tree toggle in AgentPane: collapsible tree view shown when tool_call messages exist
 - [x] Global status bar: StatusBar.svelte showing terminal/agent pane counts, active agents with pulse animation, total tokens and cost
 - [x] Notification system: notifications.svelte.ts store (notify, dismissNotification, max 5 toasts, 4s auto-dismiss) + ToastContainer.svelte (slide-in animation, color-coded by type)
 - [x] Agent dispatcher notifications: toast on agent_stopped (success), agent_error (error), sidecar crash (error), cost result (success with cost/turns)
-- [x] Settings dialog: SettingsDialog.svelte modal (default shell, cwd, max panes) with settings-bridge.ts adapter
+- [x] Settings dialog: SettingsDialog.svelte modal (default shell, cwd, max panes, theme flavor) with settings-bridge.ts adapter
 - [x] Settings backend: settings table (key/value) in session.rs, Tauri commands settings_get/set/list in lib.rs
 - [x] Keyboard shortcuts: Ctrl+W close focused pane, Ctrl+, open settings dialog
 - [x] CSS grid update: app.css grid-template-rows '1fr' -> '1fr auto' for status bar row
@@ -123,8 +123,20 @@ Architecture decision: Uses `claude` CLI with `--output-format stream-json` inst
 - [x] Build verified: .deb (4.3 MB), AppImage (103 MB) both built successfully
 - [ ] Tauri auto-update plugin deferred (needs signing key + update server)
 
+### Phase 5 continued: SSH, ctx, themes, detached mode, auto-updater (2026-03-06)
+- [x] ctx integration: Rust ctx.rs (read-only CtxDb with SQLITE_OPEN_READ_ONLY), 5 Tauri commands (ctx_list_projects, ctx_get_context, ctx_get_shared, ctx_get_summaries, ctx_search), ctx-bridge.ts adapter, ContextPane.svelte (project selector, tabs for entries/summaries/search)
+- [x] SSH session management: SshSession struct + ssh_sessions table in session.rs, 3 Tauri commands (ssh_session_list/save/delete), ssh-bridge.ts adapter, SshDialog.svelte (create/edit modal with validation), SshSessionList.svelte (grouped by folder, color dots)
+- [x] TilingGrid SSH routing: SSH pane type routes to TerminalPane with shell=/usr/bin/ssh and constructed args array
+- [x] Catppuccin theme flavors: themes.ts with all 4 palettes (Latte/Frappe/Macchiato/Mocha), theme.svelte.ts reactive store, SettingsDialog flavor dropdown, TerminalPane uses getXtermTheme(), persistence via SQLite settings
+- [x] Detached pane mode: detach.ts utility (isDetachedMode, getDetachedConfig from URL params), App.svelte renders single pane in full-viewport without chrome when ?detached=1
+- [x] Syntax highlighting: highlight.ts with Shiki lazy singleton (13 preloaded languages, catppuccin-mocha theme), integrated into MarkdownPane and AgentPane text messages
+- [x] Tauri auto-updater plugin: tauri-plugin-updater (Rust) + @tauri-apps/plugin-updater (npm) + updater.ts frontend utility
+- [x] AgentPane markdown rendering: text messages now rendered as markdown with Shiki highlighting
+- [x] New npm dependencies: shiki, @tauri-apps/plugin-updater
+- [x] New Rust dependency: tauri-plugin-updater
+
 ### Next Steps
-- [ ] Markdown rendering in agent text messages
 - [ ] Testing: vitest for sdk-messages adapter, cargo test for sidecar
-- [ ] Phase 5 remaining: click tree node -> focus pane, subtree cost display, ctx integration
-- [ ] Tauri auto-update plugin (signing key + update server)
+- [ ] Phase 5 remaining: click tree node -> focus pane, subtree cost display
+- [ ] Auto-update signing key + update server setup
+- [ ] Session resume (SDK resumeSessionId)
