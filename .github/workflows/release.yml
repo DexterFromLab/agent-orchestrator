@@ -59,11 +59,37 @@ jobs:
 
       - name: Build Tauri app
         working-directory: v2
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npx tauri build
 
       - name: List build artifacts
         run: |
-          find v2/src-tauri/target/release/bundle -type f \( -name "*.deb" -o -name "*.AppImage" \) | head -20
+          find v2/src-tauri/target/release/bundle -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.sig" \) | head -20
+
+      - name: Generate updater latest.json
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DEB_NAME=$(basename v2/src-tauri/target/release/bundle/deb/*.deb)
+          APPIMAGE_NAME=$(basename v2/src-tauri/target/release/bundle/appimage/*.AppImage)
+          SIG=""
+          if [ -f "v2/src-tauri/target/release/bundle/appimage/${APPIMAGE_NAME}.sig" ]; then
+            SIG=$(cat "v2/src-tauri/target/release/bundle/appimage/${APPIMAGE_NAME}.sig")
+          fi
+          cat > latest.json << EOF
+          {
+            "version": "${VERSION}",
+            "notes": "Release ${VERSION}",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "linux-x86_64": {
+                "signature": "${SIG}",
+                "url": "https://github.com/DexterFromLab/BTerminal/releases/download/${GITHUB_REF_NAME}/${APPIMAGE_NAME}"
+              }
+            }
+          }
+          EOF
 
       - name: Upload .deb
         uses: actions/upload-artifact@v4
@@ -76,6 +102,12 @@ jobs:
         with:
           name: bterminal-appimage
           path: v2/src-tauri/target/release/bundle/appimage/*.AppImage
+
+      - name: Upload latest.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-json
+          path: latest.json
 
   release:
     needs: build-linux
@@ -95,6 +127,12 @@ jobs:
           name: bterminal-appimage
           path: artifacts/
 
+      - name: Download latest.json
+        uses: actions/download-artifact@v4
+        with:
+          name: updater-json
+          path: artifacts/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -102,3 +140,4 @@ jobs:
           files: |
             artifacts/*.deb
             artifacts/*.AppImage
+            artifacts/latest.json
