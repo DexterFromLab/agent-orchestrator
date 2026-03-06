@@ -1,16 +1,20 @@
 mod ctx;
+mod event_sink;
 mod pty;
+mod remote;
 mod sidecar;
-mod watcher;
 mod session;
+mod watcher;
 
 use ctx::CtxDb;
+use event_sink::TauriEventSink;
 use pty::{PtyManager, PtyOptions};
+use remote::{RemoteManager, RemoteMachineConfig};
 use session::{Session, SessionDb, LayoutState, SshSession};
-use sidecar::{AgentQueryOptions, SidecarManager};
+use sidecar::{AgentQueryOptions, SidecarConfig, SidecarManager};
 use watcher::FileWatcherManager;
 use std::sync::Arc;
-use tauri::State;
+use tauri::{Manager, State};
 
 struct AppState {
     pty_manager: Arc<PtyManager>,
@@ -18,17 +22,17 @@ struct AppState {
     session_db: Arc<SessionDb>,
     file_watcher: Arc<FileWatcherManager>,
     ctx_db: Arc<CtxDb>,
+    remote_manager: Arc<RemoteManager>,
 }
 
 // --- PTY commands ---
 
 #[tauri::command]
 fn pty_spawn(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     options: PtyOptions,
 ) -> Result<String, String> {
-    state.pty_manager.spawn(&app, options)
+    state.pty_manager.spawn(options)
 }
 
 #[tauri::command]
@@ -72,8 +76,8 @@ fn agent_ready(state: State<'_, AppState>) -> bool {
 }
 
 #[tauri::command]
-fn agent_restart(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
-    state.sidecar_manager.restart(&app)
+fn agent_restart(state: State<'_, AppState>) -> Result<(), String> {
+    state.sidecar_manager.restart()
 }
 
 // --- File watcher commands ---
@@ -201,32 +205,66 @@ fn ctx_search(state: State<'_, AppState>, query: String) -> Result<Vec<ctx::CtxE
     state.ctx_db.search(&query)
 }
 
+// --- Remote machine commands ---
+
+#[tauri::command]
+fn remote_list(state: State<'_, AppState>) -> Vec<remote::RemoteMachineInfo> {
+    state.remote_manager.list_machines()
+}
+
+#[tauri::command]
+async fn remote_add(state: State<'_, AppState>, config: RemoteMachineConfig) -> Result<String, String> {
+    Ok(state.remote_manager.add_machine(config))
+}
+
+#[tauri::command]
+async fn remote_remove(state: State<'_, AppState>, machine_id: String) -> Result<(), String> {
+    state.remote_manager.remove_machine(&machine_id)
+}
+
+#[tauri::command]
+async fn remote_connect(app: tauri::AppHandle, state: State<'_, AppState>, machine_id: String) -> Result<(), String> {
+    state.remote_manager.connect(&app, &machine_id).await
+}
+
+#[tauri::command]
+async fn remote_disconnect(state: State<'_, AppState>, machine_id: String) -> Result<(), String> {
+    state.remote_manager.disconnect(&machine_id).await
+}
+
+#[tauri::command]
+async fn remote_agent_query(state: State<'_, AppState>, machine_id: String, options: AgentQueryOptions) -> Result<(), String> {
+    state.remote_manager.agent_query(&machine_id, &options).await
+}
+
+#[tauri::command]
+async fn remote_agent_stop(state: State<'_, AppState>, machine_id: String, session_id: String) -> Result<(), String> {
+    state.remote_manager.agent_stop(&machine_id, &session_id).await
+}
+
+#[tauri::command]
+async fn remote_pty_spawn(state: State<'_, AppState>, machine_id: String, options: PtyOptions) -> Result<String, String> {
+    state.remote_manager.pty_spawn(&machine_id, &options).await
+}
+
+#[tauri::command]
+async fn remote_pty_write(state: State<'_, AppState>, machine_id: String, id: String, data: String) -> Result<(), String> {
+    state.remote_manager.pty_write(&machine_id, &id, &data).await
+}
+
+#[tauri::command]
+async fn remote_pty_resize(state: State<'_, AppState>, machine_id: String, id: String, cols: u16, rows: u16) -> Result<(), String> {
+    state.remote_manager.pty_resize(&machine_id, &id, cols, rows).await
+}
+
+#[tauri::command]
+async fn remote_pty_kill(state: State<'_, AppState>, machine_id: String, id: String) -> Result<(), String> {
+    state.remote_manager.pty_kill(&machine_id, &id).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let pty_manager = Arc::new(PtyManager::new());
-    let sidecar_manager = Arc::new(SidecarManager::new());
-
-    // Initialize session database in app data directory
-    let data_dir = dirs::data_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("bterminal");
-    let session_db = Arc::new(
-        SessionDb::open(&data_dir).expect("Failed to open session database")
-    );
-
-    let file_watcher = Arc::new(FileWatcherManager::new());
-    let ctx_db = Arc::new(CtxDb::new());
-
-    let app_state = AppState {
-        pty_manager,
-        sidecar_manager: sidecar_manager.clone(),
-        session_db,
-        file_watcher,
-        ctx_db,
-    };
-
     tauri::Builder::default()
-        .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             pty_spawn,
             pty_write,
@@ -258,6 +296,17 @@ pub fn run() {
             ctx_get_shared,
             ctx_get_summaries,
             ctx_search,
+            remote_list,
+            remote_add,
+            remote_remove,
+            remote_connect,
+            remote_disconnect,
+            remote_agent_query,
+            remote_agent_stop,
+            remote_pty_spawn,
+            remote_pty_write,
+            remote_pty_resize,
+            remote_pty_kill,
         ])
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
@@ -269,11 +318,56 @@ pub fn run() {
                 )?;
             }
 
-            // Start sidecar on app launch
-            match sidecar_manager.start(app.handle()) {
+            // Create TauriEventSink for core managers
+            let sink: Arc<dyn bterminal_core::event::EventSink> =
+                Arc::new(TauriEventSink(app.handle().clone()));
+
+            // Build sidecar config from Tauri paths
+            let resource_dir = app
+                .handle()
+                .path()
+                .resource_dir()
+                .unwrap_or_default();
+            let dev_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .unwrap()
+                .to_path_buf();
+            let sidecar_config = SidecarConfig {
+                search_paths: vec![
+                    resource_dir.join("sidecar"),
+                    dev_root.join("sidecar"),
+                ],
+            };
+
+            let pty_manager = Arc::new(PtyManager::new(sink.clone()));
+            let sidecar_manager = Arc::new(SidecarManager::new(sink, sidecar_config));
+
+            // Initialize session database
+            let data_dir = dirs::data_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("bterminal");
+            let session_db = Arc::new(
+                SessionDb::open(&data_dir).expect("Failed to open session database"),
+            );
+
+            let file_watcher = Arc::new(FileWatcherManager::new());
+            let ctx_db = Arc::new(CtxDb::new());
+            let remote_manager = Arc::new(RemoteManager::new());
+
+            // Start local sidecar
+            match sidecar_manager.start() {
                 Ok(()) => log::info!("Sidecar startup initiated"),
                 Err(e) => log::warn!("Sidecar startup failed (agent features unavailable): {e}"),
             }
+
+            app.manage(AppState {
+                pty_manager,
+                sidecar_manager,
+                session_db,
+                file_watcher,
+                ctx_db,
+                remote_manager,
+            });
 
             Ok(())
         })
