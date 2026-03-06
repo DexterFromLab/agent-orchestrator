@@ -14,6 +14,8 @@
   } from '../../stores/layout.svelte';
   import { detachPane } from '../../utils/detach';
   import { isDetachedMode } from '../../utils/detach';
+  import { stopAgent } from '../../adapters/agent-bridge';
+  import { getAgentSession } from '../../stores/agents.svelte';
 
   let gridTemplate = $derived(getGridTemplate());
   let panes = $derived(getPanes());
@@ -162,7 +164,15 @@
         <PaneContainer
           title={pane.title}
           status={pane.focused ? 'running' : 'idle'}
-          onClose={() => removePane(pane.id)}
+          onClose={() => {
+            if (pane.type === 'agent') {
+              const s = getAgentSession(pane.id);
+              if (s?.status === 'running' || s?.status === 'starting') {
+                stopAgent(pane.id).catch(() => {});
+              }
+            }
+            removePane(pane.id);
+          }}
           onDetach={detached ? undefined : () => handleDetach(pane)}
         >
           {#if pane.type === 'terminal'}

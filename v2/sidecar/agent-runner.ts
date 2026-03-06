@@ -36,6 +36,7 @@ interface QueryMessage {
   maxTurns?: number;
   maxBudgetUsd?: number;
   resumeSessionId?: string;
+  permissionMode?: string;
 }
 
 interface StopMessage {
@@ -60,7 +61,7 @@ function handleMessage(msg: Record<string, unknown>) {
 }
 
 async function handleQuery(msg: QueryMessage) {
-  const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId } = msg;
+  const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId, permissionMode } = msg;
 
   if (sessions.has(sessionId)) {
     send({ type: 'error', sessionId, message: 'Session already running' });
@@ -93,8 +94,8 @@ async function handleQuery(msg: QueryMessage) {
           'Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep',
           'WebSearch', 'WebFetch', 'TodoWrite', 'NotebookEdit',
         ],
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
+        permissionMode: (permissionMode ?? 'bypassPermissions') as 'bypassPermissions' | 'default',
+        allowDangerouslySkipPermissions: (permissionMode ?? 'bypassPermissions') === 'bypassPermissions',
       },
     });
 

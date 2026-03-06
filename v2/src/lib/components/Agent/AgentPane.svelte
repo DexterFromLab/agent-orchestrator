@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
   import { marked, Renderer } from 'marked';
   import { queryAgent, stopAgent, isAgentReady, restartAgent } from '../../adapters/agent-bridge';
   import {
@@ -68,11 +68,8 @@
     }
   });
 
-  onDestroy(() => {
-    if (session?.status === 'running' || session?.status === 'starting') {
-      stopAgent(sessionId).catch(() => {});
-    }
-  });
+  // NOTE: Do NOT stop agents in onDestroy — it fires on layout changes/remounts,
+  // not just explicit close. Stop-on-close is handled by TilingGrid.
 
   let followUpPrompt = $state('');
 

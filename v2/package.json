@@ -12,7 +12,7 @@
     "tauri:dev": "cargo tauri dev",
     "tauri:build": "cargo tauri build",
     "test": "vitest run",
-    "build:sidecar": "esbuild sidecar/agent-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/agent-runner.mjs --external:@anthropic-ai/claude-agent-sdk"
+    "build:sidecar": "esbuild sidecar/agent-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/agent-runner.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",

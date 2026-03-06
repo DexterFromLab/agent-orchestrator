@@ -18,6 +18,7 @@ pub struct AgentQueryOptions {
     pub max_turns: Option<u32>,
     pub max_budget_usd: Option<f64>,
     pub resume_session_id: Option<String>,
+    pub permission_mode: Option<String>,
 }
 
 /// Directories to search for sidecar scripts.
@@ -168,6 +169,7 @@ impl SidecarManager {
             "maxTurns": options.max_turns,
             "maxBudgetUsd": options.max_budget_usd,
             "resumeSessionId": options.resume_session_id,
+            "permissionMode": options.permission_mode,
         });
 
         self.send_message(&msg)

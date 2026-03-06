@@ -11,6 +11,7 @@ export interface AgentQueryOptions {
   max_turns?: number;
   max_budget_usd?: number;
   resume_session_id?: string;
+  permission_mode?: string;
   remote_machine_id?: string;
 }
 
