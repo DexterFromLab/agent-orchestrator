@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Exponential backoff reconnection in RemoteManager: on disconnect, spawns async task with 1s/2s/4s/8s/16s/30s-cap backoff, uses attempt_ws_connect() probe (5s timeout), emits remote-machine-reconnecting and remote-machine-reconnect-ready events
+- Relay command response propagation: bterminal-relay now sends structured responses (pty_created, pong, error) back to client via shared event channel with commandId correlation
+- send_error() helper in bterminal-relay for consistent error reporting across all command handlers
+- PTY creation confirmation flow: pty_create command returns pty_created event with session ID and commandId; RemoteManager emits remote-pty-created Tauri event
 - bterminal-core shared crate with EventSink trait: extracted PtyManager and SidecarManager into reusable crate at v2/bterminal-core/, EventSink trait abstracts event emission for both Tauri and WebSocket contexts
 - bterminal-relay WebSocket server binary: standalone Rust binary at v2/bterminal-relay/ with token auth (--port, --token, --insecure CLI flags), rate limiting (10 attempts, 5min lockout), per-connection isolated PTY + sidecar managers
 - RemoteManager for multi-machine WebSocket connections: v2/src-tauri/src/remote.rs manages WebSocket client connections to relay instances, 12 new Tauri commands for remote operations, heartbeat ping every 15s
@@ -44,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tempfile dev dependency for Rust test isolation
 
 ### Changed
+- bterminal-relay command handlers refactored: all error paths now use send_error() helper instead of log::error!() only; pong response sent via event channel instead of no-op
+- RemoteManager disconnect handler: scoped mutex release before event emission to prevent deadlocks; spawns reconnection task
 - PtyManager and SidecarManager extracted from src-tauri to bterminal-core shared crate (src-tauri now has thin re-export wrappers)
 - Cargo workspace structure at v2/ level: members = [src-tauri, bterminal-core, bterminal-relay], Cargo.lock moved from src-tauri/ to workspace root
 - agent-bridge.ts and pty-bridge.ts extended with remote routing (check remoteMachineId, route to remote_* commands)

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 complete. Packaging: .deb + AppImage via GitHub Actions CI.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) complete. Packaging: .deb + AppImage via GitHub Actions CI.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -22,13 +22,18 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `install-v2.sh` | v2 build-from-source installer (Node.js 20+, Rust 1.77+, system libs) |
 | `.github/workflows/release.yml` | CI: builds .deb + AppImage on v* tags, uploads to GitHub Releases |
 | `docs/task_plan.md` | v2 architecture decisions and strategies |
-| `docs/phases.md` | v2 implementation phases (1-7) |
+| `docs/phases.md` | v2 implementation phases (1-7 + multi-machine A-D) |
 | `docs/findings.md` | v2 research findings |
 | `docs/progress.md` | Session progress log |
-| `docs/multi-machine.md` | Multi-machine architecture (WebSocket relay, 4-phase plan) |
-| `v2/src-tauri/src/pty.rs` | PTY backend (portable-pty, PtyManager) |
-| `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings) |
-| `v2/src-tauri/src/sidecar.rs` | SidecarManager (Deno-first + Node.js fallback, SidecarCommand, NDJSON) |
+| `docs/multi-machine.md` | Multi-machine architecture (implemented, Phases A-D) |
+| `v2/Cargo.toml` | Cargo workspace root (members: src-tauri, bterminal-core, bterminal-relay) |
+| `v2/bterminal-core/` | Shared crate: EventSink trait, PtyManager, SidecarManager |
+| `v2/bterminal-relay/` | Standalone relay binary (WebSocket server, token auth, CLI) |
+| `v2/src-tauri/src/pty.rs` | PTY backend (thin re-export from bterminal-core) |
+| `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings + 12 remote) |
+| `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
+| `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |
+| `v2/src-tauri/src/remote.rs` | RemoteManager (WebSocket client connections to relays) |
 | `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions) |
 | `v2/src-tauri/src/watcher.rs` | FileWatcherManager (notify crate, file change events) |
 | `v2/src-tauri/src/ctx.rs` | CtxDb (read-only access to ~/.claude-context/context.db) |
@@ -44,6 +49,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/settings-bridge.ts` | Settings IPC wrapper (get/set/list) |
 | `v2/src/lib/adapters/ctx-bridge.ts` | ctx database IPC wrapper |
 | `v2/src/lib/adapters/ssh-bridge.ts` | SSH session IPC wrapper |
+| `v2/src/lib/adapters/remote-bridge.ts` | Remote machine management IPC wrapper |
+| `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
 | `v2/src/lib/utils/agent-tree.ts` | Agent tree builder (hierarchy from messages) |
 | `v2/src/lib/utils/highlight.ts` | Shiki syntax highlighter (lazy singleton, 13 languages) |
 | `v2/src/lib/utils/detach.ts` | Detached pane mode (pop-out windows via URL params) |
@@ -75,16 +82,20 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Context DB: `~/.claude-context/context.db`
 - Theme: Catppuccin Mocha
 
-## v2 Stack (Phases 1-7 complete, branch: v2-mission-control)
+## v2 Stack (Phases 1-7 + Multi-Machine A-D complete, branch: v2-mission-control)
 
 - Tauri 2.x (Rust backend) + Svelte 5 (frontend)
+- Cargo workspace: bterminal-core (shared), bterminal-relay (remote binary), src-tauri (Tauri app)
 - xterm.js with Canvas addon (no WebGL on WebKit2GTK)
 - Agent sessions via `claude` CLI subprocess with `--output-format stream-json`
 - Sidecar manages claude processes (Deno-first + Node.js fallback, stdio NDJSON to Rust)
-- portable-pty for terminal management
+- portable-pty for terminal management (in bterminal-core)
+- Multi-machine: bterminal-relay WebSocket server + RemoteManager WebSocket client
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup
 - File watcher (notify crate) for live markdown viewer
-- Rust deps: tauri, portable-pty, rusqlite (bundled), dirs, notify, uuid, serde, tokio, tauri-plugin-updater
+- Rust deps (src-tauri): tauri, bterminal-core (path), rusqlite (bundled), dirs, notify, serde, tokio, tokio-tungstenite, futures-util, tauri-plugin-updater
+- Rust deps (bterminal-core): portable-pty, uuid, serde, serde_json, log
+- Rust deps (bterminal-relay): bterminal-core, tokio, tokio-tungstenite, clap, env_logger, futures-util
 - npm deps: @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, marked, shiki, vitest (dev)
 - Source: `v2/` directory
 

@@ -146,7 +146,7 @@ interface RelayCommand {
 
 // Relay → Controller (events)
 interface RelayEvent {
-  type: 'pty_data' | 'pty_exit'
+  type: 'pty_data' | 'pty_exit' | 'pty_created'
       | 'sidecar_message' | 'sidecar_exited'
       | 'error' | 'pong' | 'ready';
   sessionId?: string;
@@ -181,9 +181,13 @@ Controller                          Relay
     │── reconnect (exp backoff) ─────→│  (1s, 2s, 4s, 8s, max 30s)
 ```
 
-### Reconnection
+### Reconnection (Implemented)
 
-- Controller reconnects with exponential backoff (1s → 30s cap)
+- Controller reconnects with exponential backoff (1s, 2s, 4s, 8s, 16s, 30s cap)
+- Reconnection runs as an async tokio task spawned on disconnect
+- Uses `attempt_ws_connect()` probe: connects with auth header, immediately closes (5s timeout)
+- Emits `remote-machine-reconnecting` event (with backoff duration) and `remote-machine-reconnect-ready` when probe succeeds
+- Cancels if machine is removed or manually reconnected (checks status == "disconnected" && connection == None)
 - On reconnect, relay sends current state snapshot (active sessions, PTY list)
 - Controller reconciles: updates pane states, re-subscribes to streams
 - Active agent sessions continue on relay regardless of controller connection
@@ -260,12 +264,18 @@ Stored in SQLite `settings` table as JSON: `remote_machines` key.
 - Routes RelayCommand to bterminal-core managers, forwards RelayEvent over WebSocket
 - Rate limiting: 10 failed auth attempts triggers 5-minute lockout
 - Per-connection isolated PtyManager + SidecarManager instances
+- Command response propagation: structured responses (pty_created, pong, error) sent back via shared event channel
+- send_error() helper: all command failures emit RelayEvent with commandId + error message
+- PTY creation confirmation: pty_create command returns pty_created event with session ID and commandId for correlation
 
 ### Phase C: Add `RemoteManager` to controller [DONE]
 
 - v2/src-tauri/src/remote.rs — RemoteManager struct with WebSocket client connections
 - 12 Tauri commands: remote_add_machine, remote_remove_machine, remote_connect, remote_disconnect, remote_list_machines, remote_pty_spawn/write/resize/kill, remote_agent_query/stop, remote_sidecar_restart
 - Heartbeat ping every 15s
+- PTY creation event: emits `remote-pty-created` Tauri event with machineId, ptyId, commandId
+- Exponential backoff reconnection on disconnect (1s/2s/4s/8s/16s/30s cap) via `attempt_ws_connect()` probe
+- Reconnection events: `remote-machine-reconnecting`, `remote-machine-reconnect-ready`
 
 ### Phase D: Frontend integration [DONE]
 
@@ -278,7 +288,8 @@ Stored in SQLite `settings` table as JSON: `remote_machines` key.
 
 ### Remaining Work
 
-- [ ] Reconnection logic with exponential backoff (1s-30s cap)
+- [x] Reconnection logic with exponential backoff (1s-30s cap) — implemented in remote.rs
+- [x] Relay command response propagation (pty_created, pong, error events) — implemented in main.rs
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning
 

@@ -136,7 +136,7 @@ cd v2 && cargo build --release -p bterminal-relay
 ./target/release/bterminal-relay --port 9750 --token <secret> --insecure
 ```
 
-Add remote machines in BTerminal Settings > Remote Machines (label, URL, token). Remote panes auto-group by machine label in the sidebar.
+Add remote machines in BTerminal Settings > Remote Machines (label, URL, token). Remote panes auto-group by machine label in the sidebar. Connections automatically reconnect with exponential backoff (1s-30s cap) on disconnect.
 
 See [docs/multi-machine.md](docs/multi-machine.md) for full architecture details.
 
@@ -145,10 +145,10 @@ See [docs/multi-machine.md](docs/multi-machine.md) for full architecture details
 | Document | Description |
 |----------|-------------|
 | [docs/task_plan.md](docs/task_plan.md) | v2 architecture decisions, error handling, testing strategy |
-| [docs/phases.md](docs/phases.md) | v2 implementation phases (1-7) with checklists |
+| [docs/phases.md](docs/phases.md) | v2 implementation phases (1-7 + multi-machine A-D) with checklists |
 | [docs/findings.md](docs/findings.md) | Research findings (Agent SDK, Tauri, xterm.js, performance) |
 | [docs/progress.md](docs/progress.md) | Session-by-session progress log |
-| [docs/multi-machine.md](docs/multi-machine.md) | Multi-machine architecture (WebSocket relay, remote agents) |
+| [docs/multi-machine.md](docs/multi-machine.md) | Multi-machine architecture (implemented, WebSocket relay, reconnection) |
 
 ## License
 

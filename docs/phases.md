@@ -271,12 +271,19 @@ Architecture designed in [multi-machine.md](multi-machine.md). Implementation ex
 - [x] Routes RelayCommand to PtyManager/SidecarManager, forwards RelayEvent over WebSocket
 - [x] Rate limiting on auth failures (10 attempts, 5min lockout)
 - [x] Per-connection isolated PTY + sidecar managers
+- [x] Command response propagation: structured responses (pty_created, pong, error) via shared event channel
+- [x] send_error() helper for consistent error reporting with commandId correlation
+- [x] PTY creation confirmation: pty_created event with session ID and commandId
 
 ### Phase C: Add `RemoteManager` to controller [status: complete]
 - [x] New remote.rs module in src-tauri — WebSocket client connections to relay instances
 - [x] Machine lifecycle: add/remove/connect/disconnect
 - [x] 12 new Tauri commands for remote operations
 - [x] Heartbeat ping every 15s
+- [x] PTY creation event: emits remote-pty-created Tauri event with machineId, ptyId, commandId
+- [x] Exponential backoff reconnection on disconnect (1s/2s/4s/8s/16s/30s cap)
+- [x] attempt_ws_connect() probe function (5s timeout, auth header, immediate close)
+- [x] Reconnection events: remote-machine-reconnecting, remote-machine-reconnect-ready
 
 ### Phase D: Frontend integration [status: complete]
 - [x] remote-bridge.ts adapter for machine management + remote events
@@ -287,6 +294,7 @@ Architecture designed in [multi-machine.md](multi-machine.md). Implementation ex
 - [x] Sidebar auto-groups remote panes by machine label
 
 ### Remaining Work
-- [ ] Reconnection logic with exponential backoff
+- [x] Reconnection logic with exponential backoff — implemented in remote.rs
+- [x] Relay command response propagation — implemented in bterminal-relay main.rs
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning

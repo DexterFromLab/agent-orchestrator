@@ -311,8 +311,27 @@ Design: No separate sidecar process per subagent. Parent's sidecar handles all; 
 - bterminal-relay: tokio, tokio-tungstenite, clap, env_logger, futures-util
 - src-tauri: tokio-tungstenite, tokio, futures-util, uuid (added for RemoteManager)
 
+### Session: 2026-03-06 (continued) — Relay Hardening & Reconnection
+
+#### Relay Command Response Propagation
+- [x] Shared event channel between EventSink and command response sender (sink_tx clone in bterminal-relay)
+- [x] send_error() helper function: all command failures now emit RelayEvent with commandId + error message instead of just logging
+- [x] ping command: now sends pong response via event channel (was a no-op)
+- [x] pty_create: returns pty_created event with session ID and commandId for correlation
+- [x] All error paths (pty_write, pty_resize, pty_close, agent_query, agent_stop, sidecar_restart) use send_error()
+
+#### RemoteManager Reconnection
+- [x] Exponential backoff reconnection in remote.rs: spawns async tokio task on disconnect
+- [x] Backoff schedule: 1s, 2s, 4s, 8s, 16s, 30s (capped)
+- [x] attempt_ws_connect() probe function: connects with proper WebSocket upgrade + auth header, 5s timeout, immediate close
+- [x] Emits remote-machine-reconnecting (with backoffSecs) and remote-machine-reconnect-ready Tauri events
+- [x] Cancellation: stops if machine removed (not in HashMap) or manually reconnected (status != disconnected)
+- [x] Fixed scoping: disconnection cleanup uses inner block to release mutex before emitting event
+
+#### RemoteManager PTY Creation Confirmation
+- [x] Handles pty_created event type from relay: emits remote-pty-created Tauri event with machineId, ptyId, commandId
+
 ### Next Steps
-- [ ] Reconnection logic with exponential backoff
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections
 - [ ] Deno sidecar: test with real claude CLI, benchmark startup time vs Node.js

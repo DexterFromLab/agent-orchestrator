@@ -17,7 +17,7 @@ Project documentation lives here.
 | Document | Description |
 |----------|-------------|
 | [task_plan.md](task_plan.md) | v2 architecture decisions, error handling, testing strategy |
-| [phases.md](phases.md) | v2 implementation phases (1-7) with checklists |
+| [phases.md](phases.md) | v2 implementation phases (1-7 + multi-machine A-D) with checklists |
 | [findings.md](findings.md) | Research findings (Agent SDK, Tauri, xterm.js, performance) |
 | [progress.md](progress.md) | Session-by-session progress log |
-| [multi-machine.md](multi-machine.md) | Multi-machine support architecture (WebSocket, relay binary) |
+| [multi-machine.md](multi-machine.md) | Multi-machine support architecture (implemented, WebSocket relay, reconnection) |

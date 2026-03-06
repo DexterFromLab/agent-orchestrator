@@ -48,7 +48,8 @@
 - RemoteManager (src-tauri/src/remote.rs) manages WebSocket client connections to bterminal-relay instances. 12 Tauri commands prefixed with `remote_`.
 - remote-bridge.ts adapter wraps remote machine management IPC. machines.svelte.ts store tracks remote machine state.
 - Pane.remoteMachineId?: string routes operations through RemoteManager instead of local managers. Bridge adapters (pty-bridge, agent-bridge) check this field.
-- bterminal-relay binary (v2/bterminal-relay/) is a standalone WebSocket server with token auth, rate limiting, and per-connection isolated managers.
+- bterminal-relay binary (v2/bterminal-relay/) is a standalone WebSocket server with token auth, rate limiting, and per-connection isolated managers. Commands return structured responses (pty_created, pong, error) with commandId for correlation via send_error() helper.
+- RemoteManager reconnection: exponential backoff (1s-30s cap) on disconnect, attempt_ws_connect() probe, emits remote-machine-reconnecting and remote-machine-reconnect-ready events.
 
 ## Memora Tags
 
