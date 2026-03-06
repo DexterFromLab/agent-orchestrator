@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { marked, Renderer } from 'marked';
   import { queryAgent, stopAgent, isAgentReady, restartAgent } from '../../adapters/agent-bridge';
   import {
     getAgentSession,
@@ -9,6 +10,7 @@
   } from '../../stores/agents.svelte';
   import { isSidecarAlive, setSidecarAlive } from '../../agent-dispatcher';
   import AgentTree from './AgentTree.svelte';
+  import { getHighlighter, highlightCode, escapeHtml } from '../../utils/highlight';
   import type {
     AgentMessage,
     TextContent,
@@ -36,7 +38,25 @@
   let showTree = $state(false);
   let hasToolCalls = $derived(session?.messages.some(m => m.type === 'tool_call') ?? false);
 
+  const mdRenderer = new Renderer();
+  mdRenderer.code = function({ text, lang }: { text: string; lang?: string }) {
+    if (lang) {
+      const highlighted = highlightCode(text, lang);
+      if (highlighted !== escapeHtml(text)) return highlighted;
+    }
+    return `<pre><code>${escapeHtml(text)}</code></pre>`;
+  };
+
+  function renderMarkdown(source: string): string {
+    try {
+      return marked.parse(source, { renderer: mdRenderer, async: false }) as string;
+    } catch {
+      return escapeHtml(source);
+    }
+  }
+
   onMount(async () => {
+    await getHighlighter();
     if (initialPrompt) {
       await startQuery(initialPrompt);
     }
@@ -164,7 +184,7 @@
               <span class="model">{(msg.content as import('../../adapters/sdk-messages').InitContent).model}</span>
             </div>
           {:else if msg.type === 'text'}
-            <div class="msg-text">{(msg.content as TextContent).text}</div>
+            <div class="msg-text markdown-body">{@html renderMarkdown((msg.content as TextContent).text)}</div>
           {:else if msg.type === 'thinking'}
             <details class="msg-thinking">
               <summary>Thinking...</summary>
@@ -217,6 +237,9 @@
           <span class="cost">${session.costUsd.toFixed(4)}</span>
           <span class="tokens">{session.inputTokens + session.outputTokens} tokens</span>
           <span class="duration">{(session.durationMs / 1000).toFixed(1)}s</span>
+          {#if !autoScroll}
+            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollToBottom(); }}>Scroll to bottom</button>
+          {/if}
         </div>
       {:else if session.status === 'error'}
         <div class="error-bar">
@@ -334,9 +357,116 @@
   }
 
   .msg-text {
-    white-space: pre-wrap;
     word-break: break-word;
     line-height: 1.5;
+  }
+
+  .msg-text.markdown-body :global(h1) {
+    font-size: 1.4em;
+    font-weight: 700;
+    margin: 0.6em 0 0.3em;
+    color: var(--ctp-lavender);
+  }
+
+  .msg-text.markdown-body :global(h2) {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin: 0.5em 0 0.3em;
+    color: var(--ctp-blue);
+  }
+
+  .msg-text.markdown-body :global(h3) {
+    font-size: 1.05em;
+    font-weight: 600;
+    margin: 0.4em 0 0.2em;
+    color: var(--ctp-sapphire);
+  }
+
+  .msg-text.markdown-body :global(p) {
+    margin: 0.4em 0;
+  }
+
+  .msg-text.markdown-body :global(code) {
+    background: var(--bg-surface);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--ctp-green);
+  }
+
+  .msg-text.markdown-body :global(pre) {
+    background: var(--bg-surface);
+    padding: 10px 12px;
+    border-radius: var(--border-radius);
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0.5em 0;
+  }
+
+  .msg-text.markdown-body :global(pre code) {
+    background: none;
+    padding: 0;
+    color: var(--text-primary);
+  }
+
+  .msg-text.markdown-body :global(.shiki) {
+    background: var(--bg-surface) !important;
+    padding: 10px 12px;
+    border-radius: var(--border-radius);
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0.5em 0;
+  }
+
+  .msg-text.markdown-body :global(.shiki code) {
+    background: none !important;
+    padding: 0;
+  }
+
+  .msg-text.markdown-body :global(blockquote) {
+    border-left: 3px solid var(--ctp-mauve);
+    margin: 0.4em 0;
+    padding: 2px 10px;
+    color: var(--text-secondary);
+  }
+
+  .msg-text.markdown-body :global(ul), .msg-text.markdown-body :global(ol) {
+    padding-left: 20px;
+    margin: 0.3em 0;
+  }
+
+  .msg-text.markdown-body :global(li) {
+    margin: 0.15em 0;
+  }
+
+  .msg-text.markdown-body :global(a) {
+    color: var(--ctp-blue);
+    text-decoration: none;
+  }
+
+  .msg-text.markdown-body :global(a:hover) {
+    text-decoration: underline;
+  }
+
+  .msg-text.markdown-body :global(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.4em 0;
+    font-size: 12px;
+  }
+
+  .msg-text.markdown-body :global(th), .msg-text.markdown-body :global(td) {
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+    text-align: left;
+  }
+
+  .msg-text.markdown-body :global(th) {
+    background: var(--bg-surface);
+    font-weight: 600;
   }
 
   .msg-thinking {

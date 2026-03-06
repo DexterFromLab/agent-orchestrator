@@ -5,10 +5,11 @@
     title: string;
     status?: 'idle' | 'running' | 'error' | 'done';
     onClose?: () => void;
+    onDetach?: () => void;
     children: Snippet;
   }
 
-  let { title, status = 'idle', onClose, children }: Props = $props();
+  let { title, status = 'idle', onClose, onDetach, children }: Props = $props();
 </script>
 
 <div class="pane-container">
@@ -17,6 +18,9 @@
     <div class="pane-controls">
       {#if status !== 'idle'}
         <span class="status {status}">{status}</span>
+      {/if}
+      {#if onDetach}
+        <button class="detach-btn" onclick={onDetach} title="Pop out to new window">&#8599;</button>
       {/if}
       {#if onClose}
         <button class="close-btn" onclick={onClose} title="Close pane">&times;</button>
@@ -74,6 +78,18 @@
   .status.running { color: var(--ctp-blue); }
   .status.error { color: var(--ctp-red); }
   .status.done { color: var(--ctp-green); }
+
+  .detach-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+  }
+
+  .detach-btn:hover { color: var(--ctp-blue); }
 
   .close-btn {
     background: none;

@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { getSetting, setSetting } from '../../adapters/settings-bridge';
   import { notify } from '../../stores/notifications.svelte';
+  import { getCurrentFlavor, setFlavor } from '../../stores/theme.svelte';
+  import { ALL_FLAVORS, FLAVOR_LABELS, type CatppuccinFlavor } from '../../styles/themes';
 
   interface Props {
     open: boolean;
@@ -13,12 +15,14 @@
   let defaultShell = $state('');
   let defaultCwd = $state('');
   let maxPanes = $state('4');
+  let themeFlavor = $state<CatppuccinFlavor>('mocha');
 
   onMount(async () => {
     try {
       defaultShell = (await getSetting('default_shell')) ?? '';
       defaultCwd = (await getSetting('default_cwd')) ?? '';
       maxPanes = (await getSetting('max_panes')) ?? '4';
+      themeFlavor = getCurrentFlavor();
     } catch {
       // Use defaults
     }
@@ -29,6 +33,7 @@
       if (defaultShell) await setSetting('default_shell', defaultShell);
       if (defaultCwd) await setSetting('default_cwd', defaultCwd);
       await setSetting('max_panes', maxPanes);
+      await setFlavor(themeFlavor);
       notify('success', 'Settings saved');
       onClose();
     } catch (e) {
@@ -66,6 +71,15 @@
           <span class="field-label">Max Panes</span>
           <input type="number" bind:value={maxPanes} min="1" max="8" />
           <span class="field-hint">Maximum simultaneous panes (1-8)</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Theme</span>
+          <select bind:value={themeFlavor}>
+            {#each ALL_FLAVORS as flavor}
+              <option value={flavor}>{FLAVOR_LABELS[flavor]}</option>
+            {/each}
+          </select>
+          <span class="field-hint">Catppuccin color scheme. New terminals use the updated theme.</span>
         </label>
       </div>
       <div class="dialog-footer">
@@ -146,7 +160,7 @@
     color: var(--text-secondary);
   }
 
-  .field input {
+  .field input, .field select {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--border-radius);
@@ -156,7 +170,7 @@
     padding: 6px 8px;
   }
 
-  .field input:focus {
+  .field input:focus, .field select:focus {
     outline: none;
     border-color: var(--accent);
   }

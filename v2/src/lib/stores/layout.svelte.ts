@@ -11,7 +11,7 @@ import {
 
 export type LayoutPreset = '1-col' | '2-col' | '3-col' | '2x2' | 'master-stack';
 
-export type PaneType = 'terminal' | 'agent' | 'markdown' | 'empty';
+export type PaneType = 'terminal' | 'agent' | 'markdown' | 'ssh' | 'context' | 'empty';
 
 export interface Pane {
   id: string;

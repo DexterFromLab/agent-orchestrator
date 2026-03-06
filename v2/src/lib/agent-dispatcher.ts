@@ -1,7 +1,7 @@
 // Agent Dispatcher — connects sidecar bridge events to agent store
 // Single listener that routes sidecar messages to the correct agent session
 
-import { onSidecarMessage, onSidecarExited, type SidecarMessage } from './adapters/agent-bridge';
+import { onSidecarMessage, onSidecarExited, restartAgent, type SidecarMessage } from './adapters/agent-bridge';
 import { adaptSDKMessage } from './adapters/sdk-messages';
 import type { InitContent, CostContent } from './adapters/sdk-messages';
 import {
@@ -19,6 +19,10 @@ let unlistenExit: (() => void) | null = null;
 
 // Sidecar liveness — checked by UI components
 let sidecarAlive = true;
+
+// Sidecar crash recovery state
+const MAX_RESTART_ATTEMPTS = 3;
+let restartAttempts = 0;
 export function isSidecarAlive(): boolean {
   return sidecarAlive;
 }
@@ -33,6 +37,11 @@ export async function startAgentDispatcher(): Promise<void> {
 
   unlistenMsg = await onSidecarMessage((msg: SidecarMessage) => {
     sidecarAlive = true;
+    // Reset restart counter on any successful message — sidecar recovered
+    if (restartAttempts > 0) {
+      notify('success', 'Sidecar recovered');
+      restartAttempts = 0;
+    }
 
     const sessionId = msg.sessionId;
     if (!sessionId) return;
@@ -61,14 +70,32 @@ export async function startAgentDispatcher(): Promise<void> {
     }
   });
 
-  unlistenExit = await onSidecarExited(() => {
+  unlistenExit = await onSidecarExited(async () => {
     sidecarAlive = false;
-    notify('error', 'Sidecar process crashed — agent features unavailable');
     // Mark all running sessions as errored
     for (const session of getAgentSessions()) {
       if (session.status === 'running' || session.status === 'starting') {
         updateAgentStatus(session.id, 'error', 'Sidecar crashed');
       }
+    }
+
+    // Attempt auto-restart with exponential backoff
+    if (restartAttempts < MAX_RESTART_ATTEMPTS) {
+      restartAttempts++;
+      const delayMs = 1000 * Math.pow(2, restartAttempts - 1); // 1s, 2s, 4s
+      notify('warning', `Sidecar crashed, restarting (attempt ${restartAttempts}/${MAX_RESTART_ATTEMPTS})...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      try {
+        await restartAgent();
+        sidecarAlive = true;
+        // Note: restartAttempts is reset when next sidecar message arrives
+      } catch {
+        if (restartAttempts >= MAX_RESTART_ATTEMPTS) {
+          notify('error', `Sidecar restart failed after ${MAX_RESTART_ATTEMPTS} attempts`);
+        }
+      }
+    } else {
+      notify('error', `Sidecar restart failed after ${MAX_RESTART_ATTEMPTS} attempts`);
     }
   });
 }

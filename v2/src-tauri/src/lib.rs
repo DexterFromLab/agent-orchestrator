@@ -1,10 +1,12 @@
+mod ctx;
 mod pty;
 mod sidecar;
 mod watcher;
 mod session;
 
+use ctx::CtxDb;
 use pty::{PtyManager, PtyOptions};
-use session::{Session, SessionDb, LayoutState};
+use session::{Session, SessionDb, LayoutState, SshSession};
 use sidecar::{AgentQueryOptions, SidecarManager};
 use watcher::FileWatcherManager;
 use std::sync::Arc;
@@ -15,6 +17,7 @@ struct AppState {
     sidecar_manager: Arc<SidecarManager>,
     session_db: Arc<SessionDb>,
     file_watcher: Arc<FileWatcherManager>,
+    ctx_db: Arc<CtxDb>,
 }
 
 // --- PTY commands ---
@@ -149,6 +152,50 @@ fn settings_list(state: State<'_, AppState>) -> Result<Vec<(String, String)>, St
     state.session_db.get_all_settings()
 }
 
+// --- SSH session commands ---
+
+#[tauri::command]
+fn ssh_session_list(state: State<'_, AppState>) -> Result<Vec<SshSession>, String> {
+    state.session_db.list_ssh_sessions()
+}
+
+#[tauri::command]
+fn ssh_session_save(state: State<'_, AppState>, session: SshSession) -> Result<(), String> {
+    state.session_db.save_ssh_session(&session)
+}
+
+#[tauri::command]
+fn ssh_session_delete(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state.session_db.delete_ssh_session(&id)
+}
+
+// --- ctx commands ---
+
+#[tauri::command]
+fn ctx_list_projects(state: State<'_, AppState>) -> Result<Vec<ctx::CtxProject>, String> {
+    state.ctx_db.list_projects()
+}
+
+#[tauri::command]
+fn ctx_get_context(state: State<'_, AppState>, project: String) -> Result<Vec<ctx::CtxEntry>, String> {
+    state.ctx_db.get_context(&project)
+}
+
+#[tauri::command]
+fn ctx_get_shared(state: State<'_, AppState>) -> Result<Vec<ctx::CtxEntry>, String> {
+    state.ctx_db.get_shared()
+}
+
+#[tauri::command]
+fn ctx_get_summaries(state: State<'_, AppState>, project: String, limit: i64) -> Result<Vec<ctx::CtxSummary>, String> {
+    state.ctx_db.get_summaries(&project, limit)
+}
+
+#[tauri::command]
+fn ctx_search(state: State<'_, AppState>, query: String) -> Result<Vec<ctx::CtxEntry>, String> {
+    state.ctx_db.search(&query)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let pty_manager = Arc::new(PtyManager::new());
@@ -163,12 +210,14 @@ pub fn run() {
     );
 
     let file_watcher = Arc::new(FileWatcherManager::new());
+    let ctx_db = Arc::new(CtxDb::new());
 
     let app_state = AppState {
         pty_manager,
         sidecar_manager: sidecar_manager.clone(),
         session_db,
         file_watcher,
+        ctx_db,
     };
 
     tauri::Builder::default()
@@ -195,7 +244,16 @@ pub fn run() {
             settings_get,
             settings_set,
             settings_list,
+            ssh_session_list,
+            ssh_session_save,
+            ssh_session_delete,
+            ctx_list_projects,
+            ctx_get_context,
+            ctx_get_shared,
+            ctx_get_summaries,
+            ctx_search,
         ])
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(

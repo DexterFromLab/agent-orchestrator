@@ -7,6 +7,20 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshSession {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: i32,
+    pub username: String,
+    pub key_file: String,
+    pub folder: String,
+    pub color: String,
+    pub created_at: i64,
+    pub last_used_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
     pub id: String,
     #[serde(rename = "type")]
@@ -72,6 +86,19 @@ impl SessionDb {
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ssh_sessions (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL DEFAULT 22,
+                username TEXT NOT NULL,
+                key_file TEXT DEFAULT '',
+                folder TEXT DEFAULT '',
+                color TEXT DEFAULT '#89b4fa',
+                created_at INTEGER NOT NULL,
+                last_used_at INTEGER NOT NULL
             );
             "
         ).map_err(|e| format!("Migration failed: {e}"))?;
@@ -211,5 +238,81 @@ impl SessionDb {
             let pane_ids: Vec<String> = serde_json::from_str(&pane_ids_json).unwrap_or_default();
             Ok(LayoutState { preset, pane_ids })
         }).map_err(|e| format!("Layout read failed: {e}"))
+    }
+
+    // --- SSH session methods ---
+
+    pub fn list_ssh_sessions(&self) -> Result<Vec<SshSession>, String> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT id, name, host, port, username, key_file, folder, color, created_at, last_used_at FROM ssh_sessions ORDER BY last_used_at DESC")
+            .map_err(|e| format!("SSH query prepare failed: {e}"))?;
+
+        let sessions = stmt
+            .query_map([], |row| {
+                Ok(SshSession {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    host: row.get(2)?,
+                    port: row.get(3)?,
+                    username: row.get(4)?,
+                    key_file: row.get(5)?,
+                    folder: row.get(6)?,
+                    color: row.get(7)?,
+                    created_at: row.get(8)?,
+                    last_used_at: row.get(9)?,
+                })
+            })
+            .map_err(|e| format!("SSH query failed: {e}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("SSH row read failed: {e}"))?;
+
+        Ok(sessions)
+    }
+
+    pub fn save_ssh_session(&self, session: &SshSession) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO ssh_sessions (id, name, host, port, username, key_file, folder, color, created_at, last_used_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                session.id,
+                session.name,
+                session.host,
+                session.port,
+                session.username,
+                session.key_file,
+                session.folder,
+                session.color,
+                session.created_at,
+                session.last_used_at,
+            ],
+        ).map_err(|e| format!("SSH insert failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn delete_ssh_session(&self, id: &str) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM ssh_sessions WHERE id = ?1", params![id])
+            .map_err(|e| format!("SSH delete failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn update_ssh_session(&self, session: &SshSession) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE ssh_sessions SET name = ?1, host = ?2, port = ?3, username = ?4, key_file = ?5, folder = ?6, color = ?7, last_used_at = ?8 WHERE id = ?9",
+            params![
+                session.name,
+                session.host,
+                session.port,
+                session.username,
+                session.key_file,
+                session.folder,
+                session.color,
+                session.last_used_at,
+                session.id,
+            ],
+        ).map_err(|e| format!("SSH update failed: {e}"))?;
+        Ok(())
     }
 }

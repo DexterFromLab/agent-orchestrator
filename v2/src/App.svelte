@@ -6,8 +6,14 @@
   import ToastContainer from './lib/components/Notifications/ToastContainer.svelte';
   import SettingsDialog from './lib/components/Settings/SettingsDialog.svelte';
   import { addPane, focusPaneByIndex, removePane, getPanes, restoreFromDb } from './lib/stores/layout.svelte';
+  import { initTheme } from './lib/stores/theme.svelte';
+  import { isDetachedMode, getDetachedConfig } from './lib/utils/detach';
+  import TerminalPane from './lib/components/Terminal/TerminalPane.svelte';
+  import AgentPane from './lib/components/Agent/AgentPane.svelte';
 
   let settingsOpen = $state(false);
+  let detached = isDetachedMode();
+  let detachedConfig = getDetachedConfig();
   import { startAgentDispatcher, stopAgentDispatcher } from './lib/agent-dispatcher';
 
   function newTerminal() {
@@ -31,8 +37,9 @@
   }
 
   onMount(() => {
+    initTheme();
     startAgentDispatcher();
-    restoreFromDb();
+    if (!detached) restoreFromDb();
 
     function handleKeydown(e: KeyboardEvent) {
       // Ctrl+N — new terminal
@@ -80,17 +87,42 @@
   });
 </script>
 
-<aside class="sidebar">
-  <SessionList />
-</aside>
-<main class="workspace">
-  <TilingGrid />
-</main>
-<StatusBar />
+{#if detached && detachedConfig}
+  <div class="detached-pane">
+    {#if detachedConfig.type === 'terminal' || detachedConfig.type === 'ssh'}
+      <TerminalPane
+        shell={detachedConfig.shell}
+        cwd={detachedConfig.cwd}
+        args={detachedConfig.args}
+      />
+    {:else if detachedConfig.type === 'agent'}
+      <AgentPane
+        sessionId={detachedConfig.sessionId ?? crypto.randomUUID()}
+        cwd={detachedConfig.cwd}
+      />
+    {:else}
+      <TerminalPane />
+    {/if}
+  </div>
+{:else}
+  <aside class="sidebar">
+    <SessionList />
+  </aside>
+  <main class="workspace">
+    <TilingGrid />
+  </main>
+  <StatusBar />
+  <SettingsDialog open={settingsOpen} onClose={() => settingsOpen = false} />
+{/if}
 <ToastContainer />
-<SettingsDialog open={settingsOpen} onClose={() => settingsOpen = false} />
 
 <style>
+  .detached-pane {
+    height: 100vh;
+    width: 100vw;
+    background: var(--bg-primary);
+  }
+
   .sidebar {
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);

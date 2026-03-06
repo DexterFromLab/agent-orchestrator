@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { marked } from 'marked';
+  import { marked, Renderer } from 'marked';
   import { watchFile, unwatchFile, onFileChanged, type FileChangedPayload } from '../../adapters/file-bridge';
+  import { getHighlighter, highlightCode, escapeHtml } from '../../utils/highlight';
 
   interface Props {
     filePath: string;
@@ -15,9 +16,18 @@
   let error = $state('');
   let unlisten: (() => void) | undefined;
 
+  const renderer = new Renderer();
+  renderer.code = function({ text, lang }: { text: string; lang?: string }) {
+    if (lang) {
+      const highlighted = highlightCode(text, lang);
+      if (highlighted !== escapeHtml(text)) return highlighted;
+    }
+    return `<pre><code>${escapeHtml(text)}</code></pre>`;
+  };
+
   function renderMarkdown(source: string): void {
     try {
-      renderedHtml = marked.parse(source, { async: false }) as string;
+      renderedHtml = marked.parse(source, { renderer, async: false }) as string;
       error = '';
     } catch (e) {
       error = `Render error: ${e}`;
@@ -26,6 +36,7 @@
 
   onMount(async () => {
     try {
+      await getHighlighter();
       const content = await watchFile(paneId, filePath);
       renderMarkdown(content);
 
@@ -123,6 +134,21 @@
     background: none;
     padding: 0;
     color: var(--text-primary);
+  }
+
+  .markdown-body :global(.shiki) {
+    background: var(--bg-surface) !important;
+    padding: 12px 14px;
+    border-radius: var(--border-radius);
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0.6em 0;
+  }
+
+  .markdown-body :global(.shiki code) {
+    background: none !important;
+    padding: 0;
   }
 
   .markdown-body :global(blockquote) {

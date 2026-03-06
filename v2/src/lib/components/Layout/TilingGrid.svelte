@@ -3,6 +3,7 @@
   import TerminalPane from '../Terminal/TerminalPane.svelte';
   import AgentPane from '../Agent/AgentPane.svelte';
   import MarkdownPane from '../Markdown/MarkdownPane.svelte';
+  import ContextPane from '../Context/ContextPane.svelte';
   import {
     getPanes,
     getGridTemplate,
@@ -10,9 +11,17 @@
     focusPane,
     removePane,
   } from '../../stores/layout.svelte';
+  import { detachPane } from '../../utils/detach';
+  import { isDetachedMode } from '../../utils/detach';
 
   let gridTemplate = $derived(getGridTemplate());
   let panes = $derived(getPanes());
+  let detached = isDetachedMode();
+
+  function handleDetach(pane: typeof panes[0]) {
+    detachPane(pane);
+    removePane(pane.id);
+  }
 </script>
 
 <div
@@ -41,6 +50,7 @@
           title={pane.title}
           status={pane.focused ? 'running' : 'idle'}
           onClose={() => removePane(pane.id)}
+          onDetach={detached ? undefined : () => handleDetach(pane)}
         >
           {#if pane.type === 'terminal'}
             <TerminalPane
@@ -55,6 +65,15 @@
               cwd={pane.cwd}
               onExit={() => removePane(pane.id)}
             />
+          {:else if pane.type === 'ssh'}
+            <TerminalPane
+              shell={pane.shell}
+              cwd={pane.cwd}
+              args={pane.args}
+              onExit={() => removePane(pane.id)}
+            />
+          {:else if pane.type === 'context'}
+            <ContextPane onExit={() => removePane(pane.id)} />
           {:else if pane.type === 'markdown'}
             <MarkdownPane
               paneId={pane.id}

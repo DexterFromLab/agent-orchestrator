@@ -24,6 +24,15 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/DexterFromLab/BTerminal/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": ""
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["deb", "appimage"],

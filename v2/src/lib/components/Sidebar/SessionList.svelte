@@ -8,6 +8,7 @@
     setPreset,
     type LayoutPreset,
   } from '../../stores/layout.svelte';
+  import SshSessionList from '../SSH/SshSessionList.svelte';
 
   let panes = $derived(getPanes());
   let preset = $derived(getActivePreset());
@@ -31,6 +32,20 @@
       id,
       type: 'agent',
       title: `Agent ${num}`,
+    });
+  }
+
+  function openContext() {
+    const existing = panes.find(p => p.type === 'context');
+    if (existing) {
+      focusPane(existing.id);
+      return;
+    }
+    const id = crypto.randomUUID();
+    addPane({
+      id,
+      type: 'context',
+      title: 'Context',
     });
   }
 
@@ -62,6 +77,7 @@
   <div class="header">
     <h2>Sessions</h2>
     <div class="header-buttons">
+      <button class="new-btn" onclick={openContext} title="Context manager">C</button>
       <button class="new-btn" onclick={openMarkdown} title="Open markdown file">M</button>
       <button class="new-btn" onclick={newAgent} title="New agent (Ctrl+Shift+N)">A</button>
       <button class="new-btn" onclick={newTerminal} title="New terminal (Ctrl+N)">+</button>
@@ -96,7 +112,7 @@
       {#each panes as pane (pane.id)}
         <li class="pane-item" class:focused={pane.focused}>
           <button class="pane-btn" onclick={() => focusPane(pane.id)}>
-            <span class="pane-icon">{pane.type === 'terminal' ? '>' : pane.type === 'agent' ? '*' : pane.type === 'markdown' ? 'M' : '#'}</span>
+            <span class="pane-icon">{pane.type === 'terminal' ? '>' : pane.type === 'agent' ? '*' : pane.type === 'markdown' ? 'M' : pane.type === 'ssh' ? '@' : pane.type === 'context' ? 'C' : '#'}</span>
             <span class="pane-name">{pane.title}</span>
           </button>
           <button class="remove-btn" onclick={() => removePane(pane.id)}>&times;</button>
@@ -104,9 +120,18 @@
       {/each}
     </ul>
   {/if}
+
+  <div class="divider"></div>
+  <SshSessionList />
 </div>
 
 <style>
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
   .session-list {
     padding: 12px;
     display: flex;
