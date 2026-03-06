@@ -228,11 +228,11 @@ bterminal-v2/
 - [x] Auto-update latest.json generation in CI (version, platform URL, signature from .sig file)
 - [x] release.yml: TAURI_SIGNING_PRIVATE_KEY env vars passed to build step
 - [x] Auto-update signing key generated, pubkey set in tauri.conf.json
-- [ ] TAURI_SIGNING_PRIVATE_KEY secret must be set in GitHub repo settings
+- [x] TAURI_SIGNING_PRIVATE_KEY secret set in GitHub repo settings via `gh secret set`
 
 ---
 
-## Phase 7: Agent Teams / Subagent Support [status: in progress] — Post-MVP
+## Phase 7: Agent Teams / Subagent Support [status: complete] — Post-MVP
 
 - [x] Agent store parent/child hierarchy — parentSessionId, parentToolUseId, childSessionIds fields on AgentSession
 - [x] Agent store functions — findChildByToolUseId(), getChildSessions(), parent-aware createAgentSession()
@@ -242,9 +242,9 @@ bterminal-v2/
 - [x] AgentPane parent navigation — SUB badge + button to focus parent agent
 - [x] AgentPane children bar — clickable chips per child subagent with status colors (running/done/error)
 - [x] SessionList subagent icon — '↳' for subagent panes
+- [x] Subagent cost aggregation — getTotalCost() recursive helper in agents.svelte.ts, total cost shown in parent pane done-bar
+- [x] Dispatcher tests for subagent routing — 10 tests covering spawn, dedup, child message routing, init/cost forwarding, fallbacks (28 total dispatcher tests)
 - [ ] Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-- [ ] Update dispatcher tests for subagent routing
-- [ ] Subagent cost aggregation in parent pane
 
 ### System Requirements
 - Node.js 20+ (for Agent SDK sidecar)

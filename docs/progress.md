@@ -228,10 +228,32 @@ Build status: TypeScript 0 errors, Rust 0 errors (1 pre-existing warning), all t
 
 Design: No separate sidecar process per subagent. Parent's sidecar handles all; routing is purely frontend based on SDK's parentId field.
 
+### Session: 2026-03-06 (continued) — Subagent Tests, Cost Aggregation, Signing Key
+
+#### Subagent Dispatcher Tests
+- [x] 10 new tests in agent-dispatcher.test.ts for subagent routing:
+  - spawn subagent pane on Agent/Task tool_call
+  - skip non-subagent tool_calls (Read, etc.)
+  - deduplicate panes for same toolUseId
+  - reuse existing child session from findChildByToolUseId
+  - route messages with parentId to child pane
+  - route child init message (sets model, marks running)
+  - route child cost message (updates cost, marks done)
+  - fallback title when input has no prompt/name
+  - fallback group when parent pane not found
+- [x] Total: 28 dispatcher tests (18 existing + 10 new), 114 vitest tests overall
+- [x] New mocks added: mockCreateAgentSession, mockFindChildByToolUseId, mockAddPane, mockGetPanes, layout.svelte mock
+
+#### Subagent Cost Aggregation
+- [x] getTotalCost(id) recursive helper in agents.svelte.ts — aggregates costUsd, inputTokens, outputTokens across parent + all children via childSessionIds
+- [x] AgentPane done-bar: shows "(total: $X.XXXX)" in yellow when child sessions exist and total > parent cost
+- [x] .total-cost CSS class: var(--ctp-yellow), 10px font-size
+
+#### TAURI_SIGNING_PRIVATE_KEY
+- [x] Set via `gh secret set` on DexterFromLab/BTerminal GitHub repo
+
 ### Next Steps
-- [ ] Set TAURI_SIGNING_PRIVATE_KEY secret in GitHub repo settings
 - [ ] Deno sidecar: test with real claude CLI, benchmark startup time vs Node.js
 - [ ] E2E testing with Playwright/WebDriver (when display server available)
 - [ ] Multi-machine support (remote agents via WebSocket)
 - [ ] Test agent teams with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-- [ ] Update dispatcher tests for new subagent routing logic
