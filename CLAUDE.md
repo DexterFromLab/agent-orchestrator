@@ -25,6 +25,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `docs/phases.md` | v2 implementation phases (1-7) |
 | `docs/findings.md` | v2 research findings |
 | `docs/progress.md` | Session progress log |
+| `docs/multi-machine.md` | Multi-machine architecture (WebSocket relay, 4-phase plan) |
 | `v2/src-tauri/src/pty.rs` | PTY backend (portable-pty, PtyManager) |
 | `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings) |
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (Deno-first + Node.js fallback, SidecarCommand, NDJSON) |

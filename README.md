@@ -117,6 +117,7 @@ Context database: `~/.claude-context/context.db`
 | [docs/phases.md](docs/phases.md) | v2 implementation phases (1-7) with checklists |
 | [docs/findings.md](docs/findings.md) | Research findings (Agent SDK, Tauri, xterm.js, performance) |
 | [docs/progress.md](docs/progress.md) | Session-by-session progress log |
+| [docs/multi-machine.md](docs/multi-machine.md) | Multi-machine architecture (WebSocket relay, remote agents) |
 
 ## License
 

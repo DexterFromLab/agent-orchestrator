@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Multi-machine support architecture design (`docs/multi-machine.md`): bterminal-relay binary, WebSocket NDJSON protocol, RemoteManager, pre-shared token + TLS auth, autonomous relay model, 4-phase implementation plan (A: extract bterminal-core crate, B: relay binary, C: RemoteManager, D: frontend integration)
 - Subagent cost aggregation: getTotalCost() recursive helper in agents store aggregates cost across parent + all child sessions; total cost displayed in parent pane done-bar when children present
 - 10 new subagent routing tests in agent-dispatcher.test.ts: spawn, dedup, child message routing, init/cost forwarding, fallbacks (28 total dispatcher tests, 114 vitest tests overall)
 - TAURI_SIGNING_PRIVATE_KEY secret set in GitHub repo for auto-update signing

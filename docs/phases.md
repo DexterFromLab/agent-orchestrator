@@ -251,3 +251,15 @@ bterminal-v2/
 - Rust 1.77+ (for building from source)
 - WebKit2GTK 4.1+ (Tauri runtime)
 - Linux x86_64 (primary target)
+
+---
+
+## Future: Multi-Machine Support [status: designed]
+
+Architecture designed in [multi-machine.md](multi-machine.md). Extends BTerminal to manage agents and terminals on remote machines over WebSocket.
+
+### Implementation Phases (A-D)
+- [ ] **Phase A:** Extract `bterminal-core` crate (PtyManager + SidecarManager shared code)
+- [ ] **Phase B:** Build `bterminal-relay` binary (WebSocket server, token auth, CLI flags)
+- [ ] **Phase C:** Add `RemoteManager` to controller (remote.rs, WebSocket client connections)
+- [ ] **Phase D:** Frontend integration (bridge adapters with remoteMachineId routing, machine management UI)

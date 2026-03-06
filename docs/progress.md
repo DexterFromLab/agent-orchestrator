@@ -252,8 +252,20 @@ Design: No separate sidecar process per subagent. Parent's sidecar handles all; 
 #### TAURI_SIGNING_PRIVATE_KEY
 - [x] Set via `gh secret set` on DexterFromLab/BTerminal GitHub repo
 
+### Session: 2026-03-06 (continued) — Multi-Machine Architecture Design
+
+#### Multi-Machine Support Architecture
+- [x] Designed full multi-machine architecture in docs/multi-machine.md (303 lines)
+- [x] Three-layer model: BTerminal (controller) + bterminal-relay (remote binary) + unified frontend
+- [x] WebSocket NDJSON protocol: RelayCommand/RelayEvent envelope wrapping existing sidecar format
+- [x] Authentication: pre-shared token + TLS, rate limiting, lockout
+- [x] Autonomous relay model: agents keep running when controller disconnects
+- [x] Reconnection with exponential backoff (1s-30s), state_sync on reconnect
+- [x] 4-phase implementation plan: A (extract bterminal-core crate), B (relay binary), C (RemoteManager), D (frontend)
+- [x] Updated TODO.md and docs/task_plan.md to reference the design
+
 ### Next Steps
 - [ ] Deno sidecar: test with real claude CLI, benchmark startup time vs Node.js
 - [ ] E2E testing with Playwright/WebDriver (when display server available)
-- [ ] Multi-machine support (remote agents via WebSocket)
+- [ ] Multi-machine Phase A: extract bterminal-core crate
 - [ ] Test agent teams with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1

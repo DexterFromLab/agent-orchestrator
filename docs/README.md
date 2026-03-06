@@ -20,3 +20,4 @@ Project documentation lives here.
 | [phases.md](phases.md) | v2 implementation phases (1-7) with checklists |
 | [findings.md](findings.md) | Research findings (Agent SDK, Tauri, xterm.js, performance) |
 | [progress.md](progress.md) | Session-by-session progress log |
+| [multi-machine.md](multi-machine.md) | Multi-machine support architecture (WebSocket, relay binary) |
