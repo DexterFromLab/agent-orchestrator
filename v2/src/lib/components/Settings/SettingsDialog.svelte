@@ -4,6 +4,14 @@
   import { notify } from '../../stores/notifications.svelte';
   import { getCurrentFlavor, setFlavor } from '../../stores/theme.svelte';
   import { ALL_FLAVORS, FLAVOR_LABELS, type CatppuccinFlavor } from '../../styles/themes';
+  import {
+    getMachines,
+    addMachine,
+    removeMachine,
+    connectMachine,
+    disconnectMachine,
+    loadMachines,
+  } from '../../stores/machines.svelte';
 
   interface Props {
     open: boolean;
@@ -17,12 +25,21 @@
   let maxPanes = $state('4');
   let themeFlavor = $state<CatppuccinFlavor>('mocha');
 
+  // Machine form state
+  let newMachineLabel = $state('');
+  let newMachineUrl = $state('');
+  let newMachineToken = $state('');
+  let newMachineAutoConnect = $state(false);
+
+  let remoteMachines = $derived(getMachines());
+
   onMount(async () => {
     try {
       defaultShell = (await getSetting('default_shell')) ?? '';
       defaultCwd = (await getSetting('default_cwd')) ?? '';
       maxPanes = (await getSetting('max_panes')) ?? '4';
       themeFlavor = getCurrentFlavor();
+      await loadMachines();
     } catch {
       // Use defaults
     }
@@ -38,6 +55,49 @@
       onClose();
     } catch (e) {
       notify('error', `Failed to save settings: ${e}`);
+    }
+  }
+
+  async function handleAddMachine() {
+    if (!newMachineLabel || !newMachineUrl || !newMachineToken) {
+      notify('error', 'Label, URL, and token are required');
+      return;
+    }
+    try {
+      await addMachine({
+        label: newMachineLabel,
+        url: newMachineUrl,
+        token: newMachineToken,
+        auto_connect: newMachineAutoConnect,
+      });
+      newMachineLabel = '';
+      newMachineUrl = '';
+      newMachineToken = '';
+      newMachineAutoConnect = false;
+      notify('success', 'Machine added');
+    } catch (e) {
+      notify('error', `Failed to add machine: ${e}`);
+    }
+  }
+
+  async function handleRemoveMachine(id: string) {
+    try {
+      await removeMachine(id);
+      notify('success', 'Machine removed');
+    } catch (e) {
+      notify('error', `Failed to remove machine: ${e}`);
+    }
+  }
+
+  async function handleToggleConnection(id: string, status: string) {
+    try {
+      if (status === 'connected') {
+        await disconnectMachine(id);
+      } else {
+        await connectMachine(id);
+      }
+    } catch (e) {
+      notify('error', `Connection error: ${e}`);
     }
   }
 
@@ -81,6 +141,58 @@
           </select>
           <span class="field-hint">Catppuccin color scheme. New terminals use the updated theme.</span>
         </label>
+
+        <div class="section-divider"></div>
+        <h3 class="section-title">Remote Machines</h3>
+
+        {#if remoteMachines.length > 0}
+          <div class="machine-list">
+            {#each remoteMachines as machine (machine.id)}
+              <div class="machine-item">
+                <div class="machine-info">
+                  <span class="machine-label">{machine.label}</span>
+                  <span class="machine-url">{machine.url}</span>
+                  <span class="machine-status" class:connected={machine.status === 'connected'} class:error={machine.status === 'error'}>
+                    {machine.status}
+                  </span>
+                </div>
+                <div class="machine-actions">
+                  <button
+                    class="machine-btn"
+                    onclick={() => handleToggleConnection(machine.id, machine.status)}
+                  >
+                    {machine.status === 'connected' ? 'Disconnect' : 'Connect'}
+                  </button>
+                  <button class="machine-btn machine-btn-danger" onclick={() => handleRemoveMachine(machine.id)}>
+                    &times;
+                  </button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <p class="field-hint">No remote machines configured.</p>
+        {/if}
+
+        <div class="add-machine-form">
+          <label class="field">
+            <span class="field-label">Label</span>
+            <input type="text" bind:value={newMachineLabel} placeholder="devbox" />
+          </label>
+          <label class="field">
+            <span class="field-label">URL</span>
+            <input type="text" bind:value={newMachineUrl} placeholder="wss://host:9750" />
+          </label>
+          <label class="field">
+            <span class="field-label">Token</span>
+            <input type="password" bind:value={newMachineToken} placeholder="auth token" />
+          </label>
+          <label class="field-checkbox">
+            <input type="checkbox" bind:checked={newMachineAutoConnect} />
+            <span>Auto-connect on startup</span>
+          </label>
+          <button class="btn-save" onclick={handleAddMachine}>Add Machine</button>
+        </div>
       </div>
       <div class="dialog-footer">
         <button class="btn-cancel" onclick={onClose}>Cancel</button>
@@ -210,4 +322,112 @@
   }
 
   .btn-save:hover { opacity: 0.9; }
+
+  .section-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .machine-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .machine-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    padding: 6px 8px;
+  }
+
+  .machine-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .machine-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .machine-url {
+    font-size: 10px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .machine-status {
+    font-size: 10px;
+    color: var(--ctp-overlay1);
+  }
+
+  .machine-status.connected {
+    color: var(--ctp-green);
+  }
+
+  .machine-status.error {
+    color: var(--ctp-red);
+  }
+
+  .machine-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .machine-btn {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  .machine-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--accent);
+  }
+
+  .machine-btn-danger:hover {
+    color: var(--ctp-red);
+    border-color: var(--ctp-red);
+  }
+
+  .add-machine-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 4px;
+  }
+
+  .field-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .field-checkbox input[type="checkbox"] {
+    accent-color: var(--accent);
+  }
 </style>

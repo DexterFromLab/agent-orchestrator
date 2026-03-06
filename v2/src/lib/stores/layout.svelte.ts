@@ -23,6 +23,7 @@ export interface Pane {
   args?: string[];
   group?: string;
   focused: boolean;
+  remoteMachineId?: string;
 }
 
 let panes = $state<Pane[]>([]);

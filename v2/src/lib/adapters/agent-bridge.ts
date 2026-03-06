@@ -11,13 +11,21 @@ export interface AgentQueryOptions {
   max_turns?: number;
   max_budget_usd?: number;
   resume_session_id?: string;
+  remote_machine_id?: string;
 }
 
 export async function queryAgent(options: AgentQueryOptions): Promise<void> {
+  if (options.remote_machine_id) {
+    const { remote_machine_id: machineId, ...agentOptions } = options;
+    return invoke('remote_agent_query', { machineId, options: agentOptions });
+  }
   return invoke('agent_query', { options });
 }
 
-export async function stopAgent(sessionId: string): Promise<void> {
+export async function stopAgent(sessionId: string, remoteMachineId?: string): Promise<void> {
+  if (remoteMachineId) {
+    return invoke('remote_agent_stop', { machineId: remoteMachineId, sessionId });
+  }
   return invoke('agent_stop', { sessionId });
 }
 

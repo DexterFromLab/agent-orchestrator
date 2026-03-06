@@ -10,15 +10,29 @@
     type LayoutPreset,
     type Pane,
   } from '../../stores/layout.svelte';
+  import { getMachines } from '../../stores/machines.svelte';
   import SshSessionList from '../SSH/SshSessionList.svelte';
 
   let panes = $derived(getPanes());
   let preset = $derived(getActivePreset());
+  let machines = $derived(getMachines());
+
+  // Build machine label lookup
+  let machineLabels = $derived.by(() => {
+    const map = new Map<string, string>();
+    for (const m of machines) {
+      map.set(m.id, `${m.label} (${m.status})`);
+    }
+    return map;
+  });
 
   let grouped = $derived.by(() => {
     const groups = new Map<string, Pane[]>();
     for (const pane of panes) {
-      const g = pane.group || '';
+      // Remote panes auto-group by machine label; local panes use explicit group
+      const g = pane.remoteMachineId
+        ? machineLabels.get(pane.remoteMachineId) ?? `Remote ${pane.remoteMachineId.slice(0, 8)}`
+        : (pane.group || '');
       if (!groups.has(g)) groups.set(g, []);
       groups.get(g)!.push(pane);
     }
