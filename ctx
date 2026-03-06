@@ -104,18 +104,17 @@ def cmd_init(args):
 
 
 def cmd_get(args):
-    """Get full context for a project (shared + project-specific + recent summaries)."""
+    """Get full context for a project (project-specific + recent summaries).
+    Use --shared flag to also include shared context."""
     if len(args) < 1:
-        print("Usage: ctx get <project>")
+        print("Usage: ctx get <project> [--shared]")
         sys.exit(1)
     project = args[0]
+    show_shared = "--shared" in args
     db = get_db()
 
     # Session info
     session = db.execute("SELECT * FROM sessions WHERE name = ?", (project,)).fetchone()
-
-    # Shared context
-    shared = db.execute("SELECT key, value FROM shared ORDER BY key").fetchall()
 
     # Project context
     contexts = db.execute(
@@ -138,11 +137,13 @@ def cmd_get(args):
         print(f"PROJECT: {project} (not registered, use: ctx init)")
     print("=" * 60)
 
-    if shared:
-        print("\n--- Shared Context ---")
-        for row in shared:
-            print(f"\n[{row['key']}]")
-            print(row["value"])
+    if show_shared:
+        shared = db.execute("SELECT key, value FROM shared ORDER BY key").fetchall()
+        if shared:
+            print("\n--- Shared Context ---")
+            for row in shared:
+                print(f"\n[{row['key']}]")
+                print(row["value"])
 
     if contexts:
         print(f"\n--- {project} Context ---")
@@ -156,8 +157,8 @@ def cmd_get(args):
             print(f"\n[{row['created_at']}]")
             print(row["summary"])
 
-    if not shared and not contexts and not summaries:
-        print("\nNo context stored yet. Use 'ctx set' or 'ctx shared set' to add.")
+    if not contexts and not summaries:
+        print("\nNo context stored yet. Use 'ctx set' to add project context.")
 
     db.close()
 
@@ -433,7 +434,7 @@ def print_help():
     print("ctx — Cross-session context manager for Claude Code\n")
     print("Commands:")
     print("  init <project> <desc> [dir]   Register a new project")
-    print("  get <project>                 Load full context (shared + project)")
+    print("  get <project> [--shared]      Load project context (optionally with shared)")
     print("  set <project> <key> <value>   Set project context entry")
     print("  append <project> <key> <val>  Append to existing entry")
     print("  shared get|set|delete         Manage shared context")
