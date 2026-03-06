@@ -66,8 +66,13 @@ function handleQuery(msg: QueryMessage) {
 
   log(`Starting agent session ${sessionId}: claude ${args.join(" ")}`);
 
-  const env = { ...Deno.env.toObject() };
-  delete env.CLAUDECODE;
+  // Strip all CLAUDE* env vars to prevent nesting detection by claude CLI
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(Deno.env.toObject())) {
+    if (!key.startsWith("CLAUDE")) {
+      env[key] = value;
+    }
+  }
 
   const command = new Deno.Command("claude", {
     args,

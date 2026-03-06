@@ -89,13 +89,18 @@ function handleQuery(msg: QueryMessage) {
 
   log(`Starting agent session ${sessionId}: claude ${args.join(' ')}`);
 
+  // Strip all CLAUDE* env vars to prevent nesting detection by claude CLI.
+  // When BTerminal is launched from a Claude Code terminal, these leak in.
+  const cleanEnv: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!key.startsWith('CLAUDE') && value !== undefined) {
+      cleanEnv[key] = value;
+    }
+  }
+
   const child = spawn('claude', args, {
     cwd: cwd || process.cwd(),
-    env: {
-      ...process.env,
-      // Unset CLAUDECODE to avoid nesting detection
-      CLAUDECODE: undefined,
-    },
+    env: cleanEnv,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
