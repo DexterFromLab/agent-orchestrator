@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- MVP complete (Phases 1-4). Phase 5 (Agent Tree + Polish) in progress: agent tree viz, status bar, notifications, settings dialog done. Remaining: tree node click-to-focus, subtree cost display, ctx integration.
+- All 6 phases complete. Phase 5 partial: tree node click-to-focus, subtree cost display, ctx integration still pending. Phase 6 (packaging) done: install-v2.sh, .deb/.AppImage bundles, GitHub Actions CI.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References

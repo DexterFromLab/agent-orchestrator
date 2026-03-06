@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) MVP complete, Phase 5 (polish) in progress.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) all 6 phases complete. Packaging: .deb + AppImage via GitHub Actions CI.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -18,7 +18,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 |------|-------------|
 | `bterminal.py` | v1 main application (2092 lines, GTK3+VTE) |
 | `ctx` | Context manager CLI tool (SQLite-based) |
-| `install.sh` | System installer |
+| `install.sh` | v1 system installer |
+| `install-v2.sh` | v2 build-from-source installer (Node.js 20+, Rust 1.77+, system libs) |
+| `.github/workflows/release.yml` | CI: builds .deb + AppImage on v* tags, uploads to GitHub Releases |
 | `docs/task_plan.md` | v2 architecture decisions and strategies |
 | `docs/phases.md` | v2 implementation phases (1-6) |
 | `docs/findings.md` | v2 research findings |
@@ -55,7 +57,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Context DB: `~/.claude-context/context.db`
 - Theme: Catppuccin Mocha
 
-## v2 Stack (Phase 5 in progress, branch: v2-mission-control)
+## v2 Stack (all phases complete, branch: v2-mission-control)
 
 - Tauri 2.x (Rust backend) + Svelte 5 (frontend)
 - xterm.js with Canvas addon (no WebGL on WebKit2GTK)
@@ -81,6 +83,9 @@ sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-vte-2.91
 # v2 (development, branch v2-mission-control)
 cd v2 && npm install && npm run tauri dev   # Dev mode
 cd v2 && npm run tauri build                # Release build
+
+# v2 install from source (builds + installs to ~/.local/bin/bterminal-v2)
+./install-v2.sh
 ```
 
 ## Conventions

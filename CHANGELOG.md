@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Build-from-source installer `install-v2.sh` with 6-step dependency checking (Node.js 20+, Rust 1.77+, WebKit2GTK, GTK3, and 8 other system libraries), auto-install via apt, binary install to `~/.local/bin/bterminal-v2` with desktop entry (Phase 6)
+- Tauri bundle configuration for .deb and AppImage targets with category, descriptions, and deb dependencies (Phase 6)
+- GitHub Actions release workflow (`.github/workflows/release.yml`): triggered on `v*` tags, builds on Ubuntu 22.04 with Rust/npm caching, uploads .deb + AppImage as GitHub Release artifacts (Phase 6)
+- Regenerated application icons from `bterminal.svg` as RGBA PNGs (32x32, 128x128, 256x256, 512x512, .ico) (Phase 6)
 - Agent tree visualization: SVG tree of tool calls with horizontal layout, bezier edges, status-colored nodes (AgentTree.svelte + agent-tree.ts) (Phase 5)
 - Global status bar showing terminal/agent pane counts, active agents with pulse animation, total tokens and cost (StatusBar.svelte) (Phase 5)
 - Toast notification system with auto-dismiss (4s), max 5 visible, color-coded by type (notifications.svelte.ts + ToastContainer.svelte) (Phase 5)

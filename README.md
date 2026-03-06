@@ -2,7 +2,7 @@
 
 Terminal with session panel (MobaXterm-style), built with GTK 3 + VTE. Catppuccin Mocha theme.
 
-> **v2 Phase 5 in progress (MVP complete, polish underway):** Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. Features: multi-pane terminal with PTY backend, agent panes with structured output and tree visualization, SQLite session persistence with layout restore, live markdown file viewer, global status bar with cost tracking, toast notifications, settings dialog, CSS Grid tiling, and Catppuccin theme. Branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
+> **v2 all phases complete:** Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. Features: multi-pane terminal with PTY backend, agent panes with structured output and tree visualization, SQLite session persistence with layout restore, live markdown file viewer, global status bar with cost tracking, toast notifications, settings dialog, CSS Grid tiling, Catppuccin theme, .deb + AppImage packaging, and GitHub Actions CI. Branch `v2-mission-control`. See [docs/task_plan.md](docs/task_plan.md) for architecture and [docs/phases.md](docs/phases.md) for implementation plan.
 
 ![BTerminal](screenshot.png)
 
@@ -32,7 +32,21 @@ The installer will:
 4. Initialize context database at `~/.claude-context/context.db`
 5. Add desktop entry to application menu
 
-### Manual dependency install (Debian/Ubuntu/Pop!_OS)
+### v2 Installation (Tauri — build from source)
+
+Requires Node.js 20+, Rust 1.77+, and system libraries (WebKit2GTK 4.1, GTK3, etc.).
+
+```bash
+git clone https://github.com/DexterFromLab/BTerminal.git
+cd BTerminal
+./install-v2.sh
+```
+
+The installer checks all dependencies, offers to install missing system packages via apt, builds the Tauri app, and installs the binary as `bterminal-v2` in `~/.local/bin/`.
+
+Pre-built .deb and AppImage packages are available from [GitHub Releases](https://github.com/DexterFromLab/BTerminal/releases) (built via CI on version tags).
+
+### v1 Manual dependency install (Debian/Ubuntu/Pop!_OS)
 
 ```bash
 sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-vte-2.91
