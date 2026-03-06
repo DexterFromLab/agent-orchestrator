@@ -8,4 +8,7 @@ export default defineConfig({
     strictPort: true,
   },
   clearScreen: false,
+  test: {
+    include: ['src/**/*.test.ts'],
+  },
 })

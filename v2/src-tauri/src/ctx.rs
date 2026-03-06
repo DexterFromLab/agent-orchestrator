@@ -170,3 +170,68 @@ impl CtxDb {
         Ok(entries)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Create a CtxDb with conn set to None, simulating a missing database.
+    fn make_missing_db() -> CtxDb {
+        CtxDb { conn: Mutex::new(None) }
+    }
+
+    #[test]
+    fn test_new_does_not_panic() {
+        // CtxDb::new() should never panic even if ~/.claude-context/context.db
+        // doesn't exist — it just stores None for the connection.
+        let _db = CtxDb::new();
+    }
+
+    #[test]
+    fn test_list_projects_missing_db_returns_error() {
+        let db = make_missing_db();
+        let result = db.list_projects();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "ctx database not found");
+    }
+
+    #[test]
+    fn test_get_context_missing_db_returns_error() {
+        let db = make_missing_db();
+        let result = db.get_context("any-project");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "ctx database not found");
+    }
+
+    #[test]
+    fn test_get_shared_missing_db_returns_error() {
+        let db = make_missing_db();
+        let result = db.get_shared();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "ctx database not found");
+    }
+
+    #[test]
+    fn test_get_summaries_missing_db_returns_error() {
+        let db = make_missing_db();
+        let result = db.get_summaries("any-project", 10);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "ctx database not found");
+    }
+
+    #[test]
+    fn test_search_missing_db_returns_error() {
+        let db = make_missing_db();
+        let result = db.search("anything");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "ctx database not found");
+    }
+
+    #[test]
+    fn test_search_empty_query_missing_db_returns_error() {
+        let db = make_missing_db();
+        let result = db.search("");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "ctx database not found");
+    }
+}

@@ -316,3 +316,331 @@ impl SessionDb {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_db() -> SessionDb {
+        let dir = tempfile::tempdir().unwrap();
+        SessionDb::open(&dir.path().to_path_buf()).unwrap()
+    }
+
+    fn make_session(id: &str, title: &str) -> Session {
+        Session {
+            id: id.to_string(),
+            session_type: "terminal".to_string(),
+            title: title.to_string(),
+            shell: Some("/bin/bash".to_string()),
+            cwd: Some("/home/user".to_string()),
+            args: Some(vec!["--login".to_string()]),
+            created_at: 1000,
+            last_used_at: 2000,
+        }
+    }
+
+    fn make_ssh_session(id: &str, name: &str) -> SshSession {
+        SshSession {
+            id: id.to_string(),
+            name: name.to_string(),
+            host: "example.com".to_string(),
+            port: 22,
+            username: "admin".to_string(),
+            key_file: "/home/user/.ssh/id_rsa".to_string(),
+            folder: "/srv".to_string(),
+            color: "#89b4fa".to_string(),
+            created_at: 1000,
+            last_used_at: 2000,
+        }
+    }
+
+    // --- Session CRUD ---
+
+    #[test]
+    fn test_list_sessions_empty() {
+        let db = make_db();
+        let sessions = db.list_sessions().unwrap();
+        assert!(sessions.is_empty());
+    }
+
+    #[test]
+    fn test_save_and_list_session() {
+        let db = make_db();
+        let s = make_session("s1", "My Terminal");
+        db.save_session(&s).unwrap();
+
+        let sessions = db.list_sessions().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, "s1");
+        assert_eq!(sessions[0].title, "My Terminal");
+        assert_eq!(sessions[0].session_type, "terminal");
+        assert_eq!(sessions[0].shell, Some("/bin/bash".to_string()));
+        assert_eq!(sessions[0].cwd, Some("/home/user".to_string()));
+        assert_eq!(sessions[0].args, Some(vec!["--login".to_string()]));
+        assert_eq!(sessions[0].created_at, 1000);
+        assert_eq!(sessions[0].last_used_at, 2000);
+    }
+
+    #[test]
+    fn test_save_session_upsert() {
+        let db = make_db();
+        let mut s = make_session("s1", "First");
+        db.save_session(&s).unwrap();
+
+        s.title = "Updated".to_string();
+        db.save_session(&s).unwrap();
+
+        let sessions = db.list_sessions().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].title, "Updated");
+    }
+
+    #[test]
+    fn test_delete_session() {
+        let db = make_db();
+        db.save_session(&make_session("s1", "A")).unwrap();
+        db.save_session(&make_session("s2", "B")).unwrap();
+        assert_eq!(db.list_sessions().unwrap().len(), 2);
+
+        db.delete_session("s1").unwrap();
+        let sessions = db.list_sessions().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, "s2");
+    }
+
+    #[test]
+    fn test_delete_nonexistent_session_no_error() {
+        let db = make_db();
+        // Should not error when deleting a session that doesn't exist
+        db.delete_session("nonexistent").unwrap();
+    }
+
+    #[test]
+    fn test_update_title() {
+        let db = make_db();
+        db.save_session(&make_session("s1", "Old")).unwrap();
+        db.update_title("s1", "New Title").unwrap();
+
+        let sessions = db.list_sessions().unwrap();
+        assert_eq!(sessions[0].title, "New Title");
+    }
+
+    #[test]
+    fn test_touch_session() {
+        let db = make_db();
+        db.save_session(&make_session("s1", "A")).unwrap();
+
+        let before = db.list_sessions().unwrap()[0].last_used_at;
+        db.touch_session("s1").unwrap();
+        let after = db.list_sessions().unwrap()[0].last_used_at;
+
+        // touch_session sets last_used_at to current time (epoch seconds),
+        // which should be greater than our test fixture value of 2000
+        assert!(after > before);
+    }
+
+    #[test]
+    fn test_session_with_no_optional_fields() {
+        let db = make_db();
+        let s = Session {
+            id: "s1".to_string(),
+            session_type: "agent".to_string(),
+            title: "Agent".to_string(),
+            shell: None,
+            cwd: None,
+            args: None,
+            created_at: 1000,
+            last_used_at: 2000,
+        };
+        db.save_session(&s).unwrap();
+
+        let sessions = db.list_sessions().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert!(sessions[0].shell.is_none());
+        assert!(sessions[0].cwd.is_none());
+        assert!(sessions[0].args.is_none());
+    }
+
+    // --- Layout ---
+
+    #[test]
+    fn test_load_default_layout() {
+        let db = make_db();
+        let layout = db.load_layout().unwrap();
+        assert_eq!(layout.preset, "1-col");
+        assert!(layout.pane_ids.is_empty());
+    }
+
+    #[test]
+    fn test_save_and_load_layout() {
+        let db = make_db();
+        let layout = LayoutState {
+            preset: "2-col".to_string(),
+            pane_ids: vec!["p1".to_string(), "p2".to_string()],
+        };
+        db.save_layout(&layout).unwrap();
+
+        let loaded = db.load_layout().unwrap();
+        assert_eq!(loaded.preset, "2-col");
+        assert_eq!(loaded.pane_ids, vec!["p1", "p2"]);
+    }
+
+    #[test]
+    fn test_save_layout_overwrites() {
+        let db = make_db();
+        let layout1 = LayoutState {
+            preset: "2-col".to_string(),
+            pane_ids: vec!["p1".to_string()],
+        };
+        db.save_layout(&layout1).unwrap();
+
+        let layout2 = LayoutState {
+            preset: "3-col".to_string(),
+            pane_ids: vec!["a".to_string(), "b".to_string(), "c".to_string()],
+        };
+        db.save_layout(&layout2).unwrap();
+
+        let loaded = db.load_layout().unwrap();
+        assert_eq!(loaded.preset, "3-col");
+        assert_eq!(loaded.pane_ids.len(), 3);
+    }
+
+    // --- Settings ---
+
+    #[test]
+    fn test_get_setting_missing_returns_none() {
+        let db = make_db();
+        let val = db.get_setting("nonexistent").unwrap();
+        assert!(val.is_none());
+    }
+
+    #[test]
+    fn test_set_and_get_setting() {
+        let db = make_db();
+        db.set_setting("theme", "mocha").unwrap();
+        let val = db.get_setting("theme").unwrap();
+        assert_eq!(val, Some("mocha".to_string()));
+    }
+
+    #[test]
+    fn test_set_setting_overwrites() {
+        let db = make_db();
+        db.set_setting("font_size", "12").unwrap();
+        db.set_setting("font_size", "14").unwrap();
+        assert_eq!(db.get_setting("font_size").unwrap(), Some("14".to_string()));
+    }
+
+    #[test]
+    fn test_get_all_settings() {
+        let db = make_db();
+        db.set_setting("b_key", "val_b").unwrap();
+        db.set_setting("a_key", "val_a").unwrap();
+
+        let all = db.get_all_settings().unwrap();
+        assert_eq!(all.len(), 2);
+        // Should be ordered by key
+        assert_eq!(all[0].0, "a_key");
+        assert_eq!(all[1].0, "b_key");
+    }
+
+    #[test]
+    fn test_get_all_settings_empty() {
+        let db = make_db();
+        let all = db.get_all_settings().unwrap();
+        assert!(all.is_empty());
+    }
+
+    // --- SSH Sessions ---
+
+    #[test]
+    fn test_list_ssh_sessions_empty() {
+        let db = make_db();
+        let sessions = db.list_ssh_sessions().unwrap();
+        assert!(sessions.is_empty());
+    }
+
+    #[test]
+    fn test_save_and_list_ssh_session() {
+        let db = make_db();
+        let s = make_ssh_session("ssh1", "Prod Server");
+        db.save_ssh_session(&s).unwrap();
+
+        let sessions = db.list_ssh_sessions().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, "ssh1");
+        assert_eq!(sessions[0].name, "Prod Server");
+        assert_eq!(sessions[0].host, "example.com");
+        assert_eq!(sessions[0].port, 22);
+        assert_eq!(sessions[0].username, "admin");
+    }
+
+    #[test]
+    fn test_delete_ssh_session() {
+        let db = make_db();
+        db.save_ssh_session(&make_ssh_session("ssh1", "A")).unwrap();
+        db.save_ssh_session(&make_ssh_session("ssh2", "B")).unwrap();
+
+        db.delete_ssh_session("ssh1").unwrap();
+        let sessions = db.list_ssh_sessions().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, "ssh2");
+    }
+
+    #[test]
+    fn test_update_ssh_session() {
+        let db = make_db();
+        let mut s = make_ssh_session("ssh1", "Old Name");
+        db.save_ssh_session(&s).unwrap();
+
+        s.name = "New Name".to_string();
+        s.host = "new.example.com".to_string();
+        s.port = 2222;
+        s.last_used_at = 9999;
+        db.update_ssh_session(&s).unwrap();
+
+        let sessions = db.list_ssh_sessions().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].name, "New Name");
+        assert_eq!(sessions[0].host, "new.example.com");
+        assert_eq!(sessions[0].port, 2222);
+        assert_eq!(sessions[0].last_used_at, 9999);
+        // created_at should be unchanged (UPDATE doesn't touch it)
+        assert_eq!(sessions[0].created_at, 1000);
+    }
+
+    #[test]
+    fn test_ssh_session_upsert() {
+        let db = make_db();
+        let mut s = make_ssh_session("ssh1", "First");
+        db.save_ssh_session(&s).unwrap();
+
+        s.name = "Second".to_string();
+        db.save_ssh_session(&s).unwrap();
+
+        let sessions = db.list_ssh_sessions().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].name, "Second");
+    }
+
+    // --- Multiple sessions ordering ---
+
+    #[test]
+    fn test_sessions_ordered_by_last_used_desc() {
+        let db = make_db();
+        let mut s1 = make_session("s1", "Older");
+        s1.last_used_at = 1000;
+        let mut s2 = make_session("s2", "Newer");
+        s2.last_used_at = 3000;
+        let mut s3 = make_session("s3", "Middle");
+        s3.last_used_at = 2000;
+
+        db.save_session(&s1).unwrap();
+        db.save_session(&s2).unwrap();
+        db.save_session(&s3).unwrap();
+
+        let sessions = db.list_sessions().unwrap();
+        assert_eq!(sessions[0].id, "s2");
+        assert_eq!(sessions[1].id, "s3");
+        assert_eq!(sessions[2].id, "s1");
+    }
+}
