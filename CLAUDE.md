@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-6 complete plus Phase 7 (agent teams/subagent support) in progress. Packaging: .deb + AppImage via GitHub Actions CI.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 complete. Packaging: .deb + AppImage via GitHub Actions CI.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -63,7 +63,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/sidecar/agent-runner-deno.ts` | Deno sidecar (preferred when deno available) |
 | `v2/src/lib/adapters/sdk-messages.test.ts` | Vitest tests for SDK message adapter (25 tests) |
 | `v2/src/lib/adapters/agent-bridge.test.ts` | Vitest tests for agent IPC bridge (11 tests) |
-| `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (18 tests) |
+| `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (28 tests) |
 | `v2/src/lib/stores/layout.test.ts` | Vitest tests for layout store (30 tests) |
 | `v2/src/lib/utils/agent-tree.test.ts` | Vitest tests for agent tree builder (20 tests) |
 
@@ -74,7 +74,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Context DB: `~/.claude-context/context.db`
 - Theme: Catppuccin Mocha
 
-## v2 Stack (Phases 1-6 complete, Phase 7 in progress, branch: v2-mission-control)
+## v2 Stack (Phases 1-7 complete, branch: v2-mission-control)
 
 - Tauri 2.x (Rust backend) + Svelte 5 (frontend)
 - xterm.js with Canvas addon (no WebGL on WebKit2GTK)

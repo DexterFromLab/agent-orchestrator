@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Subagent cost aggregation: getTotalCost() recursive helper in agents store aggregates cost across parent + all child sessions; total cost displayed in parent pane done-bar when children present
+- 10 new subagent routing tests in agent-dispatcher.test.ts: spawn, dedup, child message routing, init/cost forwarding, fallbacks (28 total dispatcher tests, 114 vitest tests overall)
+- TAURI_SIGNING_PRIVATE_KEY secret set in GitHub repo for auto-update signing
 - Agent teams/subagent support (Phase 7): auto-detects subagent tool calls ('Agent', 'Task', 'dispatch_agent'), spawns child agent panes with parent/child navigation, routes messages via parentId field
 - Agent store parent/child hierarchy: AgentSession extended with parentSessionId, parentToolUseId, childSessionIds; findChildByToolUseId() and getChildSessions() query functions
 - AgentPane parent link bar: SUB badge with navigate-to-parent button for subagent panes
@@ -16,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Session groups/folders: group_name column in sessions table, setPaneGroup in layout store, collapsible group headers in sidebar with arrow/count, right-click pane to set group
 - Auto-update signing key: generated minisign keypair, pubkey configured in tauri.conf.json updater section
 - Deno-first sidecar: SidecarCommand struct in sidecar.rs, resolve_sidecar_command() prefers Deno (runs TS directly) with Node.js fallback, both runners bundled via tauri.conf.json resources
-- Vitest integration tests: layout.test.ts (30 tests), agent-bridge.test.ts (11 tests), agent-dispatcher.test.ts (18 tests) — total 104 vitest tests passing
+- Vitest integration tests: layout.test.ts (30 tests), agent-bridge.test.ts (11 tests), agent-dispatcher.test.ts (28 tests) — total 114 vitest tests passing
 - E2E test scaffold: v2/tests/e2e/README.md documenting WebDriver approach
 - Terminal copy/paste: Ctrl+Shift+C copies selection, Ctrl+Shift+V pastes from clipboard to PTY (TerminalPane.svelte)
 - Terminal theme hot-swap: onThemeChange() callback registry in theme.svelte.ts, open terminals update immediately when flavor changes

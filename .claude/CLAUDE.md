@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- Phases 1-6 complete + Phase 7 (agent teams/subagent support) in progress. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, 104 vitest + 29 cargo tests.
+- Phases 1-7 complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, 114 vitest + 29 cargo tests.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
