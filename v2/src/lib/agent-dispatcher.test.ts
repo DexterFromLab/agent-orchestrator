@@ -13,6 +13,10 @@ const {
   mockAppendAgentMessages,
   mockUpdateAgentCost,
   mockGetAgentSessions,
+  mockCreateAgentSession,
+  mockFindChildByToolUseId,
+  mockAddPane,
+  mockGetPanes,
   mockNotify,
 } = vi.hoisted(() => ({
   capturedCallbacks: {
@@ -28,6 +32,10 @@ const {
   mockAppendAgentMessages: vi.fn(),
   mockUpdateAgentCost: vi.fn(),
   mockGetAgentSessions: vi.fn().mockReturnValue([]),
+  mockCreateAgentSession: vi.fn(),
+  mockFindChildByToolUseId: vi.fn().mockReturnValue(undefined),
+  mockAddPane: vi.fn(),
+  mockGetPanes: vi.fn().mockReturnValue([]),
   mockNotify: vi.fn(),
 }));
 
@@ -76,6 +84,69 @@ vi.mock('./adapters/sdk-messages', () => ({
         timestamp: Date.now(),
       }];
     }
+    // Subagent tool_call (Agent/Task)
+    if (raw.type === 'tool_call_agent') {
+      return [{
+        id: 'msg-tc-agent',
+        type: 'tool_call',
+        content: {
+          toolUseId: raw.toolUseId ?? 'tu-123',
+          name: raw.toolName ?? 'Agent',
+          input: raw.toolInput ?? { prompt: 'Do something', name: 'researcher' },
+        },
+        timestamp: Date.now(),
+      }];
+    }
+    // Non-subagent tool_call
+    if (raw.type === 'tool_call_normal') {
+      return [{
+        id: 'msg-tc-normal',
+        type: 'tool_call',
+        content: {
+          toolUseId: 'tu-normal',
+          name: 'Read',
+          input: { file: 'test.ts' },
+        },
+        timestamp: Date.now(),
+      }];
+    }
+    // Message with parentId (routed to child)
+    if (raw.type === 'child_message') {
+      return [{
+        id: 'msg-child',
+        type: 'text',
+        parentId: raw.parentId as string,
+        content: { text: 'Child output' },
+        timestamp: Date.now(),
+      }];
+    }
+    // Child init message
+    if (raw.type === 'child_init') {
+      return [{
+        id: 'msg-child-init',
+        type: 'init',
+        parentId: raw.parentId as string,
+        content: { sessionId: 'child-sdk-sess', model: 'claude-sonnet-4-20250514', cwd: '/tmp', tools: [] },
+        timestamp: Date.now(),
+      }];
+    }
+    // Child cost message
+    if (raw.type === 'child_cost') {
+      return [{
+        id: 'msg-child-cost',
+        type: 'cost',
+        parentId: raw.parentId as string,
+        content: {
+          totalCostUsd: 0.02,
+          durationMs: 2000,
+          inputTokens: 200,
+          outputTokens: 100,
+          numTurns: 1,
+          isError: false,
+        },
+        timestamp: Date.now(),
+      }];
+    }
     return [];
   }),
 }));
@@ -87,6 +158,13 @@ vi.mock('./stores/agents.svelte', () => ({
   appendAgentMessages: (...args: unknown[]) => mockAppendAgentMessages(...args),
   updateAgentCost: (...args: unknown[]) => mockUpdateAgentCost(...args),
   getAgentSessions: () => mockGetAgentSessions(),
+  createAgentSession: (...args: unknown[]) => mockCreateAgentSession(...args),
+  findChildByToolUseId: (...args: unknown[]) => mockFindChildByToolUseId(...args),
+}));
+
+vi.mock('./stores/layout.svelte', () => ({
+  addPane: (...args: unknown[]) => mockAddPane(...args),
+  getPanes: () => mockGetPanes(),
 }));
 
 vi.mock('./stores/notifications.svelte', () => ({
@@ -329,6 +407,198 @@ describe('agent-dispatcher', () => {
       expect(isSidecarAlive()).toBe(false);
       setSidecarAlive(true);
       expect(isSidecarAlive()).toBe(true);
+    });
+  });
+
+  describe('subagent routing', () => {
+    beforeEach(async () => {
+      await startAgentDispatcher();
+      mockGetPanes.mockReturnValue([
+        { id: 'sess-1', type: 'agent', title: 'Agent 1', focused: false },
+      ]);
+      mockFindChildByToolUseId.mockReturnValue(undefined);
+    });
+
+    it('spawns a subagent pane when Agent tool_call is detected', () => {
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-agent-1', toolName: 'Agent', toolInput: { prompt: 'Research X', name: 'researcher' } },
+      });
+
+      expect(mockCreateAgentSession).toHaveBeenCalledWith(
+        expect.any(String),
+        'Research X',
+        { sessionId: 'sess-1', toolUseId: 'tu-agent-1' },
+      );
+      expect(mockUpdateAgentStatus).toHaveBeenCalledWith(expect.any(String), 'running');
+      expect(mockAddPane).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'agent',
+        title: 'Sub: researcher',
+        group: 'Agent 1',
+      }));
+    });
+
+    it('spawns a subagent pane for Task tool_call', () => {
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-task-1', toolName: 'Task', toolInput: { prompt: 'Build it', name: 'builder' } },
+      });
+
+      expect(mockCreateAgentSession).toHaveBeenCalled();
+      expect(mockAddPane).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Sub: builder',
+      }));
+    });
+
+    it('does not spawn pane for non-subagent tool_calls', () => {
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_normal' },
+      });
+
+      expect(mockCreateAgentSession).not.toHaveBeenCalled();
+      expect(mockAddPane).not.toHaveBeenCalled();
+    });
+
+    it('does not spawn duplicate pane for same toolUseId', () => {
+      // First call — spawns pane
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-dup', toolName: 'Agent', toolInput: { prompt: 'test', name: 'dup' } },
+      });
+
+      // Second call with same toolUseId — should not create another
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-dup', toolName: 'Agent', toolInput: { prompt: 'test', name: 'dup' } },
+      });
+
+      expect(mockCreateAgentSession).toHaveBeenCalledTimes(1);
+      expect(mockAddPane).toHaveBeenCalledTimes(1);
+    });
+
+    it('reuses existing child session from findChildByToolUseId', () => {
+      mockFindChildByToolUseId.mockReturnValue({ id: 'existing-child' });
+
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-existing', toolName: 'Agent', toolInput: { prompt: 'test' } },
+      });
+
+      // Should not create a new session or pane
+      expect(mockCreateAgentSession).not.toHaveBeenCalled();
+      expect(mockAddPane).not.toHaveBeenCalled();
+    });
+
+    it('routes messages with parentId to the child pane', () => {
+      // First spawn a subagent
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-route', toolName: 'Agent', toolInput: { prompt: 'test', name: 'worker' } },
+      });
+
+      const childId = mockCreateAgentSession.mock.calls[0][0];
+
+      // Now send a message with parentId matching the toolUseId
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'child_message', parentId: 'tu-route' },
+      });
+
+      // The child message should go to child pane, not main session
+      expect(mockAppendAgentMessages).toHaveBeenCalledWith(
+        childId,
+        [expect.objectContaining({ type: 'text', content: { text: 'Child output' } })],
+      );
+    });
+
+    it('routes child init message and updates child session', () => {
+      // Spawn subagent
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-cinit', toolName: 'Agent', toolInput: { prompt: 'test', name: 'init-test' } },
+      });
+
+      const childId = mockCreateAgentSession.mock.calls[0][0];
+      mockUpdateAgentStatus.mockClear();
+
+      // Send child init
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'child_init', parentId: 'tu-cinit' },
+      });
+
+      expect(mockSetAgentSdkSessionId).toHaveBeenCalledWith(childId, 'child-sdk-sess');
+      expect(mockSetAgentModel).toHaveBeenCalledWith(childId, 'claude-sonnet-4-20250514');
+      expect(mockUpdateAgentStatus).toHaveBeenCalledWith(childId, 'running');
+    });
+
+    it('routes child cost message and marks child done', () => {
+      // Spawn subagent
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-ccost', toolName: 'Agent', toolInput: { prompt: 'test', name: 'cost-test' } },
+      });
+
+      const childId = mockCreateAgentSession.mock.calls[0][0];
+
+      // Send child cost
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'child_cost', parentId: 'tu-ccost' },
+      });
+
+      expect(mockUpdateAgentCost).toHaveBeenCalledWith(childId, {
+        costUsd: 0.02,
+        inputTokens: 200,
+        outputTokens: 100,
+        numTurns: 1,
+        durationMs: 2000,
+      });
+      expect(mockUpdateAgentStatus).toHaveBeenCalledWith(childId, 'done');
+    });
+
+    it('uses tool name as fallback when input has no prompt/name', () => {
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-fallback', toolName: 'dispatch_agent', toolInput: 'raw string input' },
+      });
+
+      expect(mockCreateAgentSession).toHaveBeenCalledWith(
+        expect.any(String),
+        'dispatch_agent',
+        expect.any(Object),
+      );
+      expect(mockAddPane).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Sub: dispatch_agent',
+      }));
+    });
+
+    it('uses parent fallback title when parent pane not found', () => {
+      mockGetPanes.mockReturnValue([]); // no panes found
+
+      capturedCallbacks.msg!({
+        type: 'agent_event',
+        sessionId: 'sess-1',
+        event: { type: 'tool_call_agent', toolUseId: 'tu-noparent', toolName: 'Agent', toolInput: { prompt: 'test', name: 'orphan' } },
+      });
+
+      expect(mockAddPane).toHaveBeenCalledWith(expect.objectContaining({
+        group: 'Agent sess-1',
+      }));
     });
   });
 });
