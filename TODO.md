@@ -10,6 +10,7 @@
 
 ## Completed
 
+- [x] **Sidecar CLAUDE* env var leak fix** -- Both sidecar runners now strip ALL CLAUDE-prefixed env vars before spawning claude CLI. Prevents silent hang when BTerminal launched from Claude Code terminal. | Done: 2026-03-06
 - [x] **Multi-machine reconnection** -- Exponential backoff reconnection (1s-30s cap) in RemoteManager, attempt_tcp_probe() (TCP-only), frontend reconnection listeners + auto-reconnect. | Done: 2026-03-06
 - [x] **Relay command response propagation** -- Structured responses (pty_created, pong, error) with commandId correlation, send_error() helper. | Done: 2026-03-06
 - [x] **Multi-machine support (Phases A-D)** -- bterminal-core crate extraction, bterminal-relay WebSocket binary, RemoteManager, frontend integration. | Done: 2026-03-06
@@ -19,4 +20,3 @@
 - [x] **Session groups/folders** -- group_name column in sessions table, setPaneGroup in layout store, collapsible group headers in sidebar, right-click to set group. | Done: 2026-03-06
 - [x] **Deno sidecar integration** -- SidecarCommand struct, resolve_sidecar_command() with Deno-first + Node.js fallback, both runners bundled in tauri.conf.json resources. | Done: 2026-03-06
 - [x] **E2E/integration test suite** -- 114 vitest tests + 29 cargo tests. | Done: 2026-03-06
-- [x] **Set TAURI_SIGNING_PRIVATE_KEY secret** -- Set via `gh secret set` on DexterFromLab/BTerminal. | Done: 2026-03-06

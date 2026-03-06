@@ -26,7 +26,7 @@
 
 - WebKit2GTK has no WebGL — xterm.js must use Canvas addon explicitly.
 - Agent sessions use `claude` CLI with `--output-format stream-json` (not Agent SDK npm package). All output goes through the adapter layer (`src/lib/adapters/sdk-messages.ts`).
-- Sidecar uses Deno-first + Node.js fallback (`sidecar/agent-runner-deno.ts` preferred, `sidecar/agent-runner.ts` fallback). SidecarCommand struct in sidecar.rs abstracts runtime. Communicates with Rust via stdio NDJSON.
+- Sidecar uses Deno-first + Node.js fallback (`sidecar/agent-runner-deno.ts` preferred, `sidecar/agent-runner.ts` fallback). SidecarCommand struct in sidecar.rs abstracts runtime. Communicates with Rust via stdio NDJSON. Both runners MUST strip ALL `CLAUDE*` prefixed env vars before spawning the claude CLI — without this, the CLI silently hangs due to nesting detection when BTerminal is launched from a Claude Code terminal.
 - Agent dispatcher (`src/lib/agent-dispatcher.ts`) is a singleton that routes sidecar events to the agent store. Also handles subagent pane spawning (SUBAGENT_TOOL_NAMES detection, toolUseToChildPane routing map).
 - Maximum 4 active xterm.js instances to avoid WebKit2GTK memory issues.
 - Store files using Svelte 5 runes (`$state`, `$derived`) MUST have `.svelte.ts` extension (not `.ts`). Import with `.svelte` suffix. Plain `.ts` compiles but fails at runtime with "rune_outside_svelte".

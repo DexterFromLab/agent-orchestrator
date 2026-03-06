@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cargo test suite: session.rs tests (SessionDb CRUD for sessions, SSH sessions, settings, layout) and ctx.rs tests (CtxDb error handling with missing database)
 - tempfile dev dependency for Rust test isolation
 
+### Fixed
+- Sidecar env var leak: both agent-runner.ts and agent-runner-deno.ts now strip ALL `CLAUDE*` prefixed env vars before spawning the claude CLI, preventing silent hangs when BTerminal is launched from within a Claude Code terminal session (previously only CLAUDECODE was removed)
+
 ### Changed
 - RemoteManager reconnection probe refactored from attempt_ws_connect() (full WS handshake + auth) to attempt_tcp_probe() (TCP-only connect, no resource allocation on relay)
 - bterminal-relay command handlers refactored: all error paths now use send_error() helper instead of log::error!() only; pong response sent via event channel instead of no-op

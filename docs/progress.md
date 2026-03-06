@@ -345,6 +345,15 @@ Design: No separate sidecar process per subagent. Parent's sidecar handles all; 
 - [x] machines.svelte.ts: reconnect-ready handler auto-calls connectMachine() to re-establish full WebSocket connection
 - [x] Updated docs/multi-machine.md to reflect TCP probe and frontend listener changes
 
+### Session: 2026-03-06 (continued) — Sidecar Env Var Bug Fix
+
+#### CLAUDE* Environment Variable Leak (critical fix)
+- [x] Diagnosed silent hang in agent sessions when BTerminal launched from Claude Code terminal
+- [x] Root cause: Claude Code sets ~8 CLAUDE* env vars (CLAUDECODE, CLAUDE_ORIGPROMPT, CLAUDE_BASH_MAINTAIN_CWD, CLAUDE_BASH_SANDBOX_DIR, etc.) for nesting/sandbox detection. Previous fix only removed CLAUDECODE, but the CLI checks multiple indicators.
+- [x] Fixed agent-runner.ts: replaced `{ ...process.env, CLAUDECODE: undefined }` with clean env object filtering out all keys starting with 'CLAUDE'
+- [x] Fixed agent-runner-deno.ts: same approach, iterate Deno.env.toObject() and skip CLAUDE-prefixed keys
+- [x] Pre-built dist/agent-runner.mjs already updated with the fix
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections
