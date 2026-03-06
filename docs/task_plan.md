@@ -79,7 +79,7 @@ The Agent SDK cannot run in Rust or the webview. Solution:
 - Node.js/Deno process uses `@anthropic-ai/claude-agent-sdk` query() function which handles claude subprocess management internally
 - SDK messages forwarded as-is via NDJSON — same format as CLI stream-json
 - If sidecar crashes: detect via process exit, show error in UI, offer restart
-- **Packaging:** Bundle the sidecar JS as a single file (esbuild bundle). Require Node.js 20+ as system dependency. Document in install.sh.
+- **Packaging:** Bundle the sidecar JS + SDK as a single file (esbuild bundle, SDK included). Require Node.js 20+ as system dependency. Document in install.sh.
 - **Deno-first:** SidecarCommand struct abstracts runtime. Deno preferred (runs TS directly, no build step). Falls back to Node.js if Deno not in PATH.
 
 ### SDK Abstraction Layer
@@ -149,6 +149,9 @@ See [phases.md](phases.md) for the full phased implementation plan.
 | bterminal-relay as standalone binary | Rust binary with WebSocket server for remote machine management. Token auth + rate limiting. Per-connection isolated managers. | 2026-03-06 |
 | RemoteManager WebSocket client | Controller-side WebSocket client in remote.rs. Manages connections to multiple relays with heartbeat ping. 12 new Tauri commands for remote operations. | 2026-03-06 |
 | Frontend remote routing via remoteMachineId | Pane.remoteMachineId field determines local vs remote. Bridge adapters route to appropriate Tauri commands transparently. | 2026-03-06 |
+| Permission mode passthrough | AgentQueryOptions.permission_mode flows Rust -> sidecar -> SDK. Defaults to 'bypassPermissions', supports 'default'. Enables non-bypass agent sessions. | 2026-03-06 |
+| Stop-on-close in TilingGrid, not AgentPane | Removed onDestroy stopAgent() from AgentPane (fired on layout remounts). Stop logic moved to TilingGrid onClose handler — only fires on explicit user close. | 2026-03-06 |
+| Bundle SDK into sidecar | Removed --external flag from esbuild build:sidecar. SDK bundled into agent-runner.mjs — no runtime dependency on node_modules. | 2026-03-06 |
 
 ## Open Questions
 
@@ -185,3 +188,4 @@ See [phases.md](phases.md) for the full phased implementation plan.
 |---|---|---|---|
 | Blank screen, "rune_outside_svelte" runtime error | Store files used `.ts` extension but contain Svelte 5 `$state`/`$derived` runes. Runes only work in `.svelte` and `.svelte.ts` files. Compiler silently passes but fails at runtime. | Renamed stores to `.svelte.ts`, updated all import paths to use `.svelte` suffix | 2026-03-06 |
 | Agent sessions produce no output (silent hang) | Claude CLI v2.1.69 hangs when spawned via child_process.spawn() with piped stdio. Known bug: github.com/anthropics/claude-code/issues/6775 | Migrated sidecar from raw CLI spawning to `@anthropic-ai/claude-agent-sdk` query() function. SDK handles subprocess management internally. | 2026-03-06 |
+| Running agents killed on pane remount | AgentPane.svelte onDestroy called stopAgent() on component unmount, including layout changes and remounts — not just explicit close. | Removed onDestroy from AgentPane. Moved stop-on-close to TilingGrid onClose handler which only fires on explicit user action. | 2026-03-06 |

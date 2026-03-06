@@ -365,16 +365,33 @@ Design: No separate sidecar process per subagent. Parent's sidecar handles all; 
 - [x] Session stop now uses AbortController.abort() instead of process.kill()
 - [x] CLAUDE* env var stripping preserved via SDK's `env` option in query() options
 - [x] Updated sidecar.rs Deno permissions: added --allow-write and --allow-net (required by SDK)
-- [x] Added build:sidecar script to package.json (esbuild bundle with @anthropic-ai/claude-agent-sdk as external)
-- [x] SDK options: permissionMode: 'bypassPermissions', allowDangerouslySkipPermissions: true, 10 allowedTools
+- [x] Added build:sidecar script to package.json (esbuild bundle, SDK included)
+- [x] SDK options: permissionMode configurable (default 'bypassPermissions'), allowDangerouslySkipPermissions conditional, 10 allowedTools
 - [x] Tested standalone: SDK sidecar successfully produced agent output
 - [x] All 114 vitest tests pass, Rust compiles clean
 
-#### Bug Found (not yet fixed)
-- [ ] AgentPane.svelte onDestroy calls stopAgent() on component unmount — kills running sessions when panes are switched/collapsed, not just when explicitly closed
+#### Bug Found and Fixed
+- [x] AgentPane.svelte onDestroy calls stopAgent() on component unmount — kills running sessions when panes are switched/collapsed, not just when explicitly closed (FIXED: see below)
+
+### Session: 2026-03-06 (continued) — Permission Mode, AgentPane Bug Fix, SDK Bundling
+
+#### Permission Mode Passthrough
+- [x] Added `permission_mode` field to AgentQueryOptions in bterminal-core/src/sidecar.rs
+- [x] Added `permissionMode` to QueryMessage interface in both sidecar runners (agent-runner.ts, agent-runner-deno.ts)
+- [x] SDK options now use dynamic permissionMode: defaults to 'bypassPermissions', supports 'default' mode
+- [x] allowDangerouslySkipPermissions conditionally set based on permissionMode value
+- [x] Added `permission_mode` to AgentQueryOptions in agent-bridge.ts frontend adapter
+
+#### AgentPane onDestroy Bug Fix
+- [x] Removed onDestroy stopAgent() from AgentPane.svelte — it was killing running agents on layout remounts
+- [x] Moved stop-on-close logic to TilingGrid.svelte onClose handler: checks pane type is 'agent' and session status is running/starting before stopping
+- [x] Added comment in AgentPane explaining why onDestroy must NOT stop agents
+
+#### SDK Bundling Fix
+- [x] Removed `--external:@anthropic-ai/claude-agent-sdk` from esbuild build:sidecar script in package.json
+- [x] SDK is now bundled into sidecar/dist/agent-runner.mjs (no external dependency at runtime)
 
 ### Next Steps
-- [ ] Fix AgentPane onDestroy session killing bug
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections
 - [ ] E2E testing with Playwright/WebDriver (when display server available)
