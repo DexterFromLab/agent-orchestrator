@@ -68,11 +68,17 @@
 - [x] SDK message adapter: full stream-json parser with 9 typed message types (sdk-messages.ts, 234 lines)
 - [x] Agent bridge: Tauri IPC adapter for sidecar communication (agent-bridge.ts, 53 lines)
 - [x] Agent dispatcher: routes sidecar events to agent store (agent-dispatcher.ts, 87 lines)
-- [x] Agent store: session state with messages, cost tracking (agents.ts, 91 lines)
+- [x] Agent store: session state with messages, cost tracking (agents.svelte.ts, 91 lines)
 - [x] AgentPane component: prompt input, message rendering, stop button, cost display (AgentPane.svelte, 420 lines)
 - [x] UI integration: Ctrl+Shift+N for new agent, sidebar agent button, TilingGrid routing
 
 Architecture decision: Uses `claude` CLI with `--output-format stream-json` instead of Agent SDK `query()` API. Avoids SDK npm dependency and version churn while getting identical structured output.
+
+### Bug Fix: Svelte 5 Rune File Extensions (2026-03-06)
+- [x] Diagnosed blank screen / "rune_outside_svelte" runtime error
+- [x] Root cause: store files used `.ts` extension but contain Svelte 5 `$state`/`$derived` runes, which only work in `.svelte` and `.svelte.ts` files
+- [x] Renamed: `layout.ts` -> `layout.svelte.ts`, `agents.ts` -> `agents.svelte.ts`, `sessions.ts` -> `sessions.svelte.ts`
+- [x] Updated all import paths in 5 files to use `.svelte` suffix (e.g., `from './stores/layout.svelte'`)
 
 ### Next Steps
 - [ ] Markdown rendering in agent text messages

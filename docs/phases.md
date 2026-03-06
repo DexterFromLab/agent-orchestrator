@@ -43,9 +43,9 @@ bterminal-v2/
         Sidebar/
           SessionList.svelte   # Session browser
       stores/
-        sessions.ts          # Session state ($state runes)
-        agents.ts            # Active agent tracking
-        layout.ts            # Pane layout state
+        sessions.svelte.ts   # Session state ($state runes)
+        agents.svelte.ts     # Active agent tracking
+        layout.svelte.ts     # Pane layout state
       adapters/
         sdk-messages.ts      # SDK message abstraction layer
         pty-bridge.ts        # PTY IPC wrapper

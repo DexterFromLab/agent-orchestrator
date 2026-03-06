@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- Phase 3 (Agent SDK Integration) is in progress. Core implementation done, needs testing and polish.
+- Phase 3 (Agent SDK Integration) core is complete. Needs testing and polish (markdown rendering, sidecar crash detection, auto-scroll lock).
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -29,6 +29,7 @@
 - Node.js sidecar (`sidecar/agent-runner.ts`) spawns claude subprocesses, communicates with Rust via stdio NDJSON.
 - Agent dispatcher (`src/lib/agent-dispatcher.ts`) is a singleton that routes sidecar events to the agent store.
 - Maximum 4 active xterm.js instances to avoid WebKit2GTK memory issues.
+- Store files using Svelte 5 runes (`$state`, `$derived`) MUST have `.svelte.ts` extension (not `.ts`). Import with `.svelte` suffix. Plain `.ts` compiles but fails at runtime with "rune_outside_svelte".
 
 ## Memora Tags
 

@@ -124,6 +124,7 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 | MVP = Phases 1-4 | Ship usable tool before tackling tree viz, packaging, polish | 2026-03-05 |
 | Canvas addon (not WebGL) | WebKit2GTK has no WebGL. Explicit Canvas addon avoids silent fallback | 2026-03-05 |
 | claude CLI over Agent SDK query() | Use `claude -p --output-format stream-json` instead of SDK npm package. Avoids dependency + version churn, identical structured output | 2026-03-06 |
+| `.svelte.ts` for rune stores | Svelte 5 `$state`/`$derived` runes require `.svelte.ts` extension (not `.ts`). Compiler silently passes `.ts` but runes fail at runtime. All store files must use `.svelte.ts`. | 2026-03-06 |
 
 ## Open Questions
 
@@ -156,4 +157,6 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 
 ## Errors Encountered
 
-(none yet)
+| Error | Cause | Fix | Date |
+|---|---|---|---|
+| Blank screen, "rune_outside_svelte" runtime error | Store files used `.ts` extension but contain Svelte 5 `$state`/`$derived` runes. Runes only work in `.svelte` and `.svelte.ts` files. Compiler silently passes but fails at runtime. | Renamed stores to `.svelte.ts`, updated all import paths to use `.svelte` suffix | 2026-03-06 |
