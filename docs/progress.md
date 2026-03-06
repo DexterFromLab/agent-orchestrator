@@ -60,5 +60,23 @@
 - [x] npm dependencies: @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit
 - [x] Cargo dependencies: portable-pty, uuid
 
+### Phase 3: Agent SDK Integration (in progress)
+- [x] Rust SidecarManager: spawn Node.js, stdio NDJSON, query/stop/shutdown (sidecar.rs, 218 lines)
+- [x] Node.js agent-runner: spawns `claude -p --output-format stream-json`, manages sessions (agent-runner.ts, 176 lines)
+- [x] Tauri commands: agent_query, agent_stop, agent_ready in lib.rs
+- [x] Sidecar auto-start on app launch
+- [x] SDK message adapter: full stream-json parser with 9 typed message types (sdk-messages.ts, 234 lines)
+- [x] Agent bridge: Tauri IPC adapter for sidecar communication (agent-bridge.ts, 53 lines)
+- [x] Agent dispatcher: routes sidecar events to agent store (agent-dispatcher.ts, 87 lines)
+- [x] Agent store: session state with messages, cost tracking (agents.ts, 91 lines)
+- [x] AgentPane component: prompt input, message rendering, stop button, cost display (AgentPane.svelte, 420 lines)
+- [x] UI integration: Ctrl+Shift+N for new agent, sidebar agent button, TilingGrid routing
+
+Architecture decision: Uses `claude` CLI with `--output-format stream-json` instead of Agent SDK `query()` API. Avoids SDK npm dependency and version churn while getting identical structured output.
+
 ### Next Steps
-- [ ] Begin Phase 3: Agent SDK Integration (Node.js sidecar, SDK message adapter)
+- [ ] Markdown rendering in agent text messages
+- [ ] Sidecar crash detection and restart UI
+- [ ] Auto-scroll lock on user scroll-up
+- [ ] Testing: vitest for sdk-messages adapter, cargo test for sidecar
+- [ ] Begin Phase 4: Session Management + Markdown Viewer

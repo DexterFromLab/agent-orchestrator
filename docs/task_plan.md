@@ -3,7 +3,7 @@
 ## Goal
 Redesign BTerminal from a GTK3 terminal emulator into a **multi-session Claude agent dashboard** optimized for 32:9 ultrawide (5120x1440). Simultaneous visibility of all active sessions, agent tree visualization, inline markdown rendering, maximum information density.
 
-## Status: BUILDING (Phase 2 complete — Rev 2)
+## Status: BUILDING (Phase 3 in progress — Rev 2)
 
 ---
 
@@ -74,9 +74,9 @@ The Agent SDK cannot run in Rust or the webview. Solution:
 └─────────────────────────────────────────────────────┘
 ```
 
-- Rust spawns Node.js child process on demand (when user starts an SDK agent session)
+- Rust spawns Node.js child process on app launch (auto-start in setup)
 - Communication: stdio with newline-delimited JSON (simple, no socket server)
-- Node.js process runs a thin wrapper that calls `query()` and forwards messages
+- Node.js process runs a thin wrapper that spawns `claude -p --output-format stream-json` and forwards NDJSON events
 - If sidecar crashes: detect via process exit, show error in UI, offer restart
 - **Packaging:** Bundle the sidecar JS as a single file (esbuild bundle). Require Node.js 20+ as system dependency. Document in install.sh.
 - **Future:** Could replace Node.js with Deno (single binary, no npm) for better packaging.
@@ -123,6 +123,7 @@ See [phases.md](phases.md) for the full phased implementation plan (Phases 1-6).
 | SDK abstraction layer | SDK is 0.2.x, 127 versions in 5 months. Must insulate UI from wire format changes | 2026-03-05 |
 | MVP = Phases 1-4 | Ship usable tool before tackling tree viz, packaging, polish | 2026-03-05 |
 | Canvas addon (not WebGL) | WebKit2GTK has no WebGL. Explicit Canvas addon avoids silent fallback | 2026-03-05 |
+| claude CLI over Agent SDK query() | Use `claude -p --output-format stream-json` instead of SDK npm package. Avoids dependency + version churn, identical structured output | 2026-03-06 |
 
 ## Open Questions
 

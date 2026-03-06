@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Agent pane with prompt input, structured message rendering, stop button, and cost display (Phase 3)
+- Node.js sidecar manager (Rust) for spawning and communicating with agent-runner via stdio NDJSON (Phase 3)
+- Agent-runner sidecar: spawns `claude` CLI with `--output-format stream-json` for structured agent output (Phase 3)
+- SDK message adapter parsing stream-json into 9 typed message types: init, text, thinking, tool_call, tool_result, status, cost, error, unknown (Phase 3)
+- Agent bridge adapter for Tauri IPC (invoke + event listeners) (Phase 3)
+- Agent dispatcher routing sidecar events to agent session store (Phase 3)
+- Agent session store with message history, cost tracking, and lifecycle management (Phase 3)
+- Keyboard shortcut: Ctrl+Shift+N to open new agent pane (Phase 3)
+- Sidebar button for creating new agent sessions (Phase 3)
 - Rust PTY backend with portable-pty: spawn, write, resize, kill with Tauri event streaming (Phase 2)
 - xterm.js terminal pane with Canvas addon, FitAddon, and Catppuccin Mocha theme (Phase 2)
 - CSS Grid tiling layout with 5 presets: 1-col, 2-col, 3-col, 2x2, master-stack (Phase 2)

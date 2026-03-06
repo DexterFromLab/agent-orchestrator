@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- Phase 2 (Terminal Pane + Layout) is complete. Phase 3 (Agent SDK) is next.
+- Phase 3 (Agent SDK Integration) is in progress. Core implementation done, needs testing and polish.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -25,8 +25,9 @@
 ## Key Technical Constraints
 
 - WebKit2GTK has no WebGL — xterm.js must use Canvas addon explicitly.
-- Claude Agent SDK is 0.2.x (pre-1.0) — all SDK interactions go through the adapter layer (`src/lib/adapters/sdk-messages.ts`).
-- Node.js sidecar communicates via stdio NDJSON, not sockets.
+- Agent sessions use `claude` CLI with `--output-format stream-json` (not Agent SDK npm package). All output goes through the adapter layer (`src/lib/adapters/sdk-messages.ts`).
+- Node.js sidecar (`sidecar/agent-runner.ts`) spawns claude subprocesses, communicates with Rust via stdio NDJSON.
+- Agent dispatcher (`src/lib/agent-dispatcher.ts`) is a singleton that routes sidecar events to the agent store.
 - Maximum 4 active xterm.js instances to avoid WebKit2GTK memory issues.
 
 ## Memora Tags

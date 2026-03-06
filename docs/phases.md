@@ -107,22 +107,35 @@ bterminal-v2/
 
 ---
 
-## Phase 3: Agent SDK Integration [status: not_started] — MVP
+## Phase 3: Agent SDK Integration [status: in_progress] — MVP
 
-- [ ] Node.js sidecar: thin wrapper around Agent SDK `query()`
-- [ ] Sidecar communication: Rust spawns Node.js, stdio NDJSON
-- [ ] Sidecar lifecycle: spawn on demand, detect crash, restart
-- [ ] SDK message adapter (abstraction layer)
-- [ ] Agent pane: renders structured messages
-  - Text -> markdown rendered
-  - Tool calls -> collapsible cards (tool name + input + output)
-  - Subagent spawn -> tree node + optional new pane
-  - Errors -> highlighted error card
-  - Cost/tokens -> pane header metrics
+### Backend
+- [x] Node.js sidecar: spawns `claude` CLI with `--output-format stream-json` (not Agent SDK query() — avoids npm dep + version churn)
+- [x] Sidecar communication: Rust spawns Node.js, stdio NDJSON
+- [x] Sidecar lifecycle: auto-start on app launch, shutdown on exit
+- [ ] Sidecar lifecycle: detect crash, offer restart in UI
+- [x] Tauri commands: agent_query, agent_stop, agent_ready
+
+### Frontend
+- [x] SDK message adapter: parses stream-json into 9 typed AgentMessage types (abstraction layer)
+- [x] Agent bridge: Tauri IPC adapter (invoke + event listeners)
+- [x] Agent dispatcher: singleton routing sidecar events to store
+- [x] Agent store: session state, message history, cost tracking (Svelte 5 $state)
+- [x] Agent pane: renders structured messages
+  - [x] Text -> plain text (markdown rendering deferred)
+  - [x] Tool calls -> collapsible cards (tool name + input)
+  - [x] Tool results -> collapsible cards
+  - [x] Thinking -> collapsible details
+  - [x] Init -> model badge
+  - [x] Cost -> USD/tokens/turns/duration summary
+  - [x] Errors -> highlighted error card
+  - [ ] Subagent spawn -> tree node + optional new pane (Phase 5)
+- [x] Agent status indicator (starting/running/done/error)
+- [x] Start/stop agent from UI (prompt form + stop button)
 - [ ] Auto-scroll with scroll-lock on user scroll-up
-- [ ] Agent status indicator (running/thinking/waiting/done/error)
-- [ ] Start/stop/cancel agent from UI
 - [ ] Session resume (SDK `resume: sessionId`)
+- [x] Keyboard: Ctrl+Shift+N new agent
+- [x] Sidebar: agent session button
 
 **Milestone: After Phase 3, we have the core differentiator.** SDK agents run in structured panes alongside raw terminals.
 
