@@ -2,7 +2,12 @@
   import { onMount, onDestroy } from 'svelte';
   import SessionList from './lib/components/Sidebar/SessionList.svelte';
   import TilingGrid from './lib/components/Layout/TilingGrid.svelte';
-  import { addPane, focusPaneByIndex, getPanes, restoreFromDb } from './lib/stores/layout.svelte';
+  import StatusBar from './lib/components/StatusBar/StatusBar.svelte';
+  import ToastContainer from './lib/components/Notifications/ToastContainer.svelte';
+  import SettingsDialog from './lib/components/Settings/SettingsDialog.svelte';
+  import { addPane, focusPaneByIndex, removePane, getPanes, restoreFromDb } from './lib/stores/layout.svelte';
+
+  let settingsOpen = $state(false);
   import { startAgentDispatcher, stopAgentDispatcher } from './lib/agent-dispatcher';
 
   function newTerminal() {
@@ -50,6 +55,21 @@
         focusPaneByIndex(parseInt(e.key) - 1);
         return;
       }
+
+      // Ctrl+, — settings
+      if (e.ctrlKey && e.key === ',') {
+        e.preventDefault();
+        settingsOpen = !settingsOpen;
+        return;
+      }
+
+      // Ctrl+W — close focused pane
+      if (e.ctrlKey && !e.shiftKey && e.key === 'w') {
+        e.preventDefault();
+        const focused = getPanes().find(p => p.focused);
+        if (focused) removePane(focused.id);
+        return;
+      }
     }
 
     window.addEventListener('keydown', handleKeydown);
@@ -66,6 +86,9 @@
 <main class="workspace">
   <TilingGrid />
 </main>
+<StatusBar />
+<ToastContainer />
+<SettingsDialog open={settingsOpen} onClose={() => settingsOpen = false} />
 
 <style>
   .sidebar {

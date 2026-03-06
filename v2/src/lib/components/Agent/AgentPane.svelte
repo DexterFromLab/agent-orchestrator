@@ -8,6 +8,7 @@
     type AgentSession,
   } from '../../stores/agents.svelte';
   import { isSidecarAlive, setSidecarAlive } from '../../agent-dispatcher';
+  import AgentTree from './AgentTree.svelte';
   import type {
     AgentMessage,
     TextContent,
@@ -32,6 +33,8 @@
   let scrollContainer: HTMLDivElement | undefined = $state();
   let autoScroll = $state(true);
   let restarting = $state(false);
+  let showTree = $state(false);
+  let hasToolCalls = $derived(session?.messages.some(m => m.type === 'tool_call') ?? false);
 
   onMount(async () => {
     if (initialPrompt) {
@@ -142,6 +145,16 @@
       </form>
     </div>
   {:else}
+    {#if hasToolCalls}
+      <div class="tree-toggle">
+        <button class="tree-btn" onclick={() => showTree = !showTree}>
+          {showTree ? '▼' : '▶'} Agent Tree
+        </button>
+      </div>
+      {#if showTree && session}
+        <AgentTree {session} />
+      {/if}
+    {/if}
     <div class="messages" bind:this={scrollContainer} onscroll={handleScroll}>
       {#each session.messages as msg (msg.id)}
         <div class="message msg-{msg.type}">
@@ -228,6 +241,24 @@
     color: var(--text-primary);
     font-size: 13px;
   }
+
+  .tree-toggle {
+    padding: 4px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .tree-btn {
+    background: none;
+    border: none;
+    color: var(--ctp-mauve);
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    padding: 2px 4px;
+  }
+
+  .tree-btn:hover { color: var(--text-primary); }
 
   .prompt-area {
     display: flex;

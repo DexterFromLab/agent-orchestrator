@@ -68,9 +68,49 @@ impl SessionDb {
             );
 
             INSERT OR IGNORE INTO layout_state (id, preset, pane_ids) VALUES (1, '1-col', '[]');
+
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
             "
         ).map_err(|e| format!("Migration failed: {e}"))?;
         Ok(())
+    }
+
+    pub fn get_setting(&self, key: &str) -> Result<Option<String>, String> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT value FROM settings WHERE key = ?1")
+            .map_err(|e| format!("Settings query failed: {e}"))?;
+        let result = stmt.query_row(params![key], |row| row.get(0));
+        match result {
+            Ok(val) => Ok(Some(val)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(format!("Settings read failed: {e}")),
+        }
+    }
+
+    pub fn set_setting(&self, key: &str, value: &str) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+            params![key, value],
+        ).map_err(|e| format!("Settings write failed: {e}"))?;
+        Ok(())
+    }
+
+    pub fn get_all_settings(&self) -> Result<Vec<(String, String)>, String> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT key, value FROM settings ORDER BY key")
+            .map_err(|e| format!("Settings query failed: {e}"))?;
+        let settings = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(|e| format!("Settings query failed: {e}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Settings read failed: {e}"))?;
+        Ok(settings)
     }
 
     pub fn list_sessions(&self) -> Result<Vec<Session>, String> {

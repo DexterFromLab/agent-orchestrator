@@ -132,6 +132,23 @@ fn layout_load(state: State<'_, AppState>) -> Result<LayoutState, String> {
     state.session_db.load_layout()
 }
 
+// --- Settings commands ---
+
+#[tauri::command]
+fn settings_get(state: State<'_, AppState>, key: String) -> Result<Option<String>, String> {
+    state.session_db.get_setting(&key)
+}
+
+#[tauri::command]
+fn settings_set(state: State<'_, AppState>, key: String, value: String) -> Result<(), String> {
+    state.session_db.set_setting(&key, &value)
+}
+
+#[tauri::command]
+fn settings_list(state: State<'_, AppState>) -> Result<Vec<(String, String)>, String> {
+    state.session_db.get_all_settings()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let pty_manager = Arc::new(PtyManager::new());
@@ -175,6 +192,9 @@ pub fn run() {
             session_touch,
             layout_save,
             layout_load,
+            settings_get,
+            settings_set,
+            settings_list,
         ])
         .setup(move |app| {
             if cfg!(debug_assertions) {

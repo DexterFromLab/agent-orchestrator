@@ -12,6 +12,7 @@ import {
   updateAgentCost,
   getAgentSessions,
 } from './stores/agents.svelte';
+import { notify } from './stores/notifications.svelte';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
@@ -47,10 +48,12 @@ export async function startAgentDispatcher(): Promise<void> {
 
       case 'agent_stopped':
         updateAgentStatus(sessionId, 'done');
+        notify('success', `Agent ${sessionId.slice(0, 8)} completed`);
         break;
 
       case 'agent_error':
         updateAgentStatus(sessionId, 'error', msg.message);
+        notify('error', `Agent error: ${msg.message ?? 'Unknown'}`);
         break;
 
       case 'agent_log':
@@ -60,6 +63,7 @@ export async function startAgentDispatcher(): Promise<void> {
 
   unlistenExit = await onSidecarExited(() => {
     sidecarAlive = false;
+    notify('error', 'Sidecar process crashed — agent features unavailable');
     // Mark all running sessions as errored
     for (const session of getAgentSessions()) {
       if (session.status === 'running' || session.status === 'starting') {
@@ -92,8 +96,10 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
         });
         if (cost.isError) {
           updateAgentStatus(sessionId, 'error', cost.errors?.join('; '));
+          notify('error', `Agent failed: ${cost.errors?.[0] ?? 'Unknown error'}`);
         } else {
           updateAgentStatus(sessionId, 'done');
+          notify('success', `Agent done — $${cost.totalCostUsd.toFixed(4)}, ${cost.numTurns} turns`);
         }
         break;
       }
