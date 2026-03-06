@@ -1,6 +1,7 @@
 <script lang="ts">
   import PaneContainer from './PaneContainer.svelte';
   import TerminalPane from '../Terminal/TerminalPane.svelte';
+  import AgentPane from '../Agent/AgentPane.svelte';
   import {
     getPanes,
     getGridTemplate,
@@ -47,9 +48,15 @@
               args={pane.args}
               onExit={() => removePane(pane.id)}
             />
+          {:else if pane.type === 'agent'}
+            <AgentPane
+              sessionId={pane.id}
+              cwd={pane.cwd}
+              onExit={() => removePane(pane.id)}
+            />
           {:else}
             <div class="placeholder">
-              <p>{pane.type} pane — coming in Phase 3/4</p>
+              <p>{pane.type} pane — coming in Phase 4</p>
             </div>
           {/if}
         </PaneContainer>

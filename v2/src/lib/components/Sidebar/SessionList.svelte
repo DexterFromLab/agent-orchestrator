@@ -16,11 +16,21 @@
 
   function newTerminal() {
     const id = crypto.randomUUID();
-    const num = panes.length + 1;
+    const num = panes.filter(p => p.type === 'terminal').length + 1;
     addPane({
       id,
       type: 'terminal',
       title: `Terminal ${num}`,
+    });
+  }
+
+  function newAgent() {
+    const id = crypto.randomUUID();
+    const num = panes.filter(p => p.type === 'agent').length + 1;
+    addPane({
+      id,
+      type: 'agent',
+      title: `Agent ${num}`,
     });
   }
 </script>
@@ -28,7 +38,10 @@
 <div class="session-list">
   <div class="header">
     <h2>Sessions</h2>
-    <button class="new-btn" onclick={newTerminal} title="New terminal (Ctrl+N)">+</button>
+    <div class="header-buttons">
+      <button class="new-btn" onclick={newAgent} title="New agent (Ctrl+Shift+N)">A</button>
+      <button class="new-btn" onclick={newTerminal} title="New terminal (Ctrl+N)">+</button>
+    </div>
   </div>
 
   <div class="layout-presets">
@@ -45,14 +58,14 @@
   {#if panes.length === 0}
     <div class="empty-state">
       <p>No sessions yet.</p>
-      <p class="hint">Click + or press Ctrl+N</p>
+      <p class="hint">Ctrl+N terminal / Ctrl+Shift+N agent</p>
     </div>
   {:else}
     <ul class="pane-list">
       {#each panes as pane (pane.id)}
         <li class="pane-item" class:focused={pane.focused}>
           <button class="pane-btn" onclick={() => focusPane(pane.id)}>
-            <span class="pane-icon">{pane.type === 'terminal' ? '>' : '#'}</span>
+            <span class="pane-icon">{pane.type === 'terminal' ? '>' : pane.type === 'agent' ? '*' : '#'}</span>
             <span class="pane-name">{pane.title}</span>
           </button>
           <button class="remove-btn" onclick={() => removePane(pane.id)}>&times;</button>
@@ -82,6 +95,11 @@
     color: var(--text-primary);
   }
 
+  .header-buttons {
+    display: flex;
+    gap: 4px;
+  }
+
   .new-btn {
     background: var(--bg-surface);
     border: 1px solid var(--border);
@@ -90,7 +108,8 @@
     height: 24px;
     border-radius: var(--border-radius);
     cursor: pointer;
-    font-size: 16px;
+    font-size: 12px;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
