@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { buildAgentTree, type AgentTreeNode } from '../../utils/agent-tree';
+  import { buildAgentTree, subtreeCost, type AgentTreeNode } from '../../utils/agent-tree';
   import type { AgentSession } from '../../stores/agents.svelte';
 
   interface Props {
@@ -19,7 +19,7 @@
 
   // Layout constants
   const NODE_W = 100;
-  const NODE_H = 32;
+  const NODE_H = 40;
   const H_GAP = 24;
   const V_GAP = 12;
 
@@ -124,19 +124,30 @@
         <!-- Status dot -->
         <circle
           cx={layout.x + 10}
-          cy={layout.y + NODE_H / 2}
+          cy={layout.y + NODE_H / 2 - 4}
           r="3"
           fill={statusColor(layout.node.status)}
         />
         <!-- Label -->
         <text
           x={layout.x + 18}
-          y={layout.y + NODE_H / 2 + 1}
+          y={layout.y + NODE_H / 2 - 4}
           fill="var(--text-primary)"
           font-size="10"
           font-family="var(--font-mono)"
           dominant-baseline="middle"
         >{truncateLabel(layout.node.label, 10)}</text>
+        <!-- Subtree cost -->
+        {#if subtreeCost(layout.node) > 0}
+          <text
+            x={layout.x + 18}
+            y={layout.y + NODE_H / 2 + 9}
+            fill="var(--ctp-yellow)"
+            font-size="8"
+            font-family="var(--font-mono)"
+            dominant-baseline="middle"
+          >${subtreeCost(layout.node).toFixed(4)}</text>
+        {/if}
       </g>
 
       <!-- Recurse children -->

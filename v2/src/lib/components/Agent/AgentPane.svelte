@@ -68,25 +68,37 @@
     }
   });
 
-  async function startQuery(text: string) {
+  let followUpPrompt = $state('');
+
+  async function startQuery(text: string, resume = false) {
     if (!text.trim()) return;
 
     const ready = await isAgentReady();
     if (!ready) {
-      createAgentSession(sessionId, text);
+      if (!resume) createAgentSession(sessionId, text);
       const { updateAgentStatus } = await import('../../stores/agents.svelte');
       updateAgentStatus(sessionId, 'error', 'Sidecar not ready — agent features unavailable');
       return;
     }
 
-    createAgentSession(sessionId, text);
+    const resumeId = resume ? session?.sdkSessionId : undefined;
+
+    if (!resume) {
+      createAgentSession(sessionId, text);
+    } else {
+      const { updateAgentStatus } = await import('../../stores/agents.svelte');
+      updateAgentStatus(sessionId, 'starting');
+    }
+
     await queryAgent({
       session_id: sessionId,
       prompt: text,
       cwd,
       max_turns: 50,
+      resume_session_id: resumeId,
     });
     inputPrompt = '';
+    followUpPrompt = '';
   }
 
   function handleSubmit(e: Event) {
@@ -121,6 +133,17 @@
     const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
     // Lock auto-scroll if user scrolled up more than 50px from bottom
     autoScroll = scrollHeight - scrollTop - clientHeight < 50;
+  }
+
+  function handleTreeNodeClick(nodeId: string) {
+    if (!scrollContainer || !session) return;
+    // Find the message whose tool_call has this toolUseId
+    const msg = session.messages.find(
+      m => m.type === 'tool_call' && (m.content as ToolCallContent).toolUseId === nodeId
+    );
+    if (!msg) return;
+    autoScroll = false;
+    scrollContainer.querySelector('#msg-' + CSS.escape(msg.id))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   // Auto-scroll when new messages arrive
@@ -172,12 +195,12 @@
         </button>
       </div>
       {#if showTree && session}
-        <AgentTree {session} />
+        <AgentTree {session} onNodeClick={handleTreeNodeClick} />
       {/if}
     {/if}
     <div class="messages" bind:this={scrollContainer} onscroll={handleScroll}>
       {#each session.messages as msg (msg.id)}
-        <div class="message msg-{msg.type}">
+        <div class="message msg-{msg.type}" id="msg-{msg.id}">
           {#if msg.type === 'init'}
             <div class="msg-init">
               <span class="label">Session started</span>
@@ -241,6 +264,22 @@
             <button class="scroll-btn" onclick={() => { autoScroll = true; scrollToBottom(); }}>Scroll to bottom</button>
           {/if}
         </div>
+        {#if session.sdkSessionId}
+          <div class="follow-up">
+            <input
+              type="text"
+              class="follow-up-input"
+              bind:value={followUpPrompt}
+              placeholder="Follow up..."
+              onkeydown={(e) => {
+                if (e.key === 'Enter' && followUpPrompt.trim()) {
+                  startQuery(followUpPrompt, true);
+                }
+              }}
+            />
+            <button class="follow-up-btn" onclick={() => startQuery(followUpPrompt, true)} disabled={!followUpPrompt.trim()}>Send</button>
+          </div>
+        {/if}
       {:else if session.status === 'error'}
         <div class="error-bar">
           <span>Error: {session.error ?? 'Unknown'}</span>
@@ -250,6 +289,22 @@
             </button>
           {/if}
         </div>
+        {#if session.sdkSessionId}
+          <div class="follow-up">
+            <input
+              type="text"
+              class="follow-up-input"
+              bind:value={followUpPrompt}
+              placeholder="Retry or follow up..."
+              onkeydown={(e) => {
+                if (e.key === 'Enter' && followUpPrompt.trim()) {
+                  startQuery(followUpPrompt, true);
+                }
+              }}
+            />
+            <button class="follow-up-btn" onclick={() => startQuery(followUpPrompt, true)} disabled={!followUpPrompt.trim()}>Send</button>
+          </div>
+        {/if}
       {/if}
     </div>
   {/if}
@@ -633,4 +688,40 @@
 
   .done-bar { color: var(--ctp-green); }
   .error-bar { color: var(--ctp-red); }
+
+  .follow-up {
+    display: flex;
+    gap: 6px;
+    padding: 4px 0 0;
+  }
+
+  .follow-up-input {
+    flex: 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 4px 8px;
+    font-family: inherit;
+  }
+
+  .follow-up-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .follow-up-btn {
+    background: var(--accent);
+    color: var(--ctp-crust);
+    border: none;
+    border-radius: 3px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .follow-up-btn:hover { opacity: 0.9; }
+  .follow-up-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>

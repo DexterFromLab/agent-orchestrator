@@ -4,7 +4,7 @@
   import { CanvasAddon } from '@xterm/addon-canvas';
   import { FitAddon } from '@xterm/addon-fit';
   import { spawnPty, writePty, resizePty, killPty, onPtyData, onPtyExit } from '../../adapters/pty-bridge';
-  import { getXtermTheme } from '../../stores/theme.svelte';
+  import { getXtermTheme, onThemeChange } from '../../stores/theme.svelte';
   import type { UnlistenFn } from '@tauri-apps/api/event';
   import '@xterm/xterm/css/xterm.css';
 
@@ -24,6 +24,7 @@
   let unlistenData: UnlistenFn | null = null;
   let unlistenExit: UnlistenFn | null = null;
   let resizeObserver: ResizeObserver | null = null;
+  let unsubTheme: (() => void) | null = null;
 
   onMount(async () => {
     term = new Terminal({
@@ -59,6 +60,24 @@
         onExit?.();
       });
 
+      // Copy/paste via Ctrl+Shift+C/V
+      term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+        if (e.ctrlKey && e.shiftKey && e.type === 'keydown') {
+          if (e.key === 'C') {
+            const selection = term.getSelection();
+            if (selection) navigator.clipboard.writeText(selection);
+            return false;
+          }
+          if (e.key === 'V') {
+            navigator.clipboard.readText().then(text => {
+              if (text && ptyId) writePty(ptyId, text);
+            });
+            return false;
+          }
+        }
+        return true;
+      });
+
       // Forward keyboard input to PTY
       term.onData((data) => {
         if (ptyId) writePty(ptyId, data);
@@ -80,10 +99,16 @@
       }, 100);
     });
     resizeObserver.observe(terminalEl);
+
+    // Hot-swap theme when flavor changes
+    unsubTheme = onThemeChange(() => {
+      term.options.theme = getXtermTheme();
+    });
   });
 
   onDestroy(async () => {
     resizeObserver?.disconnect();
+    unsubTheme?.();
     unlistenData?.();
     unlistenExit?.();
     if (ptyId) {

@@ -10,6 +10,17 @@ import {
 
 let currentFlavor = $state<CatppuccinFlavor>('mocha');
 
+/** Registered theme-change listeners */
+const themeChangeCallbacks = new Set<() => void>();
+
+/** Register a callback invoked after every flavor change. Returns an unsubscribe function. */
+export function onThemeChange(callback: () => void): () => void {
+  themeChangeCallbacks.add(callback);
+  return () => {
+    themeChangeCallbacks.delete(callback);
+  };
+}
+
 export function getCurrentFlavor(): CatppuccinFlavor {
   return currentFlavor;
 }
@@ -22,6 +33,15 @@ export function getXtermTheme(): XtermTheme {
 export async function setFlavor(flavor: CatppuccinFlavor): Promise<void> {
   currentFlavor = flavor;
   applyCssVariables(flavor);
+  // Notify all listeners (e.g. open xterm.js terminals)
+  for (const cb of themeChangeCallbacks) {
+    try {
+      cb();
+    } catch (e) {
+      console.error('Theme change callback error:', e);
+    }
+  }
+
   try {
     await setSetting('theme', flavor);
   } catch (e) {
