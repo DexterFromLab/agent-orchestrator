@@ -30,7 +30,7 @@
         "https://github.com/DexterFromLab/BTerminal/releases/latest/download/latest.json"
       ],
       "dialog": true,
-      "pubkey": ""
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJCRkZEMERDMTUwMzY5MjIKUldRaWFRTVYzTkQvdTYwRDh6YStaSE9rWUZYYkRGd3UvVUcydE1IQVdTM29uNTRPTlpjQmFqVFEK"
     }
   },
   "bundle": {
@@ -42,6 +42,10 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "resources": [
+      "../sidecar/agent-runner-deno.ts",
+      "../sidecar/dist/agent-runner.mjs"
     ],
     "category": "DeveloperTool",
     "shortDescription": "Multi-session Claude agent dashboard",

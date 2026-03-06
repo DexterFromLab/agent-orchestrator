@@ -1,5 +1,5 @@
-// Node.js sidecar lifecycle management
-// Spawns agent-runner.ts (compiled), communicates via stdio NDJSON
+// Sidecar lifecycle management (Deno-first, Node.js fallback)
+// Spawns agent-runner-deno.ts (or agent-runner.mjs), communicates via stdio NDJSON
 
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
@@ -16,6 +16,11 @@ pub struct AgentQueryOptions {
     pub max_turns: Option<u32>,
     pub max_budget_usd: Option<f64>,
     pub resume_session_id: Option<String>,
+}
+
+struct SidecarCommand {
+    program: String,
+    args: Vec<String>,
 }
 
 pub struct SidecarManager {
@@ -39,13 +44,13 @@ impl SidecarManager {
             return Err("Sidecar already running".to_string());
         }
 
-        // Resolve sidecar binary path relative to the app
-        let sidecar_path = Self::resolve_sidecar_path(app)?;
+        // Resolve sidecar command (Deno-first, Node.js fallback)
+        let cmd = Self::resolve_sidecar_command(app)?;
 
-        log::info!("Starting sidecar: node {}", sidecar_path.display());
+        log::info!("Starting sidecar: {} {}", cmd.program, cmd.args.join(" "));
 
-        let mut child = Command::new("node")
-            .arg(&sidecar_path)
+        let mut child = Command::new(&cmd.program)
+            .args(&cmd.args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -184,35 +189,63 @@ impl SidecarManager {
         *self.ready.lock().unwrap()
     }
 
-    fn resolve_sidecar_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-        // In dev mode, use the sidecar source directory
-        // In production, the built sidecar is bundled with the app
+    fn resolve_sidecar_command(app: &AppHandle) -> Result<SidecarCommand, String> {
         let resource_dir = app
             .path()
             .resource_dir()
             .map_err(|e| format!("Failed to get resource dir: {e}"))?;
 
-        let prod_path = resource_dir.join("sidecar").join("dist").join("agent-runner.mjs");
-        if prod_path.exists() {
-            return Ok(prod_path);
-        }
-
-        // Dev fallback: look relative to the Cargo project root
-        let dev_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        let dev_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join("sidecar")
-            .join("dist")
-            .join("agent-runner.mjs");
+            .to_path_buf();
 
-        if dev_path.exists() {
-            return Ok(dev_path);
+        // Try Deno first (runs TypeScript directly, no build step needed)
+        let deno_paths = [
+            resource_dir.join("sidecar").join("agent-runner-deno.ts"),
+            dev_root.join("sidecar").join("agent-runner-deno.ts"),
+        ];
+
+        for path in &deno_paths {
+            if path.exists() {
+                // Check if deno is available
+                if Command::new("deno").arg("--version").output().is_ok() {
+                    return Ok(SidecarCommand {
+                        program: "deno".to_string(),
+                        args: vec![
+                            "run".to_string(),
+                            "--allow-run".to_string(),
+                            "--allow-env".to_string(),
+                            "--allow-read".to_string(),
+                            path.to_string_lossy().to_string(),
+                        ],
+                    });
+                }
+                log::warn!("Deno sidecar found at {} but deno not in PATH, falling back to Node.js", path.display());
+            }
+        }
+
+        // Fallback to Node.js
+        let node_paths = [
+            resource_dir.join("sidecar").join("dist").join("agent-runner.mjs"),
+            dev_root.join("sidecar").join("dist").join("agent-runner.mjs"),
+        ];
+
+        for path in &node_paths {
+            if path.exists() {
+                return Ok(SidecarCommand {
+                    program: "node".to_string(),
+                    args: vec![path.to_string_lossy().to_string()],
+                });
+            }
         }
 
         Err(format!(
-            "Sidecar not found at {} or {}",
-            prod_path.display(),
-            dev_path.display()
+            "Sidecar not found. Checked Deno ({}, {}) and Node.js ({}, {})",
+            deno_paths[0].display(),
+            deno_paths[1].display(),
+            node_paths[0].display(),
+            node_paths[1].display(),
         ))
     }
 }
