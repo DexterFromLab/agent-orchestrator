@@ -26,6 +26,10 @@ function mockGroupsData() {
   };
 }
 
+vi.mock('../stores/agents.svelte', () => ({
+  clearAllAgentSessions: vi.fn(),
+}));
+
 vi.mock('../adapters/groups-bridge', () => ({
   loadGroups: vi.fn().mockImplementation(() => Promise.resolve(mockGroupsData())),
   saveGroups: vi.fn().mockResolvedValue(undefined),
