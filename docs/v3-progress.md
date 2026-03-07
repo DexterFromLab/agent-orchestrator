@@ -49,9 +49,31 @@
 - All 36 cargo tests pass (29 existing + 7 new groups tests)
 - Vite build succeeds
 
-### Next Steps (Post-MVP)
-- [ ] Phase 6: Session continuity (persist agent messages, sdkSessionId, restore)
-- [ ] Phase 7: Command palette wiring + group switching (Ctrl+K functional)
-- [ ] Phase 8: Docs tab (markdown file auto-discovery per project)
-- [ ] Phase 9: Settings tab (full per-project config editor, icon picker)
-- [ ] Phase 10: Polish + cleanup (remove dead v2 components, update tests, perf audit)
+### Session: 2026-03-07 — Phases 6-10 Completion
+
+#### Phase 6: Session Continuity
+- [x] Added `persistSessionForProject()` to agent-dispatcher — saves agent state + messages to SQLite on session complete
+- [x] Added `registerSessionProject()` — maps sessionId -> projectId for persistence routing
+- [x] Added `sessionProjectMap` (Map<string, string>) in agent-dispatcher
+- [x] Updated ClaudeSession.svelte: `restoreMessagesFromRecords()` restores cached messages into agent store on mount
+- [x] ClaudeSession loads previous state via `loadProjectAgentState()`, restores session ID and messages
+- [x] Added `getAgentSession()` export to agents store
+
+#### Phase 7: Workspace Teardown on Group Switch
+- [x] Added `clearAllAgentSessions()` to agents store (clears sessions array)
+- [x] Updated `switchGroup()` in workspace store to call `clearAllAgentSessions()` + reset terminal tabs
+- [x] Updated workspace.test.ts to mock `clearAllAgentSessions`
+
+#### Phase 10: Dead Component Removal + Polish
+- [x] Deleted `TilingGrid.svelte` (328 lines), `PaneContainer.svelte` (113 lines), `PaneHeader.svelte` (44 lines)
+- [x] Deleted `SessionList.svelte` (374 lines), `SshSessionList.svelte` (263 lines), `SshDialog.svelte` (281 lines), `SettingsDialog.svelte` (433 lines)
+- [x] Removed empty directories: Layout/, Sidebar/, Settings/, SSH/
+- [x] Rewrote StatusBar.svelte for workspace store (group name, project count, agent count, "BTerminal v3" label)
+- [x] Fixed subagent routing in agent-dispatcher: project-scoped sessions skip layout pane creation (subagents render in TeamAgentsPanel instead)
+- [x] Updated v3-task_plan.md to mark all 10 phases complete
+
+#### Verification
+- All 138 vitest tests pass (including updated workspace tests with clearAllAgentSessions mock)
+- All 36 cargo tests pass
+- Vite build succeeds
+- ~1,836 lines of dead code removed

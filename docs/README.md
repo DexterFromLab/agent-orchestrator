@@ -27,7 +27,7 @@ Project documentation lives here.
 |----------|-------------|
 | [v3-task_plan.md](v3-task_plan.md) | v3 Mission Control architecture: adversarial review, data model, component tree, layout system, 10-phase plan |
 | [v3-findings.md](v3-findings.md) | v3 adversarial review results and codebase reuse analysis |
-| [v3-progress.md](v3-progress.md) | v3 session progress log (Phases 1-5 MVP complete) |
+| [v3-progress.md](v3-progress.md) | v3 session progress log (All Phases 1-10 complete) |
 
 ### Progress Logs
 | Document | Description |

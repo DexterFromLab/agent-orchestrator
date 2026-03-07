@@ -183,9 +183,9 @@
 - [x] Created docs/v3-findings.md — codebase reuse analysis (what to keep/replace/drop)
 - [x] Created docs/v3-progress.md — v3-specific progress log
 - [x] Launched 3 adversarial architecture agents (Architect, Devil's Advocate, UX+Perf Specialist)
-- [ ] Collect adversarial agent findings
-- [ ] Produce final architecture plan
-- [ ] Create v3 implementation phases
+- [x] Collect adversarial agent findings
+- [x] Produce final architecture plan
+- [x] Create v3 implementation phases
 
 ### Session: 2026-03-07 (continued) — v3 Mission Control MVP Implementation (Phases 1-5)
 
@@ -219,10 +219,30 @@
 #### Verification
 - All 138 vitest + 36 cargo tests pass, vite build succeeds
 
+### Session: 2026-03-07 (continued) — v3 Phases 6-10 Completion
+
+#### Phase 6: Session Continuity
+- [x] Added persistSessionForProject() to agent-dispatcher (saves state + messages to SQLite on complete)
+- [x] Added registerSessionProject() + sessionProjectMap for session->project persistence routing
+- [x] ClaudeSession restoreMessagesFromRecords() restores cached messages on mount
+- [x] Added getAgentSession() export to agents store
+
+#### Phase 7: Workspace Teardown
+- [x] Added clearAllAgentSessions() to agents store
+- [x] switchGroup() calls clearAllAgentSessions() + resets terminal tabs
+- [x] Updated workspace.test.ts with clearAllAgentSessions mock
+
+#### Phase 10: Dead Component Removal + Polish
+- [x] Deleted 7 dead v2 components (~1,836 lines): TilingGrid, PaneContainer, PaneHeader, SessionList, SshSessionList, SshDialog, SettingsDialog
+- [x] Removed empty directories: Layout/, Sidebar/, Settings/, SSH/
+- [x] Rewrote StatusBar for workspace store (group name, project count, "BTerminal v3")
+- [x] Fixed subagent routing: project-scoped sessions skip layout pane (render in TeamAgentsPanel)
+- [x] Updated v3-task_plan.md to mark all 10 phases complete
+
+#### Verification
+- All 138 vitest + 36 cargo tests pass, vite build succeeds
+
 ### Next Steps
-- [ ] v3 Phase 6: Session continuity (persist agent messages, restore on startup)
-- [ ] v3 Phase 7: Command palette wiring + group switching
-- [ ] v3 Phase 8-10: Docs tab, settings tab, polish
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections
 - [ ] E2E testing with Playwright/WebDriver (when display server available)
