@@ -478,14 +478,13 @@
 
 <style>
   .settings-tab {
-    padding: 16px 24px;
+    padding: 12px 16px;
     overflow-y: auto;
-    height: 100%;
-    max-width: 560px;
+    flex: 1;
   }
 
   h2 {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--ctp-text);
     margin: 0 0 10px;

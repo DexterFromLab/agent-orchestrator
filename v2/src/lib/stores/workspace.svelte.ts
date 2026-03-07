@@ -2,7 +2,7 @@ import { loadGroups, saveGroups, getCliGroup } from '../adapters/groups-bridge';
 import type { GroupsFile, GroupConfig, ProjectConfig } from '../types/groups';
 import { clearAllAgentSessions } from '../stores/agents.svelte';
 
-export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings';
+export type WorkspaceTab = 'sessions' | 'docs' | 'context';
 
 export interface TerminalTab {
   id: string;
