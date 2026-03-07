@@ -326,7 +326,7 @@
   .theme-dropdown {
     position: relative;
     flex: 1;
-    min-width: 0;
+    min-width: 180px;
   }
 
   .theme-trigger {
@@ -375,8 +375,8 @@
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    right: 0;
-    max-height: 320px;
+    min-width: 280px;
+    max-height: 400px;
     overflow-y: auto;
     background: var(--ctp-mantle);
     border: 1px solid var(--ctp-surface1);
@@ -422,7 +422,7 @@
 
   .theme-option-label {
     flex: 1;
-    min-width: 0;
+    white-space: nowrap;
   }
 
   .theme-colors {
