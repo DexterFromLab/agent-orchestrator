@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-theme system: 7 new editor themes (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) alongside 4 Catppuccin flavors
 - `ThemeId` union type, `ThemePalette` (26-color interface), `ThemeMeta` (id/label/group/isDark), `THEME_LIST` registry with group metadata, `ALL_THEME_IDS` for validation
 - Theme store `getCurrentTheme()`/`setTheme()` as primary API; deprecated `getCurrentFlavor()`/`setFlavor()` wrappers for backwards compat
-- SettingsTab theme selector with `<optgroup>` grouping (Catppuccin, Editor groups)
+- SettingsTab custom themed dropdown for theme selection: color swatches (base color per theme), 4 accent color dots (red/green/blue/yellow), grouped sections (Catppuccin/Editor/Deep Dark) with styled headers, click-outside and Escape to close
 - SettingsTab global settings section: theme selector, default shell input, default CWD input — all persisted via settings-bridge (getSetting/setSetting), loaded on mount
 - v3 Mission Control (All Phases 1-10 complete): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings)
 - v3 session continuity (P6): `persistSessionForProject()` saves agent state + messages to SQLite on session complete; `registerSessionProject()` maps session to project; `ClaudeSession.restoreMessagesFromRecords()` restores cached messages on mount

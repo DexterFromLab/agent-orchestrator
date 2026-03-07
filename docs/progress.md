@@ -264,6 +264,15 @@
 - [x] Midnight is pure OLED black (#000000), Ayu Dark near-black (#0b0e14), Vesper warm dark (#101010)
 - [x] All 6 themes map to same 26 --ctp-* CSS vars — zero component changes needed
 
+### Session: 2026-03-07 (continued) — Custom Theme Dropdown
+
+#### SettingsTab Theme Picker Redesign
+- [x] Replaced native `<select>` with custom themed dropdown in SettingsTab.svelte
+- [x] Trigger: color swatch (base) + label + arrow; menu: grouped sections with styled headers
+- [x] Options show color swatch + label + 4 accent dots (red/green/blue/yellow) via getPalette()
+- [x] Click-outside and Escape to close; aria-haspopup/aria-expanded for a11y
+- [x] Uses --ctp-* CSS vars — fully themed with active theme
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections

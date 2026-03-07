@@ -146,3 +146,19 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 
 #### Verification
 - No test changes needed — theme palettes are data-only, no logic changes
+
+### Session: 2026-03-07 — Custom Theme Dropdown
+
+#### SettingsTab Theme Picker Redesign
+- [x] Replaced native `<select>` with custom themed dropdown in SettingsTab.svelte
+- [x] Dropdown trigger shows color swatch (base color from getPalette()) + theme label + arrow indicator
+- [x] Dropdown menu groups themes by category (Catppuccin/Editor/Deep Dark) with styled uppercase headers
+- [x] Each option shows: color swatch + label + 4 accent color dots (red/green/blue/yellow)
+- [x] Active theme highlighted with surface0 background + bold text
+- [x] Click-outside handler and Escape key to close dropdown
+- [x] Uses --ctp-* CSS vars throughout — fully themed with any active theme
+- [x] Added `getPalette` import from themes.ts for live color rendering
+- [x] Added aria-haspopup/aria-expanded attributes for accessibility
+
+#### Verification
+- No test changes needed — UI-only change, no logic changes
