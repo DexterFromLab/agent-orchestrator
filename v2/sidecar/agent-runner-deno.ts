@@ -71,10 +71,16 @@ async function handleQuery(msg: QueryMessage) {
     }
   }
 
+  if (!claudePath) {
+    send({ type: "agent_error", sessionId, message: "Claude CLI not found. Install Claude Code first." });
+    return;
+  }
+
   try {
     const q = query({
       prompt,
       options: {
+        pathToClaudeCodeExecutable: claudePath,
         abortController: controller,
         cwd: cwd || Deno.cwd(),
         env: cleanEnv,
@@ -142,6 +148,32 @@ function handleStop(msg: StopMessage) {
 
   log(`Stopping agent session ${sessionId}`);
   controller.abort();
+}
+
+function findClaudeCli(): string | undefined {
+  const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "";
+  const candidates = [
+    `${home}/.local/bin/claude`,
+    `${home}/.claude/local/claude`,
+    "/usr/local/bin/claude",
+    "/usr/bin/claude",
+  ];
+  for (const p of candidates) {
+    try { Deno.statSync(p); return p; } catch { /* not found */ }
+  }
+  try {
+    const proc = new Deno.Command("which", { args: ["claude"], stdout: "piped", stderr: "null" });
+    const out = new TextDecoder().decode(proc.outputSync().stdout).trim();
+    if (out) return out.split("\n")[0];
+  } catch { /* not found */ }
+  return undefined;
+}
+
+const claudePath = findClaudeCli();
+if (claudePath) {
+  log(`Found Claude CLI at ${claudePath}`);
+} else {
+  log("WARNING: Claude CLI not found — agent sessions will fail");
 }
 
 // Main: read NDJSON from stdin

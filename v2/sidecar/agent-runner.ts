@@ -4,6 +4,10 @@
 
 import { stdin, stdout, stderr } from 'process';
 import { createInterface } from 'readline';
+import { execSync } from 'child_process';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 import { query, type Query } from '@anthropic-ai/claude-agent-sdk';
 
 const rl = createInterface({ input: stdin });
@@ -81,9 +85,15 @@ async function handleQuery(msg: QueryMessage) {
   }
 
   try {
+    if (!claudePath) {
+      send({ type: 'agent_error', sessionId, message: 'Claude CLI not found. Install Claude Code first.' });
+      return;
+    }
+
     const q = query({
       prompt,
       options: {
+        pathToClaudeCodeExecutable: claudePath,
         abortController: controller,
         cwd: cwd || process.cwd(),
         env: cleanEnv,
@@ -153,6 +163,32 @@ function handleStop(msg: StopMessage) {
 
   log(`Stopping agent session ${sessionId}`);
   session.controller.abort();
+}
+
+function findClaudeCli(): string | undefined {
+  // Check common locations
+  const candidates = [
+    join(homedir(), '.local', 'bin', 'claude'),
+    join(homedir(), '.claude', 'local', 'claude'),
+    '/usr/local/bin/claude',
+    '/usr/bin/claude',
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  // Fall back to which/where
+  try {
+    return execSync('which claude 2>/dev/null || where claude 2>nul', { encoding: 'utf-8' }).trim().split('\n')[0];
+  } catch {
+    return undefined;
+  }
+}
+
+const claudePath = findClaudeCli();
+if (claudePath) {
+  log(`Found Claude CLI at ${claudePath}`);
+} else {
+  log('WARNING: Claude CLI not found — agent sessions will fail');
 }
 
 log('Sidecar started');
