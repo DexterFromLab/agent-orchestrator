@@ -391,6 +391,16 @@ Design: No separate sidecar process per subagent. Parent's sidecar handles all; 
 - [x] Removed `--external:@anthropic-ai/claude-agent-sdk` from esbuild build:sidecar script in package.json
 - [x] SDK is now bundled into sidecar/dist/agent-runner.mjs (no external dependency at runtime)
 
+### Session: 2026-03-07 — Unified Sidecar Bundle
+
+#### Sidecar Resolution Simplification
+- [x] Consolidated sidecar from two runners (agent-runner-deno.ts + agent-runner.ts) to single pre-built bundle (dist/agent-runner.mjs)
+- [x] resolve_sidecar_command() in bterminal-core/src/sidecar.rs: checks deno/node availability upfront, searches for dist/agent-runner.mjs only
+- [x] Removed agent-runner-deno.ts from tauri.conf.json resources array (only agent-runner.mjs bundled)
+- [x] Same .mjs bundle runs under both Deno and Node.js — no separate TS source needed at runtime
+- [x] Error message now includes runtime availability note when neither deno nor node found
+- [x] agent-runner-deno.ts file retained in repo for reference but no longer used by SidecarManager
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections

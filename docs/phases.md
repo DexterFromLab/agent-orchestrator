@@ -20,7 +20,7 @@ bterminal-v2/
     src/
       main.rs              # Tauri app entry
       pty.rs               # PTY management (portable-pty, not plugin)
-      sidecar.rs           # Sidecar lifecycle (Deno-first + Node.js fallback, SidecarCommand)
+      sidecar.rs           # Sidecar lifecycle (unified .mjs bundle, Deno-first + Node.js fallback)
       watcher.rs           # File watcher for markdown viewer
       session.rs           # Session + SSH session persistence (SQLite via rusqlite)
       ctx.rs               # Read-only ctx context DB access
@@ -74,10 +74,10 @@ bterminal-v2/
         themes.ts            # All 4 Catppuccin flavor definitions
     app.css
   sidecar/
-    agent-runner.ts          # Node.js sidecar entry point
-    agent-runner-deno.ts     # Deno sidecar (preferred when deno available)
+    agent-runner.ts          # Sidecar source (compiled to .mjs by esbuild)
+    dist/
+      agent-runner.mjs       # Bundled sidecar (runs on both Deno and Node.js)
     package.json             # Agent SDK dependency
-    esbuild.config.ts        # Bundle to single file
   package.json
   svelte.config.js
   vite.config.ts

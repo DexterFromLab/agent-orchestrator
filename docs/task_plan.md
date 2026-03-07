@@ -80,7 +80,7 @@ The Agent SDK cannot run in Rust or the webview. Solution:
 - SDK messages forwarded as-is via NDJSON — same format as CLI stream-json
 - If sidecar crashes: detect via process exit, show error in UI, offer restart
 - **Packaging:** Bundle the sidecar JS + SDK as a single file (esbuild bundle, SDK included). Require Node.js 20+ as system dependency. Document in install.sh.
-- **Deno-first:** SidecarCommand struct abstracts runtime. Deno preferred (runs TS directly, no build step). Falls back to Node.js if Deno not in PATH.
+- **Unified bundle:** Single pre-built agent-runner.mjs works with both Deno and Node.js. SidecarCommand struct abstracts runtime. Deno preferred (faster startup). Falls back to Node.js.
 
 ### SDK Abstraction Layer
 
@@ -139,7 +139,7 @@ See [phases.md](phases.md) for the full phased implementation plan.
 | Vitest for frontend tests | Vitest over Jest — zero-config with Vite, same transform pipeline, faster. Test config in vite.config.ts. | 2026-03-06 |
 | Deno sidecar evaluation | Proof-of-concept agent-runner-deno.ts created. Deno compiles to single binary (better packaging). Same NDJSON protocol. Not yet integrated. | 2026-03-06 |
 | Splitter overlays for pane resize | Fixed-position divs outside CSS Grid (avoids layout interference). Mouse drag updates customColumns/customRows state. Resets on preset change. | 2026-03-06 |
-| Deno-first sidecar with Node.js fallback | SidecarCommand struct abstracts runtime. resolve_sidecar_command() checks Deno first (runs TS directly, no build step), falls back to Node.js. Both bundled in tauri.conf.json resources. | 2026-03-06 |
+| Unified sidecar bundle | Single agent-runner.mjs works with both Deno and Node.js. resolve_sidecar_command() checks runtime availability upfront, prefers Deno (faster startup). Only .mjs bundled in tauri.conf.json resources. agent-runner-deno.ts removed from bundle. | 2026-03-07 |
 | Session groups/folders | group_name column in sessions table with ALTER TABLE migration. Pane.group field in layout store. Collapsible group headers in sidebar. Right-click to set group. | 2026-03-06 |
 | Auto-update signing key | Generated minisign keypair. Pubkey set in tauri.conf.json. Private key for TAURI_SIGNING_PRIVATE_KEY GitHub secret. | 2026-03-06 |
 | Agent teams: frontend routing only | Subagent panes created by frontend dispatcher, not separate sidecar processes. Parent sidecar handles all messages; routing uses SDK's parentId field. Avoids process explosion for nested subagents. | 2026-03-06 |
@@ -155,7 +155,7 @@ See [phases.md](phases.md) for the full phased implementation plan.
 
 ## Open Questions
 
-1. **Node.js or Deno for sidecar?** Resolved: Deno-first with Node.js fallback. SidecarCommand struct in sidecar.rs abstracts the choice. Deno preferred (runs TS directly, compiles to single binary). Falls back to Node.js if Deno not in PATH. Both now use `@anthropic-ai/claude-agent-sdk` query() instead of raw CLI spawning.
+1. **Node.js or Deno for sidecar?** Resolved: Single pre-built agent-runner.mjs runs on both Deno and Node.js. SidecarCommand struct in sidecar.rs abstracts the runtime choice. Deno preferred (faster startup). Falls back to Node.js. Both use `@anthropic-ai/claude-agent-sdk` query() bundled into the .mjs file.
 2. **Multi-machine support?** Resolved: Implemented (Phases A-D complete). See [multi-machine.md](multi-machine.md) for architecture. bterminal-core crate extracted, bterminal-relay binary built, RemoteManager + frontend integration done. Reconnection with exponential backoff implemented. Remaining: real-world testing, TLS.
 3. **Agent Teams integration?** Phase 7 — frontend routing implemented (subagent pane spawning, parent/child navigation). Needs real-world testing with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 4. **Electron escape hatch threshold?** If Canvas xterm.js proves >50ms latency on target system with 4 panes, switch to Electron. Benchmark in Phase 2.

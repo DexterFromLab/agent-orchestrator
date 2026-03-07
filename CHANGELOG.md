@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Sidecar resolution unified: single pre-built `agent-runner.mjs` bundle replaces separate `agent-runner-deno.ts` + `agent-runner.ts` lookup; same `.mjs` file runs under both Deno and Node.js
+- `resolve_sidecar_command()` in sidecar.rs now checks deno/node availability upfront before searching paths, improved error message with runtime availability note
+- Removed `agent-runner-deno.ts` from tauri.conf.json bundled resources (only `dist/agent-runner.mjs` shipped)
+
 ### Added
 - `@anthropic-ai/claude-agent-sdk` ^0.2.70 npm dependency for sidecar agent session management
 - `build:sidecar` npm script for esbuild bundling of agent-runner.ts (SDK bundled in, no external dependency at runtime)
