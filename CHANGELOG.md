@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CatppuccinFlavor` type deprecated in favor of `ThemeId`; `CatppuccinPalette` deprecated in favor of `ThemePalette`; `FLAVOR_LABELS` and `ALL_FLAVORS` deprecated in favor of `THEME_LIST` and `ALL_THEME_IDS`
 
 ### Fixed
+- SettingsTab theme dropdown sizing: set `min-width: 180px` on trigger container, `min-width: 280px` and `max-height: 400px` on dropdown menu, `white-space: nowrap` on option labels to prevent text truncation
 - SettingsTab input overflow: added `min-width: 0` on `.setting-row` to prevent flex children from overflowing container
 - SettingsTab a11y: project field labels changed from `<div><label>` to wrapping `<label><span class="field-label">` pattern for proper label/input association
 - SettingsTab CSS: removed unused `.project-field label` selector, simplified input selector to `.project-field input:not([type="checkbox"])`

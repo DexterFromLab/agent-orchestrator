@@ -162,3 +162,14 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 
 #### Verification
 - No test changes needed — UI-only change, no logic changes
+
+### Session: 2026-03-07 — Theme Dropdown CSS Polish
+
+#### SettingsTab Dropdown Sizing Fix
+- [x] Set `min-width: 180px` on `.theme-dropdown` container (was `min-width: 0`) to prevent trigger from collapsing
+- [x] Set `min-width: 280px` on `.theme-options` dropdown menu (was `right: 0`) to ensure full theme names visible
+- [x] Increased `max-height` from 320px to 400px on dropdown menu for better scrolling experience
+- [x] Added `white-space: nowrap` on `.theme-option-label` (was `min-width: 0`) to prevent label text wrapping
+
+#### Verification
+- No test changes needed — CSS-only change
