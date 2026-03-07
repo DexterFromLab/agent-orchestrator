@@ -401,6 +401,14 @@ Design: No separate sidecar process per subagent. Parent's sidecar handles all; 
 - [x] Error message now includes runtime availability note when neither deno nor node found
 - [x] agent-runner-deno.ts file retained in repo for reference but no longer used by SidecarManager
 
+### Session: 2026-03-07 (continued) — Rust-Side CLAUDE* Env Var Stripping
+
+#### Dual-Layer Env Var Stripping
+- [x] Added CLAUDE* env var stripping in Rust SidecarManager (bterminal-core/src/sidecar.rs)
+- [x] Uses env_clear() + envs(clean_env) on Command to strip all CLAUDE-prefixed vars before spawning sidecar process
+- [x] This is the primary defense — ensures no CLAUDE* vars reach the sidecar regardless of JS runtime
+- [x] JS-side stripping (agent-runner.ts/agent-runner-deno.ts via SDK `env` option) retained as defense-in-depth
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections

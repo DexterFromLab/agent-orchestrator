@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- CLAUDE* env var stripping now applied at Rust level in SidecarManager (bterminal-core/src/sidecar.rs): `env_clear()` + `envs(clean_env)` strips all CLAUDE-prefixed vars before spawning sidecar process, providing primary defense against nesting detection (JS-side stripping retained as defense-in-depth)
+
 ### Changed
 - Sidecar resolution unified: single pre-built `agent-runner.mjs` bundle replaces separate `agent-runner-deno.ts` + `agent-runner.ts` lookup; same `.mjs` file runs under both Deno and Node.js
 - `resolve_sidecar_command()` in sidecar.rs now checks deno/node availability upfront before searching paths, improved error message with runtime availability note

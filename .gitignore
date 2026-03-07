@@ -3,3 +3,6 @@ __pycache__/
 *.pyo
 /CLAUDE.md
 v2/target/
+debug/
+plugins/
+projects/
