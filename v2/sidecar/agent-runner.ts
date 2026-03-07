@@ -116,7 +116,9 @@ async function handleQuery(msg: QueryMessage) {
         permissionMode: (permissionMode ?? 'bypassPermissions') as 'bypassPermissions' | 'default',
         allowDangerouslySkipPermissions: (permissionMode ?? 'bypassPermissions') === 'bypassPermissions',
         settingSources: settingSources ?? ['user', 'project'],
-        systemPrompt: systemPrompt ?? undefined,
+        systemPrompt: systemPrompt
+          ? systemPrompt
+          : { type: 'preset' as const, preset: 'claude_code' as const },
         model: model ?? undefined,
         additionalDirectories: additionalDirectories ?? undefined,
       },
