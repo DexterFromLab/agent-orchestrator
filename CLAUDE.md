@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control (All Phases 1-10 Complete): multi-project dashboard with project groups, per-project Claude sessions with session continuity, team agents panel, terminal tabs, 3 workspace tabs + settings drawer, dead v2 component cleanup.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control (All Phases 1-10 Complete + Sidebar Redesign): multi-project dashboard with project groups, per-project Claude sessions with session continuity, team agents panel, terminal tabs, VSCode-style left sidebar (icon rail + expandable drawer + always-visible workspace), dead v2 component cleanup.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT

@@ -4,7 +4,7 @@
 
 Transform BTerminal from a multi-pane terminal/agent tool into a **multi-project mission control** — a helm for managing multiple development projects simultaneously, each with its own Claude agent session, team agents, terminals, and settings.
 
-## Status: All Phases Complete (1-10) — Rev 2
+## Status: All Phases Complete (1-10) — Rev 3 (Sidebar Redesign)
 
 ---
 
@@ -27,7 +27,7 @@ BTerminal v3: Project orchestration dashboard (projects in a workspace)
 4. Per-project settings: Claude subscription, working dir, icon (nerd font), name, identifier, description, enabled
 5. Project group = workspace on screen
 6. Each project box: Claude session (default, resume previous) + team agents (right) + terminal tabs (below)
-7. **3 workspace tabs + settings drawer**: Sessions | Docs | Context tabs, settings as collapsible side drawer (gear icon toggle)
+7. **VSCode-style left sidebar**: Vertical icon rail (Sessions/Docs/Context/Settings) + expandable drawer panel + always-visible workspace
 8. App launchable with `--group <name>` CLI arg
 9. JSON config file defines all groups (`~/.config/bterminal/groups.json`)
 10. Session continuity: resume previous + restore history visually
@@ -156,10 +156,15 @@ CREATE TABLE IF NOT EXISTS project_agent_state (
 ### Component Tree
 
 ```
-App.svelte                              [REWRITTEN]
+App.svelte                              [REWRITTEN — VSCode-style sidebar]
 ├── CommandPalette.svelte               [NEW]
-├── GlobalTabBar.svelte                 [NEW] Sessions | Docs | Context + gear icon
-├── [Tab: Sessions]
+├── GlobalTabBar.svelte                 [NEW] Vertical icon rail (36px, 4 SVG icons)
+├── [Sidebar Panel]                      Expandable drawer (28em, max 50%)
+│   ├── [Tab: Sessions] ProjectGrid    [renders in sidebar when open]
+│   ├── [Tab: Docs] DocsTab
+│   ├── [Tab: Context] ContextPane
+│   └── [Tab: Settings] SettingsTab
+├── [Main Workspace]                     Always visible
 │   └── ProjectGrid.svelte             [NEW] Horizontal flex + scroll-snap
 │       └── ProjectBox.svelte           [NEW] Per-project container
 │           ├── ProjectHeader.svelte    [NEW] Icon + name + status dot
@@ -167,18 +172,7 @@ App.svelte                              [REWRITTEN]
 │           ├── TeamAgentsPanel.svelte  [NEW] Right panel for subagents
 │           │   └── AgentCard.svelte    [NEW] Compact subagent view
 │           └── TerminalTabs.svelte     [NEW] Tabbed terminals
-│               ├── TabBar.svelte       [NEW]
 │               └── TerminalPane.svelte [SURVIVES]
-├── [Tab: Docs]
-│   └── DocsTab.svelte                 [NEW]
-│       ├── MdFilePicker.svelte        [NEW]
-│       └── MarkdownPane.svelte        [SURVIVES]
-├── [Tab: Context]
-│   └── ContextPane.svelte             [SURVIVES, extracted from pane]
-├── [Drawer: Settings]                  Collapsible side drawer (right, 32em)
-│   └── SettingsTab.svelte             [NEW]
-│       ├── ProjectSettingsEditor.svelte [NEW]
-│       └── GlobalSettings.svelte       [NEW]
 ├── StatusBar.svelte                    [MODIFIED]
 └── ToastContainer.svelte               [SURVIVES]
 ```
@@ -291,85 +285,34 @@ No sidecar changes needed for v3.0.
 | Ctrl+K | Command palette | App |
 | Ctrl+G | Switch group (palette filtered) | App |
 | Ctrl+1..5 | Focus project by index | App |
-| Alt+1..3 | Switch workspace tab | App |
+| Alt+1..4 | Switch sidebar tab + open drawer | App |
+| Ctrl+B | Toggle sidebar open/closed | App |
+| Ctrl+, | Toggle settings panel | App |
+| Escape | Close sidebar drawer | App |
 | Ctrl+N | New terminal in focused project | Workspace |
 | Ctrl+Shift+N | New agent query | Workspace |
 | Ctrl+Tab | Next terminal tab | Project |
 | Ctrl+W | Close terminal tab | Project |
-| Ctrl+, | Toggle settings drawer | App |
-| Escape | Close settings drawer | App |
 | Ctrl+Shift+C/V | Copy/paste in terminal | Terminal |
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Data Model + Config [status: complete]
-**Milestone: Groups config loads/saves, SQLite migrations pass, workspace store works**
+All 10 phases complete. Detailed checklists in [v3-progress.md](v3-progress.md).
 
-- [x] Create `v2/src/lib/types/groups.ts` (TypeScript interfaces)
-- [x] Create `v2/src-tauri/src/groups.rs` (Rust structs + load/save)
-- [x] Add `groups_load`, `groups_save` Tauri commands to lib.rs
-- [x] SQLite migrations in session.rs: project_id column, agent_messages table, project_agent_state table
-- [x] Create `v2/src/lib/adapters/groups-bridge.ts` (IPC wrapper)
-- [x] Create `v2/src/lib/stores/workspace.svelte.ts` (replaces layout.svelte.ts)
-- [x] Add `--group` CLI argument parsing in main.rs
-- [x] Write tests for groups load/save and workspace store (24 vitest + 7 cargo)
-
-### Phase 2: Project Box Shell [status: complete]
-**Milestone: Project boxes render horizontally with headers, workspace tabs switch**
-
-- [x] Create GlobalTabBar.svelte (Sessions | Docs | Context + gear icon)
-- [x] Create ProjectGrid.svelte (flex + scroll-snap container)
-- [x] Create ProjectBox.svelte (CSS grid: header | session-area | terminal-area)
-- [x] Create ProjectHeader.svelte (icon + name + status dot + accent color)
-- [x] Rewrite App.svelte (GlobalTabBar + tab content + StatusBar)
-- [x] Create CommandPalette.svelte, DocsTab.svelte, ContextTab.svelte, SettingsTab.svelte
-- [x] CSS for responsive project count + accent colors
-
-### Phase 3: Claude Session Integration [status: complete]
-**Milestone: Claude sessions run within project boxes, per-project profile isolation**
-
-- [x] Create ClaudeSession.svelte (wraps AgentPane, passes project cwd/profile/config_dir)
-
-### Phase 4: Terminal Tabs [status: complete]
-**Milestone: Each project has tabbed terminals with xterm budget enforcement**
-
-- [x] Create TerminalTabs.svelte (tab state per project, shell/SSH/agent tab types)
-
-### Phase 5: Team Agents Panel [status: complete]
-**Milestone: Subagents appear in right panel, not separate panes. MVP complete.**
-
-- [x] Create TeamAgentsPanel.svelte (right side of session area)
-- [x] Create AgentCard.svelte (compact subagent: status, messages, cost)
-
-### --- MVP BOUNDARY ---
-
-### Phase 6: Session Continuity [status: complete]
-- [x] Persist agent messages to SQLite on session complete (agent-dispatcher persistSessionForProject)
-- [x] Persist sdkSessionId in project_agent_state
-- [x] On startup, load cached messages per project (ClaudeSession restoreMessagesFromRecords)
-- [x] Session-project mapping via registerSessionProject()
-
-### Phase 7: Command Palette + Group Switching [status: complete]
-- [x] CommandPalette.svelte (overlay, Ctrl+K, fuzzy search)
-- [x] Group list with switching
-- [x] Workspace teardown on switch (clearAllAgentSessions + terminal tabs reset)
-
-### Phase 8: Docs Tab [status: complete]
-- [x] DocsTab.svelte with split layout (file picker + MarkdownPane)
-- [x] Auto-discovers markdown files per project via discoverMarkdownFiles
-
-### Phase 9: Settings Tab [status: complete]
-- [x] SettingsTab.svelte (group CRUD + project CRUD)
-- [x] 5-project limit enforcement
-
-### Phase 10: Polish + Cleanup [status: complete]
-- [x] Remove dead v2 components (TilingGrid, PaneContainer, PaneHeader, SessionList, SshSessionList, SshDialog, SettingsDialog)
-- [x] Remove empty directories (Layout/, Sidebar/, Settings/, SSH/)
-- [x] Rewrite StatusBar for workspace store
-- [x] Fix subagent routing (skip layout pane for project-scoped agents)
-- [x] All 138 vitest + cargo tests pass, vite build succeeds
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | Data Model + Config (groups.rs, workspace store, SQLite migrations) | Complete |
+| 2 | Project Box Shell (GlobalTabBar, ProjectGrid/Box/Header, App.svelte, sidebar redesign 2026-03-08) | Complete |
+| 3 | Claude Session Integration (ClaudeSession.svelte wraps AgentPane) | Complete |
+| 4 | Terminal Tabs (TerminalTabs.svelte, per-project tabbed terminals) | Complete |
+| 5 | Team Agents Panel (TeamAgentsPanel, AgentCard) — **MVP boundary** | Complete |
+| 6 | Session Continuity (persist/restore agent messages, sdkSessionId) | Complete |
+| 7 | Command Palette + Group Switching (workspace teardown) | Complete |
+| 8 | Docs Tab (DocsTab.svelte, markdown discovery) | Complete |
+| 9 | Settings Tab (group/project CRUD, 5-project limit) | Complete |
+| 10 | Polish + Cleanup (dead v2 components removed, StatusBar rewrite) | Complete |
 
 ---
 
@@ -383,14 +326,14 @@ No sidecar changes needed for v3.0.
 | xterm budget: 4 active, unlimited suspended | WebKit2GTK OOM at ~5 instances. Serialize scrollback to text buffer, destroy xterm, recreate on focus. PTY stays alive. | 2026-03-07 |
 | Flexbox + scroll-snap over CSS Grid | Allows horizontal scroll on narrow screens. Scroll-snap gives clean project-to-project scrolling. | 2026-03-07 |
 | Team panel: inline >2560px, overlay <2560px | Adapts to available space. Collapsed when no subagents running. | 2026-03-07 |
-| 3 workspace tabs + settings drawer | Sessions/Docs/Context as tabs, Settings as collapsible side drawer (32em, gear icon toggle, Escape/click-outside to close). Keeps tab bar clean, settings always accessible without losing tab context. | 2026-03-07 |
+| VSCode-style left sidebar (replaces top tab bar + settings drawer) | Vertical icon rail (36px, 4 SVG icons) + expandable drawer panel (28em, max 50%) + always-visible workspace. Settings is a regular tab, not special drawer. ProjectGrid always visible. Ctrl+B toggles sidebar. | 2026-03-08 |
 | Project accent colors from Catppuccin palette | Visual distinction: blue/green/mauve/peach/pink per slot 1-5. Applied to border + header tint. | 2026-03-07 |
 | Remote machines deferred to v3.1 | Elevate to project level (project.remote_machine_id) but don't implement in MVP. | 2026-03-07 |
 | Keyboard shortcut layers: App > Workspace > Terminal | Prevents conflicts. Terminal captures raw keys only when focused. App layer uses Ctrl+K/G. | 2026-03-07 |
 | AgentPane splits into ClaudeSession + TeamAgentsPanel | Team agents shown inline in right panel, not as separate panes. Saves xterm/pane slots. | 2026-03-07 |
 | Unmount/remount on group switch | Serialize xterm scrollbacks, destroy, remount new group. <100ms perceived. Frees ~80MB. | 2026-03-07 |
 | All themes map to --ctp-* CSS vars | 17 themes in 3 groups: 4 Catppuccin + 7 Editor (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) + 6 Deep Dark (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight). All map to same 26 --ctp-* CSS custom properties — zero component changes needed. | 2026-03-07 |
-| Typography via CSS custom properties | --ui-font-family and --ui-font-size defined in catppuccin.css :root, consumed by app.css body rule. Overridden at runtime by SettingsTab controls. Restored by initTheme() on startup. Persisted as font_family/font_size SQLite settings. | 2026-03-07 |
+| Typography via CSS custom properties | --ui-font-family/--ui-font-size + --term-font-family/--term-font-size in catppuccin.css :root. Restored by initTheme() on startup. Persisted as ui_font_family/ui_font_size/term_font_family/term_font_size SQLite settings. | 2026-03-07 |
 
 ## Errors Encountered
 

@@ -8,12 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Settings converted from full-page tab to collapsible side drawer: right-side overlay (32em width, semi-transparent backdrop), close via Escape/click-outside/close button
-- GlobalTabBar reduced from 4 tabs (Sessions/Docs/Context/Settings) to 3 tabs + gear icon toggle for settings drawer; gear icon highlights blue when active
-- `WorkspaceTab` type reduced from `'sessions' | 'docs' | 'context' | 'settings'` to `'sessions' | 'docs' | 'context'`
-- Keyboard shortcuts: Alt+1..3 for tabs (was Alt+1..4), Ctrl+, toggles settings drawer (was setActiveTab('settings')), Escape closes drawer
-- SettingsTab styling adjusted for drawer context: reduced padding (12px 16px), removed max-width, flex:1 for scrollable content
-- App.svelte wraps tab content + settings drawer in `.content-area` container with relative positioning for drawer overlay
+- UI redesigned from top tab bar + right-side settings drawer to VSCode-style left sidebar: vertical icon rail (GlobalTabBar, 36px, 4 SVG icons) + expandable drawer panel (28em, max 50%) + always-visible main workspace (ProjectGrid)
+- GlobalTabBar rewritten from horizontal text tabs + gear icon to vertical icon rail with SVG icons for Sessions, Docs, Context, Settings; Props: `expanded`/`ontoggle` (was `settingsOpen`/`ontoggleSettings`)
+- Settings is now a regular sidebar tab (not a special right-side drawer); `WorkspaceTab` type: `'sessions' | 'docs' | 'context' | 'settings'`
+- App.svelte layout: `.main-row` flex container with icon rail + optional sidebar panel + workspace; state renamed `settingsOpen` -> `drawerOpen`
+- Keyboard shortcuts: Alt+1..4 (switch tabs + open drawer), Ctrl+B (toggle sidebar), Ctrl+, (toggle settings), Escape (close drawer)
+- SettingsTab CSS: `height: 100%` (was `flex: 1`) for sidebar panel context
 
 ### Added
 - SettingsTab split font controls: separate UI font (sans-serif options: System Sans-Serif, Inter, Roboto, Open Sans, Lato, Noto Sans, Source Sans 3, IBM Plex Sans, Ubuntu) and Terminal font (monospace options: JetBrains Mono, Fira Code, Cascadia Code, Source Code Pro, IBM Plex Mono, Hack, Inconsolata, Ubuntu Mono, monospace), each with custom themed dropdown + size stepper (8-24px), font previews in own typeface

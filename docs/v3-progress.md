@@ -215,6 +215,40 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 #### Verification
 - All 138 vitest tests pass
 
+### Session: 2026-03-08 — VSCode-Style Sidebar Redesign
+
+#### UI Layout Redesign (Top Tab Bar -> Left Sidebar)
+- [x] Redesigned GlobalTabBar.svelte from horizontal tab bar to vertical icon rail (36px wide)
+  - 4 SVG icon buttons: Sessions (grid), Docs (document), Context (clock), Settings (gear)
+  - Each button uses SVG path from `icons` record mapped by WorkspaceTab
+  - Props renamed: `settingsOpen` -> `expanded`, `ontoggleSettings` -> `ontoggle`
+  - `handleTabClick()` manages toggle: clicking active tab collapses drawer
+- [x] Rewrote App.svelte layout from vertical (top tab bar + content area + settings drawer) to horizontal (icon rail + sidebar panel + workspace)
+  - `.main-row` flex container: GlobalTabBar | sidebar-panel (28em, max 50%) | workspace
+  - ProjectGrid always visible in main workspace (not inside tab content)
+  - Sidebar panel renders active tab content (Sessions/Docs/Context/Settings)
+  - Panel header with title + close button
+  - Removed backdrop overlay, drawer is inline sidebar not overlay
+- [x] Re-added 'settings' to WorkspaceTab union type (was removed when settings was a drawer)
+- [x] SettingsTab CSS: changed `flex: 1` to `height: 100%` for sidebar panel context
+- [x] Updated keyboard shortcuts:
+  - Alt+1..4 (was Alt+1..3): switch tabs + open drawer, toggle if same tab
+  - Ctrl+B (new): toggle sidebar open/closed
+  - Ctrl+, : open settings panel (toggle if already active)
+  - Escape: close drawer
+- [x] State variables renamed: `settingsOpen` -> `drawerOpen`, `toggleSettings()` -> `toggleDrawer()`
+- [x] Added `panelTitles` record for drawer header labels
+
+#### Design Decisions
+- VSCode-style sidebar chosen for: always-visible workspace, progressive disclosure, familiar UX
+- Settings as regular tab (not special drawer) simplifies code and mental model
+- Icon rail at 36px minimizes horizontal space cost
+- No backdrop overlay — sidebar is inline, not modal
+
+#### Verification
+- All 138 vitest tests pass
+- svelte-check clean (only 2 third-party esrap warnings)
+
 ### Session: 2026-03-07 — SettingsTab Global Settings Redesign
 
 #### Font Settings Split (UI Font + Terminal Font)
