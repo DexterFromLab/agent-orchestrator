@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control MVP (Phases 1-5) implemented: multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings).
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control (All Phases 1-10 Complete): multi-project dashboard with project groups, per-project Claude sessions with session continuity, team agents panel, terminal tabs, workspace tabs, dead v2 component cleanup.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -50,7 +50,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/pty-bridge.ts` | PTY IPC wrapper (Tauri invoke/listen) |
 | `v2/src/lib/adapters/agent-bridge.ts` | Agent IPC wrapper (Tauri invoke/listen) |
 | `v2/src/lib/adapters/sdk-messages.ts` | SDK message adapter (stream-json parser) |
-| `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + subagent pane spawning + toast notifications |
+| `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + subagent routing + session persistence + toast notifications |
 | `v2/src/lib/adapters/file-bridge.ts` | File watcher IPC wrapper |
 | `v2/src/lib/adapters/settings-bridge.ts` | Settings IPC wrapper (get/set/list) |
 | `v2/src/lib/adapters/ctx-bridge.ts` | ctx database IPC wrapper |
@@ -68,11 +68,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/styles/themes.ts` | Catppuccin palette definitions (Latte/Frappe/Macchiato/Mocha) |
 | `v2/src/lib/components/Agent/AgentTree.svelte` | SVG agent tree visualization |
 | `v2/src/lib/components/Context/ContextPane.svelte` | ctx database viewer (projects, entries, search) |
-| `v2/src/lib/components/SSH/SshDialog.svelte` | SSH session create/edit modal |
-| `v2/src/lib/components/SSH/SshSessionList.svelte` | SSH session list in sidebar |
-| `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (pane counts, cost) |
+| `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (group name, project count, agent count, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
-| `v2/src/lib/components/Settings/SettingsDialog.svelte` | Settings modal (shell, cwd, max panes, theme) |
 | `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, CommandPalette, DocsTab, ContextTab, SettingsTab |
 | `v2/src/lib/types/groups.ts` | TypeScript interfaces (ProjectConfig, GroupConfig, GroupsFile) |
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
@@ -94,7 +91,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Context DB: `~/.claude-context/context.db`
 - Theme: Catppuccin Mocha
 
-## v2/v3 Stack (v2 complete, v3 MVP Phases 1-5 complete, branch: v2-mission-control)
+## v2/v3 Stack (v2 complete, v3 All Phases 1-10 complete, branch: v2-mission-control)
 
 - Tauri 2.x (Rust backend) + Svelte 5 (frontend)
 - Cargo workspace: bterminal-core (shared), bterminal-relay (remote binary), src-tauri (Tauri app)

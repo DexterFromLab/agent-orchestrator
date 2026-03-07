@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- v3 Mission Control MVP (Phases 1-5): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings)
+- v3 Mission Control (All Phases 1-10 complete): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings)
+- v3 session continuity (P6): `persistSessionForProject()` saves agent state + messages to SQLite on session complete; `registerSessionProject()` maps session to project; `ClaudeSession.restoreMessagesFromRecords()` restores cached messages on mount
+- v3 workspace teardown (P7): `clearAllAgentSessions()` clears agent sessions on group switch; terminal tabs reset via `switchGroup()`
 - v3 data model: `groups.rs` (Rust structs + load/save `~/.config/bterminal/groups.json`), `groups.ts` (TypeScript interfaces), `groups-bridge.ts` (IPC adapter), `--group` CLI argument
 - v3 workspace store (`workspace.svelte.ts`): replaces `layout.svelte.ts`, manages groups/activeGroupId/activeTab/focusedProjectId with Svelte 5 runes
 - v3 SQLite migrations: `agent_messages` table (per-project message persistence), `project_agent_state` table (sdkSessionId/cost/status per project), `project_id` column on sessions
@@ -27,7 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Early error reporting when Claude CLI is not found — sidecar emits `agent_error` immediately instead of cryptic SDK failure
 
 ### Changed
+- StatusBar rewritten for v3 workspace store: shows active group name, project count, agent count instead of pane counts; version label updated to "BTerminal v3"
+- Agent dispatcher subagent routing: project-scoped sessions skip layout pane creation (subagents render in TeamAgentsPanel instead); detached mode still creates layout pane
 - AgentPane `cwd` prop renamed to `initialCwd` — now editable via text input in session toolbar instead of fixed prop
+
+### Removed
+- Dead v2 components deleted in P10 (~1,836 lines): `TilingGrid.svelte` (328), `PaneContainer.svelte` (113), `PaneHeader.svelte` (44), `SessionList.svelte` (374), `SshSessionList.svelte` (263), `SshDialog.svelte` (281), `SettingsDialog.svelte` (433)
+- Empty component directories removed: `Layout/`, `Sidebar/`, `Settings/`, `SSH/`
 - Sidecar runners now pass `settingSources` (defaults to `['user', 'project']`), `systemPrompt`, `model`, and `additionalDirectories` to SDK `query()` options
 - Sidecar runners inject `CLAUDE_CONFIG_DIR` into clean env when `claudeConfigDir` provided in query message (multi-account support)
 

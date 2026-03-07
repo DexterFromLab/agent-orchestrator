@@ -2,7 +2,7 @@
 
 Terminal with session panel (MobaXterm-style), built with GTK 3 + VTE. Catppuccin Mocha theme.
 
-> **v2 complete, v3 MVP implemented.** v2: Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. v3: Multi-project mission control dashboard (Phases 1-5 complete) -- project groups with per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings), command palette. Features: **project groups** (up to 5 projects per group, horizontal layout, adaptive viewport count), **per-project Claude sessions** (ClaudeSession wrapping AgentPane with project cwd/profile), **team agents panel** (compact subagent cards), **terminal tabs** (shell/SSH/agent per project), agent panes with structured output, tree visualization with subtree cost and session resume, **subagent/agent-teams support**, **multi-machine support** (bterminal-relay WebSocket server + RemoteManager), **Claude profile/account switching** (switcher-claude integration), **skill discovery and autocomplete** (type `/` in agent prompt), SSH session management, ctx context database viewer, SQLite session persistence with layout restore, live markdown file viewer with Shiki syntax highlighting, Catppuccin themes (4 flavors), .deb + AppImage packaging, GitHub Actions CI, 138 vitest + 36 cargo tests. Branch `v2-mission-control`. See [docs/v3-task_plan.md](docs/v3-task_plan.md) for v3 architecture.
+> **v2 complete, v3 all phases complete.** v2: Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. v3: Multi-project mission control dashboard (All Phases 1-10 complete) -- project groups with per-project Claude sessions, session continuity (persist/restore agent messages), team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings), command palette with group switching. Features: **project groups** (up to 5 projects per group, horizontal layout, adaptive viewport count), **per-project Claude sessions** with session continuity, **team agents panel** (compact subagent cards), **terminal tabs** (shell/SSH/agent per project), agent panes with structured output, tree visualization with subtree cost and session resume, **subagent/agent-teams support**, **multi-machine support** (bterminal-relay WebSocket server + RemoteManager), **Claude profile/account switching** (switcher-claude integration), **skill discovery and autocomplete** (type `/` in agent prompt), SSH session management, ctx context database viewer, SQLite session persistence with layout restore, live markdown file viewer with Shiki syntax highlighting, Catppuccin themes (4 flavors), .deb + AppImage packaging, GitHub Actions CI, 138 vitest + 36 cargo tests. Branch `v2-mission-control`. See [docs/v3-task_plan.md](docs/v3-task_plan.md) for v3 architecture.
 
 ![BTerminal](screenshot.png)
 
@@ -152,7 +152,7 @@ See [docs/multi-machine.md](docs/multi-machine.md) for full architecture details
 | [docs/multi-machine.md](docs/multi-machine.md) | Multi-machine architecture (implemented, WebSocket relay, reconnection) |
 | [docs/v3-task_plan.md](docs/v3-task_plan.md) | v3 Mission Control redesign: architecture decisions and strategies |
 | [docs/v3-findings.md](docs/v3-findings.md) | v3 research findings and codebase reuse analysis |
-| [docs/v3-progress.md](docs/v3-progress.md) | v3 session progress log |
+| [docs/v3-progress.md](docs/v3-progress.md) | v3 session progress log (All Phases 1-10 complete) |
 
 ## License
 
