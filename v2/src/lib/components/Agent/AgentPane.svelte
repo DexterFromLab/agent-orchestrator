@@ -95,7 +95,7 @@
   });
 
   // NOTE: Do NOT stop agents in onDestroy — it fires on layout changes/remounts,
-  // not just explicit close. Stop-on-close is handled by TilingGrid.
+  // not just explicit close. Stop-on-close is handled by workspace teardown.
 
   let followUpPrompt = $state('');
 

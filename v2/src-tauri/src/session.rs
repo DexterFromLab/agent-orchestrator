@@ -363,25 +363,6 @@ impl SessionDb {
         Ok(())
     }
 
-    pub fn update_ssh_session(&self, session: &SshSession) -> Result<(), String> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "UPDATE ssh_sessions SET name = ?1, host = ?2, port = ?3, username = ?4, key_file = ?5, folder = ?6, color = ?7, last_used_at = ?8 WHERE id = ?9",
-            params![
-                session.name,
-                session.host,
-                session.port,
-                session.username,
-                session.key_file,
-                session.folder,
-                session.color,
-                session.last_used_at,
-                session.id,
-            ],
-        ).map_err(|e| format!("SSH update failed: {e}"))?;
-        Ok(())
-    }
-
     // --- v3: Agent message persistence ---
 
     pub fn save_agent_messages(
@@ -790,27 +771,6 @@ mod tests {
         assert_eq!(sessions[0].id, "ssh2");
     }
 
-    #[test]
-    fn test_update_ssh_session() {
-        let db = make_db();
-        let mut s = make_ssh_session("ssh1", "Old Name");
-        db.save_ssh_session(&s).unwrap();
-
-        s.name = "New Name".to_string();
-        s.host = "new.example.com".to_string();
-        s.port = 2222;
-        s.last_used_at = 9999;
-        db.update_ssh_session(&s).unwrap();
-
-        let sessions = db.list_ssh_sessions().unwrap();
-        assert_eq!(sessions.len(), 1);
-        assert_eq!(sessions[0].name, "New Name");
-        assert_eq!(sessions[0].host, "new.example.com");
-        assert_eq!(sessions[0].port, 2222);
-        assert_eq!(sessions[0].last_used_at, 9999);
-        // created_at should be unchanged (UPDATE doesn't touch it)
-        assert_eq!(sessions[0].created_at, 1000);
-    }
 
     #[test]
     fn test_ssh_session_upsert() {
