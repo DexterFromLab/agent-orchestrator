@@ -11,14 +11,27 @@ import {
   appendAgentMessages,
   updateAgentCost,
   getAgentSessions,
+  getAgentSession,
   createAgentSession,
   findChildByToolUseId,
 } from './stores/agents.svelte';
 import { addPane, getPanes } from './stores/layout.svelte';
 import { notify } from './stores/notifications.svelte';
+import {
+  saveProjectAgentState,
+  saveAgentMessages,
+  type AgentMessageRecord,
+} from './adapters/groups-bridge';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
+
+// Map sessionId -> projectId for persistence routing
+const sessionProjectMap = new Map<string, string>();
+
+export function registerSessionProject(sessionId: string, projectId: string): void {
+  sessionProjectMap.set(sessionId, projectId);
+}
 
 // Sidecar liveness — checked by UI components
 let sidecarAlive = true;
@@ -160,6 +173,8 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
           updateAgentStatus(sessionId, 'done');
           notify('success', `Agent done — $${cost.totalCostUsd.toFixed(4)}, ${cost.numTurns} turns`);
         }
+        // Persist session state for project-scoped sessions
+        persistSessionForProject(sessionId);
         break;
       }
     }
@@ -220,15 +235,60 @@ function spawnSubagentPane(parentSessionId: string, tc: ToolCallContent): void {
   });
   updateAgentStatus(childId, 'running');
 
-  // Create layout pane, auto-grouped under parent's title
-  const parentPane = getPanes().find(p => p.id === parentSessionId);
-  const groupName = parentPane?.title ?? `Agent ${parentSessionId.slice(0, 8)}`;
-  addPane({
-    id: childId,
-    type: 'agent',
-    title: `Sub: ${label}`,
-    group: groupName,
-  });
+  // For project-scoped sessions, subagents render in TeamAgentsPanel (no layout pane)
+  // For non-project sessions (detached mode), create a layout pane
+  if (!sessionProjectMap.has(parentSessionId)) {
+    const parentPane = getPanes().find(p => p.id === parentSessionId);
+    const groupName = parentPane?.title ?? `Agent ${parentSessionId.slice(0, 8)}`;
+    addPane({
+      id: childId,
+      type: 'agent',
+      title: `Sub: ${label}`,
+      group: groupName,
+    });
+  }
+}
+
+/** Persist session state + messages to SQLite for the project that owns this session */
+async function persistSessionForProject(sessionId: string): Promise<void> {
+  const projectId = sessionProjectMap.get(sessionId);
+  if (!projectId) return; // Not a project-scoped session
+
+  const session = getAgentSession(sessionId);
+  if (!session) return;
+
+  try {
+    // Save agent state
+    await saveProjectAgentState({
+      project_id: projectId,
+      last_session_id: sessionId,
+      sdk_session_id: session.sdkSessionId ?? null,
+      status: session.status,
+      cost_usd: session.costUsd,
+      input_tokens: session.inputTokens,
+      output_tokens: session.outputTokens,
+      last_prompt: session.prompt,
+      updated_at: Date.now(),
+    });
+
+    // Save messages
+    const records: AgentMessageRecord[] = session.messages.map((m, i) => ({
+      id: i,
+      session_id: sessionId,
+      project_id: projectId,
+      sdk_session_id: session.sdkSessionId ?? null,
+      message_type: m.type,
+      content: JSON.stringify(m.content),
+      parent_id: m.parentId ?? null,
+      created_at: Date.now(),
+    }));
+
+    if (records.length > 0) {
+      await saveAgentMessages(sessionId, projectId, session.sdkSessionId, records);
+    }
+  } catch (e) {
+    console.warn('Failed to persist agent session:', e);
+  }
 }
 
 export function stopAgentDispatcher(): void {

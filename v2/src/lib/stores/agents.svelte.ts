@@ -130,6 +130,10 @@ export function getTotalCost(id: string): { costUsd: number; inputTokens: number
   return { costUsd, inputTokens, outputTokens };
 }
 
+export function clearAllAgentSessions(): void {
+  sessions = [];
+}
+
 export function removeAgentSession(id: string): void {
   // Also remove from parent's childSessionIds
   const session = sessions.find(s => s.id === id);

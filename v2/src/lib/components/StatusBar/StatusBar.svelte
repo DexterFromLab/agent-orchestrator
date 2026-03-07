@@ -1,22 +1,27 @@
 <script lang="ts">
-  import { getPanes } from '../../stores/layout.svelte';
   import { getAgentSessions } from '../../stores/agents.svelte';
+  import { getActiveGroup, getEnabledProjects, getActiveGroupId } from '../../stores/workspace.svelte';
 
-  let panes = $derived(getPanes());
   let agentSessions = $derived(getAgentSessions());
+  let activeGroup = $derived(getActiveGroup());
+  let enabledProjects = $derived(getEnabledProjects());
 
   let activeAgents = $derived(agentSessions.filter(s => s.status === 'running' || s.status === 'starting').length);
   let totalCost = $derived(agentSessions.reduce((sum, s) => sum + s.costUsd, 0));
   let totalTokens = $derived(agentSessions.reduce((sum, s) => sum + s.inputTokens + s.outputTokens, 0));
-  let terminalCount = $derived(panes.filter(p => p.type === 'terminal').length);
-  let agentCount = $derived(panes.filter(p => p.type === 'agent').length);
+  let projectCount = $derived(enabledProjects.length);
+  let agentCount = $derived(agentSessions.length);
 </script>
 
 <div class="status-bar">
   <div class="left">
-    <span class="item" title="Terminal panes">{terminalCount} terminals</span>
+    {#if activeGroup}
+      <span class="item group-name" title="Active group">{activeGroup.name}</span>
+      <span class="sep"></span>
+    {/if}
+    <span class="item" title="Enabled projects">{projectCount} projects</span>
     <span class="sep"></span>
-    <span class="item" title="Agent panes">{agentCount} agents</span>
+    <span class="item" title="Agent sessions">{agentCount} agents</span>
     {#if activeAgents > 0}
       <span class="sep"></span>
       <span class="item active">
@@ -34,24 +39,24 @@
       <span class="item cost">${totalCost.toFixed(4)}</span>
       <span class="sep"></span>
     {/if}
-    <span class="item version">BTerminal v2</span>
+    <span class="item version">BTerminal v3</span>
   </div>
 </div>
 
 <style>
   .status-bar {
-    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     justify-content: space-between;
     height: 24px;
     padding: 0 10px;
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border);
+    background: var(--ctp-mantle);
+    border-top: 1px solid var(--ctp-surface0);
     font-size: 11px;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
+    color: var(--ctp-overlay1);
+    font-family: 'JetBrains Mono', monospace;
     user-select: none;
+    flex-shrink: 0;
   }
 
   .left, .right {
@@ -63,13 +68,18 @@
   .sep {
     width: 1px;
     height: 10px;
-    background: var(--border);
+    background: var(--ctp-surface1);
   }
 
   .item {
     display: flex;
     align-items: center;
     gap: 4px;
+  }
+
+  .group-name {
+    color: var(--ctp-blue);
+    font-weight: 600;
   }
 
   .active {

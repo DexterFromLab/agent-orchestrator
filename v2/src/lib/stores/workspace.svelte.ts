@@ -1,5 +1,6 @@
 import { loadGroups, saveGroups, getCliGroup } from '../adapters/groups-bridge';
 import type { GroupsFile, GroupConfig, ProjectConfig } from '../types/groups';
+import { clearAllAgentSessions } from '../stores/agents.svelte';
 
 export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings';
 
@@ -66,8 +67,9 @@ export function setActiveProject(projectId: string | null): void {
 export async function switchGroup(groupId: string): Promise<void> {
   if (groupId === activeGroupId) return;
 
-  // Clear terminal tabs for the old group
+  // Teardown: clear terminal tabs and agent sessions for the old group
   projectTerminals = new Map();
+  clearAllAgentSessions();
 
   activeGroupId = groupId;
   activeProjectId = null;

@@ -1,14 +1,21 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { ProjectConfig } from '../../types/groups';
   import {
     loadProjectAgentState,
-    saveProjectAgentState,
     loadAgentMessages,
-    saveAgentMessages,
     type ProjectAgentState,
     type AgentMessageRecord,
   } from '../../adapters/groups-bridge';
+  import { registerSessionProject } from '../../agent-dispatcher';
+  import {
+    createAgentSession,
+    appendAgentMessages,
+    updateAgentCost,
+    updateAgentStatus,
+    setAgentSdkSessionId,
+    getAgentSession,
+  } from '../../stores/agents.svelte';
+  import type { AgentMessage } from '../../adapters/sdk-messages';
   import AgentPane from '../Agent/AgentPane.svelte';
 
   interface Props {
@@ -18,11 +25,10 @@
 
   let { project, onsessionid }: Props = $props();
 
-  // Per-project session ID (stable across renders, changes with project)
   let sessionId = $state(crypto.randomUUID());
   let lastState = $state<ProjectAgentState | null>(null);
-  let resumeSessionId = $state<string | undefined>(undefined);
   let loading = $state(true);
+  let hasRestoredHistory = $state(false);
 
   // Load previous session state when project changes
   $effect(() => {
@@ -32,14 +38,20 @@
 
   async function loadPreviousState(projectId: string) {
     loading = true;
+    hasRestoredHistory = false;
     try {
       const state = await loadProjectAgentState(projectId);
       lastState = state;
-      if (state?.sdk_session_id) {
-        resumeSessionId = state.sdk_session_id;
+      if (state?.last_session_id) {
         sessionId = state.last_session_id;
+
+        // Restore cached messages into the agent store
+        const records = await loadAgentMessages(projectId);
+        if (records.length > 0) {
+          restoreMessagesFromRecords(sessionId, state, records);
+          hasRestoredHistory = true;
+        }
       } else {
-        resumeSessionId = undefined;
         sessionId = crypto.randomUUID();
       }
     } catch (e) {
@@ -47,8 +59,44 @@
       sessionId = crypto.randomUUID();
     } finally {
       loading = false;
+      // Register session -> project mapping for persistence
+      registerSessionProject(sessionId, project.id);
       onsessionid?.(sessionId);
     }
+  }
+
+  function restoreMessagesFromRecords(
+    sid: string,
+    state: ProjectAgentState,
+    records: AgentMessageRecord[],
+  ) {
+    // Don't re-create if already exists
+    if (getAgentSession(sid)) return;
+
+    createAgentSession(sid, state.last_prompt ?? '');
+    if (state.sdk_session_id) {
+      setAgentSdkSessionId(sid, state.sdk_session_id);
+    }
+
+    // Convert records back to AgentMessage format
+    const messages: AgentMessage[] = records.map(r => ({
+      id: `restored-${r.id}`,
+      type: r.message_type as AgentMessage['type'],
+      content: JSON.parse(r.content),
+      parentId: r.parent_id ?? undefined,
+    }));
+
+    appendAgentMessages(sid, messages);
+    updateAgentCost(sid, {
+      costUsd: state.cost_usd,
+      inputTokens: state.input_tokens,
+      outputTokens: state.output_tokens,
+      numTurns: 0,
+      durationMs: 0,
+    });
+
+    // Mark as done (it's a restored completed session)
+    updateAgentStatus(sid, state.status === 'error' ? 'error' : 'done');
   }
 </script>
 
@@ -69,6 +117,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    flex: 1;
   }
 
   .loading-state {
