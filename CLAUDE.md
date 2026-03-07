@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 planning started: multi-project mission control redesign (project groups, per-project Claude sessions, workspace tabs).
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -27,6 +27,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `docs/progress.md` | Session progress log (recent) |
 | `docs/progress-archive.md` | Archived progress log (2026-03-05 to 2026-03-06 early) |
 | `docs/multi-machine.md` | Multi-machine architecture (implemented, Phases A-D) |
+| `docs/v3-task_plan.md` | v3 Mission Control redesign: architecture decisions and strategies |
+| `docs/v3-findings.md` | v3 research findings and codebase reuse analysis |
+| `docs/v3-progress.md` | v3 session progress log |
 | `v2/Cargo.toml` | Cargo workspace root (members: src-tauri, bterminal-core, bterminal-relay) |
 | `v2/bterminal-core/` | Shared crate: EventSink trait, PtyManager, SidecarManager |
 | `v2/bterminal-relay/` | Standalone relay binary (WebSocket server, token auth, CLI) |

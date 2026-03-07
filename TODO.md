@@ -2,6 +2,12 @@
 
 ## Active
 
+### v3 Planning
+- [ ] **Collect adversarial agent findings** -- 3 architecture agents launched (Architect, Devil's Advocate, UX+Perf Specialist). Collect and synthesize findings.
+- [ ] **Produce final v3 architecture plan** -- Finalize decisions on config format, layout engine, session isolation, state management, etc.
+- [ ] **Create v3 implementation phases** -- Break v3 into phased implementation plan.
+
+### v2 Remaining
 - [ ] **E2E testing (Playwright/WebDriver)** -- Scaffold at v2/tests/e2e/README.md. Needs display server to run. Test: open terminal, run command, open agent, verify output.
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines (local + 1 remote). Verify PTY + agent operations over WebSocket.
 - [ ] **Multi-machine TLS/certificate pinning** -- Add TLS support to bterminal-relay and certificate pinning in RemoteManager for production security.
@@ -21,5 +27,3 @@
 - [x] **Sidecar CLAUDE* env var leak fix** -- Strip ALL CLAUDE-prefixed env vars (dual-layer). | Done: 2026-03-06
 - [x] **Multi-machine reconnection** -- Exponential backoff, TCP probe, frontend listeners + auto-reconnect. | Done: 2026-03-06
 - [x] **Multi-machine support (Phases A-D)** -- bterminal-core, bterminal-relay, RemoteManager, frontend. | Done: 2026-03-06
-- [x] **Agent Teams frontend support** -- Subagent pane spawning, parent/child navigation, message routing. | Done: 2026-03-06
-- [x] **Subagent cost aggregation** -- getTotalCost() recursive helper, total cost in parent pane. | Done: 2026-03-06

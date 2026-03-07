@@ -4,7 +4,8 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles (switcher-claude), skill discovery/autocomplete, 114 vitest + 29 cargo tests.
+- v2 Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles (switcher-claude), skill discovery/autocomplete, 114 vitest + 29 cargo tests.
+- v3 planning started: multi-project mission control redesign. See `docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -13,12 +14,16 @@
 - Implementation phases: [docs/phases.md](../docs/phases.md)
 - Research findings: [docs/findings.md](../docs/findings.md)
 - Progress log: [docs/progress.md](../docs/progress.md)
+- v3 architecture: [docs/v3-task_plan.md](../docs/v3-task_plan.md)
+- v3 findings: [docs/v3-findings.md](../docs/v3-findings.md)
+- v3 progress: [docs/v3-progress.md](../docs/v3-progress.md)
 
 ## Rules
 
 - Do not modify v1 code (`bterminal.py`) unless explicitly asked — it is production-stable.
-- v2 work goes on a feature branch (`v2-mission-control`), not master.
-- All v2 architecture decisions must reference `docs/task_plan.md` Decisions Log.
+- v2/v3 work goes on the `v2-mission-control` branch, not master.
+- v2 architecture decisions must reference `docs/task_plan.md` Decisions Log.
+- v3 architecture decisions must reference `docs/v3-task_plan.md` Decisions Log.
 - When adding new decisions, append to the Decisions Log table with date.
 - Update `docs/progress.md` after each significant work session.
 

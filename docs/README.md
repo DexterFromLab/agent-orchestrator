@@ -22,3 +22,6 @@ Project documentation lives here.
 | [progress.md](progress.md) | Session-by-session progress log (recent sessions) |
 | [progress-archive.md](progress-archive.md) | Archived progress log (2026-03-05 to 2026-03-06 early) |
 | [multi-machine.md](multi-machine.md) | Multi-machine support architecture (implemented, WebSocket relay, reconnection) |
+| [v3-task_plan.md](v3-task_plan.md) | v3 Mission Control redesign: architecture decisions and strategies |
+| [v3-findings.md](v3-findings.md) | v3 research findings and codebase reuse analysis |
+| [v3-progress.md](v3-progress.md) | v3 session progress log |

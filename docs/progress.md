@@ -176,6 +176,17 @@
 - [x] settingSources defaults to ['user', 'project'] (loads CLAUDE.md and project settings)
 - [x] Frontend AgentQueryOptions interface updated in agent-bridge.ts
 
+### Session: 2026-03-07 (continued) — v3 Mission Control Planning
+
+#### v3 Architecture Planning
+- [x] Created docs/v3-task_plan.md — core concept, user requirements, architecture questions
+- [x] Created docs/v3-findings.md — codebase reuse analysis (what to keep/replace/drop)
+- [x] Created docs/v3-progress.md — v3-specific progress log
+- [x] Launched 3 adversarial architecture agents (Architect, Devil's Advocate, UX+Perf Specialist)
+- [ ] Collect adversarial agent findings
+- [ ] Produce final architecture plan
+- [ ] Create v3 implementation phases
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections
