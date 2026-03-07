@@ -61,24 +61,24 @@
   .sidebar-rail {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 6px 4px;
+    gap: 0.25rem;
+    padding: 0.5rem 0.375rem;
     background: var(--ctp-mantle);
     border-right: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
-    width: 36px;
+    width: 2.75rem;
   }
 
   .rail-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 2rem;
+    height: 2rem;
     background: transparent;
     border: none;
-    border-radius: 4px;
-    color: var(--ctp-overlay1);
+    border-radius: 0.375rem;
+    color: var(--ctp-subtext0);
     cursor: pointer;
     transition: color 0.15s, background 0.15s;
   }

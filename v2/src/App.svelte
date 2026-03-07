@@ -217,7 +217,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
+    padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
   }
@@ -233,11 +233,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 1.375rem;
+    height: 1.375rem;
     background: transparent;
     border: none;
-    border-radius: 4px;
+    border-radius: 0.25rem;
     color: var(--ctp-subtext0);
     cursor: pointer;
   }
