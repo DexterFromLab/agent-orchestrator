@@ -1,35 +1,62 @@
 # BTerminal v3 — Research Findings
 
-## Current Codebase Reuse Analysis
+## Adversarial Review Results (2026-03-07)
 
-### Can Reuse (with modifications)
-- **Agent session infrastructure**: AgentPane, agent store, agent dispatcher, SDK messages adapter, sidecar bridge — core agent functionality stays
-- **Terminal infrastructure**: TerminalPane, pty-bridge — terminal rendering unchanged
-- **Markdown rendering**: MarkdownPane, highlight utils — markdown viewer stays
-- **Sidecar management**: SidecarManager, agent-runner.mjs — backend agent orchestration
-- **PTY management**: PtyManager — backend terminal management
-- **Session persistence**: session-bridge, SessionDb — needs schema extension for projects
-- **Theme system**: theme store, catppuccin CSS — visual layer unchanged
-- **Notification system**: toast notifications — stays as-is
-- **Claude bridge**: profiles + skills — reusable per project
-- **StatusBar**: needs redesign but concept stays
+### Agent: Architect (Advocate)
+- Proposed full component tree, data model, 10-phase plan
+- JSON config at `~/.config/bterminal/groups.json`
+- Single shared sidecar (multiplexed sessions)
+- ClaudeSession + TeamAgentsPanel split from AgentPane
+- SQLite tables: agent_messages, project_agent_state
+- MVP at Phase 5
 
-### Must Replace
-- **Layout store**: Current pane-based grid system → project-based workspace system
-- **TilingGrid**: CSS Grid tiling → project box layout with internal structure
-- **SessionList sidebar**: Pane list → project/group navigation
-- **App.svelte**: Root layout completely changes
-- **Settings dialog**: Per-app settings → per-project settings
+### Agent: Devil's Advocate
+- Found 12 issues, 4 critical:
+  1. xterm.js 4-instance ceiling (hard OOM wall)
+  2. Single sidecar SPOF
+  3. Layout store has no workspace concept
+  4. 384px per project unusable on 1920px
+- Recommended: fix workspace concept, xterm budget, UI density, persistence before anything else
+- Proposed suspend/resume ring buffer for terminals
+- Proposed per-project sidecar pool (max 3) — deferred to v3.1
 
-### Can Drop
-- **Detached pane mode**: Doesn't fit the workspace model
-- **Drag-resize splitters**: Project boxes have fixed internal layout
-- **Layout presets (1-col, 2-col, etc.)**: Replaced by N-project horizontal layout
-- **Remote machine integration**: Defer to v4 (complexity too high to combine)
-- **ctx ContextPane**: Becomes a workspace tab instead of a pane type
+### Agent: UX + Performance Specialist
+- Wireframes for 5120px (5 projects) and 1920px (3 projects)
+- Adaptive project count: `Math.floor(width / 520)`
+- xterm budget: lazy-init + scrollback serialization
+- RAF batching for 5 concurrent streams
+- <100ms workspace switch via serialize/unmount/remount
+- Memory budget: ~225MB total (within WebKit2GTK limits)
+- Team panel: inline >2560px, overlay <2560px
+- Command palette: Ctrl+K, floating overlay, fuzzy search
 
----
+## Codebase Reuse Analysis
 
-## Adversarial Agent Findings
+### Survives (with modifications)
+- TerminalPane.svelte — add suspend/resume lifecycle
+- MarkdownPane.svelte — unchanged
+- AgentTree.svelte — reused inside ClaudeSession
+- ContextPane.svelte — extracted to workspace tab
+- StatusBar.svelte — modified for per-project costs
+- ToastContainer.svelte — unchanged
+- agents.svelte.ts — add projectId field
+- theme.svelte.ts — unchanged
+- notifications.svelte.ts — unchanged
+- All adapters (agent-bridge, pty-bridge, claude-bridge, sdk-messages, session-bridge, ctx-bridge, ssh-bridge)
+- All Rust backend (sidecar, pty, session, ctx, watcher)
+- highlight.ts, agent-tree.ts utils
 
-(To be filled by adversarial review agents)
+### Replaced
+- layout.svelte.ts → workspace.svelte.ts
+- TilingGrid.svelte → ProjectGrid.svelte
+- PaneContainer.svelte → ProjectBox.svelte
+- SessionList.svelte → ProjectHeader + command palette
+- SettingsDialog.svelte → SettingsTab.svelte
+- AgentPane.svelte → ClaudeSession.svelte + TeamAgentsPanel.svelte
+- App.svelte → full rewrite
+
+### Dropped (v3.0)
+- Detached pane mode (doesn't fit workspace model)
+- Drag-resize splitters (project boxes have fixed internal layout)
+- Layout presets (1-col, 2-col, etc.) — replaced by adaptive project count
+- Remote machine integration (deferred to v3.1, elevated to project level)

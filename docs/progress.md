@@ -187,11 +187,43 @@
 - [ ] Produce final architecture plan
 - [ ] Create v3 implementation phases
 
+### Session: 2026-03-07 (continued) — v3 Mission Control MVP Implementation (Phases 1-5)
+
+#### Phase 1: Data Model + Config
+- [x] Created v2/src/lib/types/groups.ts (ProjectConfig, GroupConfig, GroupsFile interfaces)
+- [x] Created v2/src-tauri/src/groups.rs (Rust structs + load/save groups.json + default_groups())
+- [x] Added groups_load, groups_save Tauri commands to lib.rs
+- [x] SQLite migrations in session.rs: project_id column, agent_messages table, project_agent_state table
+- [x] Created v2/src/lib/adapters/groups-bridge.ts (IPC wrapper)
+- [x] Created v2/src/lib/stores/workspace.svelte.ts (replaces layout.svelte.ts for v3, Svelte 5 runes)
+- [x] Added --group CLI argument parsing in main.rs
+- [x] 24 vitest tests for workspace store + 7 cargo tests for groups
+
+#### Phase 2: Project Box Shell
+- [x] Created 12 new Workspace components in v2/src/lib/components/Workspace/
+- [x] GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, CommandPalette, DocsTab, ContextTab, SettingsTab
+- [x] Rewrote App.svelte (no sidebar, no TilingGrid — GlobalTabBar + tab content + StatusBar)
+
+#### Phase 3: Claude Session Integration
+- [x] Created ClaudeSession.svelte wrapping AgentPane per-project
+
+#### Phase 4: Terminal Tabs
+- [x] Created TerminalTabs.svelte with shell/SSH/agent tab types
+
+#### Phase 5: Team Agents Panel
+- [x] Created TeamAgentsPanel.svelte + AgentCard.svelte
+
+#### Bug Fix
+- [x] Fixed AgentPane Svelte 5 event modifier: on:click -> onclick
+
+#### Verification
+- All 138 vitest + 36 cargo tests pass, vite build succeeds
+
 ### Next Steps
+- [ ] v3 Phase 6: Session continuity (persist agent messages, restore on startup)
+- [ ] v3 Phase 7: Command palette wiring + group switching
+- [ ] v3 Phase 8-10: Docs tab, settings tab, polish
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections
 - [ ] E2E testing with Playwright/WebDriver (when display server available)
 - [ ] Test agent teams with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-- [ ] Model selector in AgentPane toolbar (dropdown for model override)
-- [ ] System prompt field in AgentPane toolbar (custom instructions per session)
-- [ ] Additional directories picker in AgentPane toolbar
