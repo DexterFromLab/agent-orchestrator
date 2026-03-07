@@ -128,3 +128,21 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 
 #### Verification
 - All 138 vitest + 35 cargo tests pass
+
+### Session: 2026-03-07 — Deep Dark Theme Group (6 Themes)
+
+#### New Theme Group: Deep Dark
+- [x] Added 6 new "Deep Dark" themes to `v2/src/lib/styles/themes.ts`:
+  - Tokyo Night (base: #1a1b26)
+  - Gruvbox Dark (base: #1d2021)
+  - Ayu Dark (base: #0b0e14, near-black)
+  - Poimandres (base: #1b1e28)
+  - Vesper (base: #101010, warm dark)
+  - Midnight (base: #000000, pure OLED black)
+- [x] Extended `ThemeId` union type from 11 to 17 values
+- [x] Added `THEME_LIST` entries with `group: 'Deep Dark'`
+- [x] Added all 6 palette definitions (26 colors each) mapped to --ctp-* slots
+- [x] Total themes: 17 across 3 groups (Catppuccin 4, Editor 7, Deep Dark 6)
+
+#### Verification
+- No test changes needed — theme palettes are data-only, no logic changes

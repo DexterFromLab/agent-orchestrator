@@ -388,7 +388,7 @@ No sidecar changes needed for v3.0.
 | Keyboard shortcut layers: App > Workspace > Terminal | Prevents conflicts. Terminal captures raw keys only when focused. App layer uses Ctrl+K/G. | 2026-03-07 |
 | AgentPane splits into ClaudeSession + TeamAgentsPanel | Team agents shown inline in right panel, not as separate panes. Saves xterm/pane slots. | 2026-03-07 |
 | Unmount/remount on group switch | Serialize xterm scrollbacks, destroy, remount new group. <100ms perceived. Frees ~80MB. | 2026-03-07 |
-| All themes map to --ctp-* CSS vars | 7 editor themes (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) added alongside 4 Catppuccin. All map to same 26 --ctp-* CSS custom properties — zero component changes needed. | 2026-03-07 |
+| All themes map to --ctp-* CSS vars | 17 themes in 3 groups: 4 Catppuccin + 7 Editor (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) + 6 Deep Dark (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight). All map to same 26 --ctp-* CSS custom properties — zero component changes needed. | 2026-03-07 |
 
 ## Errors Encountered
 

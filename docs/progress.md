@@ -255,6 +255,15 @@
 #### Verification
 - All 138 vitest + 35 cargo tests pass
 
+### Session: 2026-03-07 (continued) — Deep Dark Theme Group
+
+#### 6 New Deep Dark Themes
+- [x] Added Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight to themes.ts
+- [x] Extended ThemeId from 11 to 17 values, THEME_LIST from 11 to 17 entries
+- [x] New "Deep Dark" theme group (3rd group alongside Catppuccin and Editor)
+- [x] Midnight is pure OLED black (#000000), Ayu Dark near-black (#0b0e14), Vesper warm dark (#101010)
+- [x] All 6 themes map to same 26 --ctp-* CSS vars — zero component changes needed
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections

@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Multi-theme system: 7 new editor themes (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) alongside 4 Catppuccin flavors — total 11 themes across 2 groups
+- Deep Dark theme group: 6 new themes (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight) — total 17 themes across 3 groups (Catppuccin, Editor, Deep Dark). Midnight is pure OLED black (#000000), Ayu Dark near-black (#0b0e14), Vesper warm dark (#101010)
+- Multi-theme system: 7 new editor themes (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) alongside 4 Catppuccin flavors
 - `ThemeId` union type, `ThemePalette` (26-color interface), `ThemeMeta` (id/label/group/isDark), `THEME_LIST` registry with group metadata, `ALL_THEME_IDS` for validation
 - Theme store `getCurrentTheme()`/`setTheme()` as primary API; deprecated `getCurrentFlavor()`/`setFlavor()` wrappers for backwards compat
 - SettingsTab theme selector with `<optgroup>` grouping (Catppuccin, Editor groups)
@@ -34,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Early error reporting when Claude CLI is not found — sidecar emits `agent_error` immediately instead of cryptic SDK failure
 
 ### Changed
-- Theme system generalized from Catppuccin-only to multi-theme: all 11 themes map to same `--ctp-*` CSS custom properties (26 vars) — zero component-level changes needed
+- Theme system generalized from Catppuccin-only to multi-theme: all 17 themes map to same `--ctp-*` CSS custom properties (26 vars) — zero component-level changes needed
 - `CatppuccinFlavor` type deprecated in favor of `ThemeId`; `CatppuccinPalette` deprecated in favor of `ThemePalette`; `FLAVOR_LABELS` and `ALL_FLAVORS` deprecated in favor of `THEME_LIST` and `ALL_THEME_IDS`
 
 ### Fixed
