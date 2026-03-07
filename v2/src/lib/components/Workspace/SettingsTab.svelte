@@ -14,8 +14,8 @@
   } from '../../stores/workspace.svelte';
   import { deriveIdentifier } from '../../types/groups';
   import { getSetting, setSetting } from '../../adapters/settings-bridge';
-  import { getCurrentFlavor, setFlavor } from '../../stores/theme.svelte';
-  import type { CatppuccinFlavor } from '../../styles/themes';
+  import { getCurrentTheme, setTheme } from '../../stores/theme.svelte';
+  import { THEME_LIST, type ThemeId } from '../../styles/themes';
 
   let activeGroupId = $derived(getActiveGroupId());
   let activeGroup = $derived(getActiveGroup());
@@ -29,8 +29,17 @@
   // Global settings
   let defaultShell = $state('');
   let defaultCwd = $state('');
-  let themeFlavor = $state<CatppuccinFlavor>(getCurrentFlavor());
-  const flavors: CatppuccinFlavor[] = ['latte', 'frappe', 'macchiato', 'mocha'];
+  let selectedTheme = $state<ThemeId>(getCurrentTheme());
+
+  // Group themes by category for <optgroup>
+  const themeGroups = $derived(() => {
+    const map = new Map<string, typeof THEME_LIST>();
+    for (const t of THEME_LIST) {
+      if (!map.has(t.group)) map.set(t.group, []);
+      map.get(t.group)!.push(t);
+    }
+    return [...map.entries()];
+  });
 
   onMount(async () => {
     const [shell, cwd] = await Promise.all([
@@ -39,7 +48,7 @@
     ]);
     defaultShell = shell ?? '';
     defaultCwd = cwd ?? '';
-    themeFlavor = getCurrentFlavor();
+    selectedTheme = getCurrentTheme();
   });
 
   async function saveGlobalSetting(key: string, value: string) {
@@ -50,9 +59,9 @@
     }
   }
 
-  async function handleThemeChange(flavor: CatppuccinFlavor) {
-    themeFlavor = flavor;
-    await setFlavor(flavor);
+  async function handleThemeChange(themeId: ThemeId) {
+    selectedTheme = themeId;
+    await setTheme(themeId);
   }
 
   // New project form
@@ -92,14 +101,18 @@
     <h2>Global</h2>
     <div class="global-settings">
       <div class="setting-row">
-        <label for="theme-flavor">Theme</label>
+        <label for="theme-select">Theme</label>
         <select
-          id="theme-flavor"
-          value={themeFlavor}
-          onchange={e => handleThemeChange((e.target as HTMLSelectElement).value as CatppuccinFlavor)}
+          id="theme-select"
+          value={selectedTheme}
+          onchange={e => handleThemeChange((e.target as HTMLSelectElement).value as ThemeId)}
         >
-          {#each flavors as f}
-            <option value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+          {#each themeGroups() as [groupName, themes]}
+            <optgroup label={groupName}>
+              {#each themes as t}
+                <option value={t.id}>{t.label}</option>
+              {/each}
+            </optgroup>
           {/each}
         </select>
       </div>
@@ -154,14 +167,14 @@
 
       {#each activeGroup.projects as project}
         <div class="project-settings-row">
-          <label class="project-field">
+          <label class="project-field project-field-grow">
             <span class="field-label">Name</span>
             <input
               value={project.name}
               onchange={e => updateProject(activeGroupId, project.id, { name: (e.target as HTMLInputElement).value })}
             />
           </label>
-          <label class="project-field">
+          <label class="project-field project-field-grow">
             <span class="field-label">CWD</span>
             <input
               value={project.cwd}
@@ -237,6 +250,7 @@
     padding: 6px 10px;
     background: var(--ctp-surface0);
     border-radius: 4px;
+    min-width: 0;
   }
 
   .setting-row label {
@@ -255,10 +269,21 @@
     color: var(--ctp-text);
     font-size: 0.8rem;
     flex: 1;
+    min-width: 0;
   }
 
   .setting-row select {
     cursor: pointer;
+  }
+
+  .setting-row select optgroup {
+    font-weight: 600;
+    color: var(--ctp-subtext0);
+  }
+
+  .setting-row select option {
+    font-weight: normal;
+    color: var(--ctp-text);
   }
 
   .group-list {
@@ -306,12 +331,18 @@
     border-radius: 4px;
     margin-bottom: 4px;
     flex-wrap: wrap;
+    min-width: 0;
   }
 
   .project-field {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
+  }
+
+  .project-field-grow {
+    flex: 1;
   }
 
   .field-label {
@@ -327,6 +358,8 @@
     border-radius: 3px;
     color: var(--ctp-text);
     font-size: 0.8rem;
+    min-width: 0;
+    width: 100%;
   }
 
   .add-form {
@@ -334,6 +367,7 @@
     gap: 8px;
     align-items: center;
     margin-top: 8px;
+    min-width: 0;
   }
 
   .add-form input {
@@ -344,6 +378,7 @@
     color: var(--ctp-text);
     font-size: 0.8rem;
     flex: 1;
+    min-width: 0;
   }
 
   .btn-primary {
@@ -370,6 +405,7 @@
     border-radius: 3px;
     font-size: 0.75rem;
     cursor: pointer;
+    white-space: nowrap;
   }
 
   .limit-notice {
