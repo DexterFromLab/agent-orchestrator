@@ -99,3 +99,32 @@
 #### Rust Cleanup (committed separately)
 - [x] Removed dead `update_ssh_session()` method from session.rs and its test
 - [x] Fixed stale TilingGrid comment in AgentPane.svelte
+
+### Session: 2026-03-07 — Multi-Theme System (7 Editor Themes)
+
+#### Theme System Generalization
+- [x] Generalized `CatppuccinFlavor` type to `ThemeId` union type (11 values)
+- [x] Added 7 new editor themes: VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark
+- [x] Added `ThemePalette` interface (26-color slots) — all themes map to same slots
+- [x] Added `ThemeMeta` interface (id, label, group, isDark) for UI metadata
+- [x] Added `THEME_LIST: ThemeMeta[]` with group metadata ('Catppuccin' or 'Editor')
+- [x] Added `ALL_THEME_IDS: ThemeId[]` derived from THEME_LIST for validation
+- [x] Deprecated `CatppuccinFlavor`, `CatppuccinPalette`, `FLAVOR_LABELS`, `ALL_FLAVORS` (kept as backwards compat aliases)
+
+#### Theme Store Updates
+- [x] `getCurrentTheme(): ThemeId` replaces `getCurrentFlavor()` as primary getter
+- [x] `setTheme(theme: ThemeId)` replaces `setFlavor()` as primary setter
+- [x] `initTheme()` validates saved theme against `ALL_THEME_IDS`
+- [x] Deprecated `getCurrentFlavor()` and `setFlavor()` with delegation wrappers
+
+#### SettingsTab Theme Selector
+- [x] Theme dropdown uses `<optgroup>` per theme group (Catppuccin, Editor)
+- [x] `themeGroups` derived from `THEME_LIST` using Map grouping
+- [x] `handleThemeChange()` replaces direct `setFlavor()` call
+- [x] Fixed input overflow in `.setting-row` with `min-width: 0`
+
+#### Design Decision
+All editor themes map to the same `--ctp-*` CSS custom property names (26 vars). This means every component works unchanged — no component-level theme awareness needed. Each theme provides its own mapping of colors to the 26 semantic slots.
+
+#### Verification
+- All 138 vitest + 35 cargo tests pass

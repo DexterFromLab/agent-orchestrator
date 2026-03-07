@@ -242,6 +242,19 @@
 #### Verification
 - All 138 vitest + 36 cargo tests pass, vite build succeeds
 
+### Session: 2026-03-07 (continued) — Multi-Theme System
+
+#### Theme System Generalization (7 Editor Themes)
+- [x] Generalized CatppuccinFlavor to ThemeId union type (11 themes)
+- [x] Added 7 editor themes: VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark
+- [x] Added ThemePalette, ThemeMeta, THEME_LIST types; deprecated old Catppuccin-only types
+- [x] Theme store: getCurrentTheme()/setTheme() with deprecated wrappers for backwards compat
+- [x] SettingsTab: optgroup-based theme selector, fixed input overflow with min-width:0
+- [x] All themes map to same --ctp-* CSS vars — zero component changes needed
+
+#### Verification
+- All 138 vitest + 35 cargo tests pass
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections

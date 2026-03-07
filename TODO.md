@@ -10,6 +10,7 @@
 
 ## Completed
 
+- [x] **Multi-theme system** -- 7 editor themes (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) + 4 Catppuccin. ThemeId/ThemePalette/ThemeMeta types, THEME_LIST, optgroup selector. | Done: 2026-03-07
 - [x] **v3 Phases 6-10 Complete** -- Session continuity (persist/restore agent messages), workspace teardown on group switch, dead v2 component removal (~1,836 lines), StatusBar rewrite, subagent routing fix. | Done: 2026-03-07
 - [x] **v3 Mission Control MVP (Phases 1-5)** -- Data model + groups.rs + workspace store + 12 Workspace components + App.svelte rewrite + ClaudeSession + TerminalTabs + TeamAgentsPanel. 138 vitest + 36 cargo tests. | Done: 2026-03-07
 - [x] **v3 Architecture planning** -- Adversarial review (3 agents, 12 issues resolved), final architecture in docs/v3-task_plan.md. | Done: 2026-03-07
@@ -19,4 +20,3 @@
 - [x] **AgentPane onDestroy bug fix** -- Stop-on-close moved to TilingGrid onClose. | Done: 2026-03-06
 - [x] **Sidecar SDK migration** -- @anthropic-ai/claude-agent-sdk query(). | Done: 2026-03-06
 - [x] **Multi-machine support (Phases A-D)** -- bterminal-core, bterminal-relay, RemoteManager, frontend. | Done: 2026-03-06
-- [x] **Multi-machine reconnection** -- Exponential backoff, TCP probe, auto-reconnect. | Done: 2026-03-06

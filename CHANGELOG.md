@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- SettingsTab global settings section: theme flavor dropdown (Catppuccin 4 flavors), default shell input, default CWD input — all persisted via settings-bridge (getSetting/setSetting), loaded on mount
+- Multi-theme system: 7 new editor themes (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) alongside 4 Catppuccin flavors — total 11 themes across 2 groups
+- `ThemeId` union type, `ThemePalette` (26-color interface), `ThemeMeta` (id/label/group/isDark), `THEME_LIST` registry with group metadata, `ALL_THEME_IDS` for validation
+- Theme store `getCurrentTheme()`/`setTheme()` as primary API; deprecated `getCurrentFlavor()`/`setFlavor()` wrappers for backwards compat
+- SettingsTab theme selector with `<optgroup>` grouping (Catppuccin, Editor groups)
+- SettingsTab global settings section: theme selector, default shell input, default CWD input — all persisted via settings-bridge (getSetting/setSetting), loaded on mount
 - v3 Mission Control (All Phases 1-10 complete): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings)
 - v3 session continuity (P6): `persistSessionForProject()` saves agent state + messages to SQLite on session complete; `registerSessionProject()` maps session to project; `ClaudeSession.restoreMessagesFromRecords()` restores cached messages on mount
 - v3 workspace teardown (P7): `clearAllAgentSessions()` clears agent sessions on group switch; terminal tabs reset via `switchGroup()`
@@ -29,7 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Claude CLI path auto-detection: `findClaudeCli()` in both sidecar runners checks common paths (~/.local/bin/claude, ~/.claude/local/claude, /usr/local/bin/claude, /usr/bin/claude) then falls back to `which`/`where`; resolved path passed to SDK via `pathToClaudeCodeExecutable` option
 - Early error reporting when Claude CLI is not found — sidecar emits `agent_error` immediately instead of cryptic SDK failure
 
+### Changed
+- Theme system generalized from Catppuccin-only to multi-theme: all 11 themes map to same `--ctp-*` CSS custom properties (26 vars) — zero component-level changes needed
+- `CatppuccinFlavor` type deprecated in favor of `ThemeId`; `CatppuccinPalette` deprecated in favor of `ThemePalette`; `FLAVOR_LABELS` and `ALL_FLAVORS` deprecated in favor of `THEME_LIST` and `ALL_THEME_IDS`
+
 ### Fixed
+- SettingsTab input overflow: added `min-width: 0` on `.setting-row` to prevent flex children from overflowing container
 - SettingsTab a11y: project field labels changed from `<div><label>` to wrapping `<label><span class="field-label">` pattern for proper label/input association
 - SettingsTab CSS: removed unused `.project-field label` selector, simplified input selector to `.project-field input:not([type="checkbox"])`
 
