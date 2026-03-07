@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import {
     getActiveProjectId,
     getActiveGroup,
@@ -12,6 +13,9 @@
     switchGroup,
   } from '../../stores/workspace.svelte';
   import { deriveIdentifier } from '../../types/groups';
+  import { getSetting, setSetting } from '../../adapters/settings-bridge';
+  import { getCurrentFlavor, setFlavor } from '../../stores/theme.svelte';
+  import type { CatppuccinFlavor } from '../../styles/themes';
 
   let activeGroupId = $derived(getActiveGroupId());
   let activeGroup = $derived(getActiveGroup());
@@ -21,6 +25,35 @@
   let editingProject = $derived(
     activeGroup?.projects.find(p => p.id === activeProjectId),
   );
+
+  // Global settings
+  let defaultShell = $state('');
+  let defaultCwd = $state('');
+  let themeFlavor = $state<CatppuccinFlavor>(getCurrentFlavor());
+  const flavors: CatppuccinFlavor[] = ['latte', 'frappe', 'macchiato', 'mocha'];
+
+  onMount(async () => {
+    const [shell, cwd] = await Promise.all([
+      getSetting('default_shell'),
+      getSetting('default_cwd'),
+    ]);
+    defaultShell = shell ?? '';
+    defaultCwd = cwd ?? '';
+    themeFlavor = getCurrentFlavor();
+  });
+
+  async function saveGlobalSetting(key: string, value: string) {
+    try {
+      await setSetting(key, value);
+    } catch (e) {
+      console.error(`Failed to save setting ${key}:`, e);
+    }
+  }
+
+  async function handleThemeChange(flavor: CatppuccinFlavor) {
+    themeFlavor = flavor;
+    await setFlavor(flavor);
+  }
 
   // New project form
   let newName = $state('');
@@ -56,6 +89,42 @@
 
 <div class="settings-tab">
   <section class="settings-section">
+    <h2>Global</h2>
+    <div class="global-settings">
+      <div class="setting-row">
+        <label for="theme-flavor">Theme</label>
+        <select
+          id="theme-flavor"
+          value={themeFlavor}
+          onchange={e => handleThemeChange((e.target as HTMLSelectElement).value as CatppuccinFlavor)}
+        >
+          {#each flavors as f}
+            <option value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="setting-row">
+        <label for="default-shell">Default shell</label>
+        <input
+          id="default-shell"
+          value={defaultShell}
+          placeholder="/bin/bash"
+          onchange={e => { defaultShell = (e.target as HTMLInputElement).value; saveGlobalSetting('default_shell', defaultShell); }}
+        />
+      </div>
+      <div class="setting-row">
+        <label for="default-cwd">Default CWD</label>
+        <input
+          id="default-cwd"
+          value={defaultCwd}
+          placeholder="~"
+          onchange={e => { defaultCwd = (e.target as HTMLInputElement).value; saveGlobalSetting('default_cwd', defaultCwd); }}
+        />
+      </div>
+    </div>
+  </section>
+
+  <section class="settings-section">
     <h2>Groups</h2>
     <div class="group-list">
       {#each groups as group}
@@ -85,36 +154,36 @@
 
       {#each activeGroup.projects as project}
         <div class="project-settings-row">
-          <div class="project-field">
-            <label>Name</label>
+          <label class="project-field">
+            <span class="field-label">Name</span>
             <input
               value={project.name}
               onchange={e => updateProject(activeGroupId, project.id, { name: (e.target as HTMLInputElement).value })}
             />
-          </div>
-          <div class="project-field">
-            <label>CWD</label>
+          </label>
+          <label class="project-field">
+            <span class="field-label">CWD</span>
             <input
               value={project.cwd}
               onchange={e => updateProject(activeGroupId, project.id, { cwd: (e.target as HTMLInputElement).value })}
             />
-          </div>
-          <div class="project-field">
-            <label>Icon</label>
+          </label>
+          <label class="project-field">
+            <span class="field-label">Icon</span>
             <input
               value={project.icon}
               onchange={e => updateProject(activeGroupId, project.id, { icon: (e.target as HTMLInputElement).value })}
               style="width: 60px"
             />
-          </div>
-          <div class="project-field">
-            <label>Enabled</label>
+          </label>
+          <label class="project-field">
+            <span class="field-label">Enabled</span>
             <input
               type="checkbox"
               checked={project.enabled}
               onchange={e => updateProject(activeGroupId, project.id, { enabled: (e.target as HTMLInputElement).checked })}
             />
-          </div>
+          </label>
           <button class="btn-danger" onclick={() => removeProject(activeGroupId, project.id)}>
             Remove
           </button>
@@ -153,6 +222,43 @@
 
   .settings-section {
     margin-bottom: 24px;
+  }
+
+  .global-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 10px;
+    background: var(--ctp-surface0);
+    border-radius: 4px;
+  }
+
+  .setting-row label {
+    font-size: 0.8rem;
+    color: var(--ctp-subtext0);
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+
+  .setting-row input,
+  .setting-row select {
+    padding: 4px 8px;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 3px;
+    color: var(--ctp-text);
+    font-size: 0.8rem;
+    flex: 1;
+  }
+
+  .setting-row select {
+    cursor: pointer;
   }
 
   .group-list {
@@ -208,14 +314,13 @@
     gap: 2px;
   }
 
-  .project-field label {
+  .field-label {
     font-size: 0.7rem;
     color: var(--ctp-overlay0);
     text-transform: uppercase;
   }
 
-  .project-field input[type="text"],
-  .project-field input:not([type]) {
+  .project-field input:not([type="checkbox"]) {
     padding: 4px 8px;
     background: var(--ctp-base);
     border: 1px solid var(--ctp-surface1);
