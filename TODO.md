@@ -2,28 +2,28 @@
 
 ## Active
 
-### v3 Planning
-- [ ] **Collect adversarial agent findings** -- 3 architecture agents launched (Architect, Devil's Advocate, UX+Perf Specialist). Collect and synthesize findings.
-- [ ] **Produce final v3 architecture plan** -- Finalize decisions on config format, layout engine, session isolation, state management, etc.
-- [ ] **Create v3 implementation phases** -- Break v3 into phased implementation plan.
+### v3 Post-MVP (Phases 6-10)
+- [ ] **Phase 6: Session continuity** -- Persist agent messages to SQLite, persist sdkSessionId in project_agent_state, load cached messages on startup, "Continue" button with resume_session_id.
+- [ ] **Phase 7: Command palette + group switching** -- Wire CommandPalette.svelte with full Ctrl+K, fuzzy search, workspace teardown/setup on group switch.
+- [ ] **Phase 8: Docs tab** -- `discover_markdown_files` Tauri command (walk with depth/exclusions), DocsTab file tree + content split layout, MdFilePicker.
+- [ ] **Phase 9: Settings tab** -- Per-project config editor, icon picker (nerd font), group CRUD (create/rename/delete).
+- [ ] **Phase 10: Polish + cleanup** -- Remove dead v2 components (TilingGrid, PaneContainer, SessionList, SettingsDialog), update all tests, performance audit.
 
 ### v2 Remaining
-- [ ] **E2E testing (Playwright/WebDriver)** -- Scaffold at v2/tests/e2e/README.md. Needs display server to run. Test: open terminal, run command, open agent, verify output.
-- [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines (local + 1 remote). Verify PTY + agent operations over WebSocket.
-- [ ] **Multi-machine TLS/certificate pinning** -- Add TLS support to bterminal-relay and certificate pinning in RemoteManager for production security.
-- [ ] **Agent Teams real-world testing** -- Frontend routing implemented (Phase 7). Needs testing with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 and real subagent spawning.
-- [ ] **Model selector in AgentPane** -- Dropdown for model override per session (field already passes through to SDK).
-- [ ] **System prompt field in AgentPane** -- Custom instructions per agent session (field already passes through to SDK).
-- [ ] **Additional directories picker** -- UI for additional_directories per session (field already passes through to SDK).
+- [ ] **E2E testing (Playwright/WebDriver)** -- Scaffold at v2/tests/e2e/README.md. Needs display server.
+- [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
+- [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
+- [ ] **Agent Teams real-world testing** -- Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 
 ## Completed
 
-- [x] **Claude profiles & skill discovery** -- switcher-claude profile integration, skill autocomplete in agent prompt (`/` prefix), extended AgentQueryOptions with 5 new fields. | Done: 2026-03-07
-- [x] **Claude CLI path auto-detection** -- findClaudeCli() in both sidecar runners auto-detects Claude CLI path, passes to SDK via pathToClaudeCodeExecutable. Early error if CLI not found. | Done: 2026-03-07
-- [x] **Unified sidecar bundle** -- Single agent-runner.mjs runs on both Deno and Node.js. Rust-side CLAUDE* env var stripping (dual-layer). | Done: 2026-03-07
-- [x] **AgentPane onDestroy bug fix** -- Stop-on-close moved to TilingGrid onClose handler. | Done: 2026-03-06
-- [x] **Permission mode passthrough** -- permission_mode field flowing Rust -> sidecar -> SDK. | Done: 2026-03-06
-- [x] **Sidecar SDK migration** -- Migrated from raw CLI spawning to @anthropic-ai/claude-agent-sdk query(). | Done: 2026-03-06
-- [x] **Sidecar CLAUDE* env var leak fix** -- Strip ALL CLAUDE-prefixed env vars (dual-layer). | Done: 2026-03-06
-- [x] **Multi-machine reconnection** -- Exponential backoff, TCP probe, frontend listeners + auto-reconnect. | Done: 2026-03-06
+- [x] **v3 Mission Control MVP (Phases 1-5)** -- Data model + groups.rs + workspace store + 12 Workspace components + App.svelte rewrite + ClaudeSession + TerminalTabs + TeamAgentsPanel. 138 vitest + 36 cargo tests. | Done: 2026-03-07
+- [x] **v3 Architecture planning** -- Adversarial review (3 agents, 12 issues resolved), final architecture in docs/v3-task_plan.md. | Done: 2026-03-07
+- [x] **Claude profiles & skill discovery** -- switcher-claude integration, skill autocomplete, extended AgentQueryOptions. | Done: 2026-03-07
+- [x] **Claude CLI path auto-detection** -- findClaudeCli() + pathToClaudeCodeExecutable. | Done: 2026-03-07
+- [x] **Unified sidecar bundle** -- Single agent-runner.mjs, dual-layer CLAUDE* env var stripping. | Done: 2026-03-07
+- [x] **AgentPane onDestroy bug fix** -- Stop-on-close moved to TilingGrid onClose. | Done: 2026-03-06
+- [x] **Sidecar SDK migration** -- @anthropic-ai/claude-agent-sdk query(). | Done: 2026-03-06
 - [x] **Multi-machine support (Phases A-D)** -- bterminal-core, bterminal-relay, RemoteManager, frontend. | Done: 2026-03-06
+- [x] **Multi-machine reconnection** -- Exponential backoff, TCP probe, auto-reconnect. | Done: 2026-03-06
+- [x] **Sidecar CLAUDE* env var leak fix** -- Dual-layer stripping. | Done: 2026-03-06

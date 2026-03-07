@@ -4,8 +4,9 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- v2 Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles (switcher-claude), skill discovery/autocomplete, 114 vitest + 29 cargo tests.
-- v3 planning started: multi-project mission control redesign. See `docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`.
+- v2 Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles, skill discovery.
+- v3 Mission Control MVP (Phases 1-5) implemented: project groups, workspace store, 12 new Workspace components, groups.rs backend, SQLite migrations. 138 vitest + 36 cargo tests.
+- v3 docs: `docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -61,6 +62,12 @@
 - Pane.remoteMachineId?: string routes operations through RemoteManager instead of local managers. Bridge adapters (pty-bridge, agent-bridge) check this field.
 - bterminal-relay binary (v2/bterminal-relay/) is a standalone WebSocket server with token auth, rate limiting, and per-connection isolated managers. Commands return structured responses (pty_created, pong, error) with commandId for correlation via send_error() helper.
 - RemoteManager reconnection: exponential backoff (1s-30s cap) on disconnect, attempt_tcp_probe() (TCP-only, no WS upgrade), emits remote-machine-reconnecting and remote-machine-reconnect-ready events. Frontend listeners in remote-bridge.ts; machines store auto-reconnects on ready.
+- v3 workspace store (`workspace.svelte.ts`) replaces layout store for v3. Groups loaded from `~/.config/bterminal/groups.json` via `groups-bridge.ts`. State: groups, activeGroupId, activeTab, focusedProjectId. Derived: activeGroup, activeProjects.
+- v3 groups backend (`groups.rs`): load_groups(), save_groups(), default_groups(). Tauri commands: groups_load, groups_save.
+- v3 SQLite additions: agent_messages table (per-project message persistence), project_agent_state table (sdkSessionId, cost, status per project), sessions.project_id column.
+- v3 App.svelte fully rewritten: no sidebar, no TilingGrid. Renders GlobalTabBar + tab content (Sessions/Docs/Context/Settings) + StatusBar.
+- v3 component tree: App -> GlobalTabBar + ProjectGrid -> ProjectBox -> (ProjectHeader + ClaudeSession + TeamAgentsPanel + TerminalTabs). See `docs/v3-task_plan.md` for full tree.
+- Svelte 5 event syntax: use `onclick` not `on:click`. Svelte 5 requires lowercase event handler attributes (no colon syntax).
 
 ## Memora Tags
 

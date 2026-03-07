@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 planning started: multi-project mission control redesign (project groups, per-project Claude sessions, workspace tabs).
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control MVP (Phases 1-5) implemented: multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings).
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -34,14 +34,16 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/bterminal-core/` | Shared crate: EventSink trait, PtyManager, SidecarManager |
 | `v2/bterminal-relay/` | Standalone relay binary (WebSocket server, token auth, CLI) |
 | `v2/src-tauri/src/pty.rs` | PTY backend (thin re-export from bterminal-core) |
-| `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings + 12 remote + 4 claude profile/skill) |
+| `v2/src-tauri/src/groups.rs` | Groups config (load/save ~/.config/bterminal/groups.json) |
+| `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings + 12 remote + 4 claude + 2 groups) |
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |
 | `v2/src-tauri/src/remote.rs` | RemoteManager (WebSocket client connections to relays) |
-| `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions) |
+| `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions + agent_messages + project_agent_state) |
 | `v2/src-tauri/src/watcher.rs` | FileWatcherManager (notify crate, file change events) |
 | `v2/src-tauri/src/ctx.rs` | CtxDb (read-only access to ~/.claude-context/context.db) |
-| `v2/src/lib/stores/layout.svelte.ts` | Layout store (panes, presets, groups, persistence, Svelte 5 runes) |
+| `v2/src/lib/stores/workspace.svelte.ts` | v3 workspace store (project groups, tabs, focus, replaces layout store) |
+| `v2/src/lib/stores/layout.svelte.ts` | v2 layout store (panes, presets, groups, persistence, Svelte 5 runes) |
 | `v2/src/lib/stores/agents.svelte.ts` | Agent session store (messages, cost, parent/child hierarchy) |
 | `v2/src/lib/components/Terminal/TerminalPane.svelte` | xterm.js terminal pane |
 | `v2/src/lib/components/Agent/AgentPane.svelte` | Agent session pane (prompt, messages, cost, profile selector, skill autocomplete) |
@@ -54,6 +56,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/ctx-bridge.ts` | ctx database IPC wrapper |
 | `v2/src/lib/adapters/ssh-bridge.ts` | SSH session IPC wrapper |
 | `v2/src/lib/adapters/claude-bridge.ts` | Claude profiles + skills IPC wrapper |
+| `v2/src/lib/adapters/groups-bridge.ts` | Groups config IPC wrapper (load/save) |
 | `v2/src/lib/adapters/remote-bridge.ts` | Remote machine management IPC wrapper |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
 | `v2/src/lib/utils/agent-tree.ts` | Agent tree builder (hierarchy from messages) |
@@ -70,6 +73,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (pane counts, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
 | `v2/src/lib/components/Settings/SettingsDialog.svelte` | Settings modal (shell, cwd, max panes, theme) |
+| `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, CommandPalette, DocsTab, ContextTab, SettingsTab |
+| `v2/src/lib/types/groups.ts` | TypeScript interfaces (ProjectConfig, GroupConfig, GroupsFile) |
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |
 | `v2/sidecar/agent-runner.ts` | Sidecar source (compiled to .mjs by esbuild, includes findClaudeCli()) |
@@ -80,6 +85,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (28 tests) |
 | `v2/src/lib/stores/layout.test.ts` | Vitest tests for layout store (30 tests) |
 | `v2/src/lib/utils/agent-tree.test.ts` | Vitest tests for agent tree builder (20 tests) |
+| `v2/src/lib/stores/workspace.test.ts` | Vitest tests for workspace store (24 tests) |
 
 ## v1 Stack
 
@@ -88,7 +94,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Context DB: `~/.claude-context/context.db`
 - Theme: Catppuccin Mocha
 
-## v2 Stack (Phases 1-7 + Multi-Machine A-D + Profiles/Skills complete, branch: v2-mission-control)
+## v2/v3 Stack (v2 complete, v3 MVP Phases 1-5 complete, branch: v2-mission-control)
 
 - Tauri 2.x (Rust backend) + Svelte 5 (frontend)
 - Cargo workspace: bterminal-core (shared), bterminal-relay (remote binary), src-tauri (Tauri app)

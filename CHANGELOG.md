@@ -8,7 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- v3 Mission Control redesign planning: architecture docs (`docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`), codebase reuse analysis, adversarial architecture review launched
+- v3 Mission Control MVP (Phases 1-5): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings)
+- v3 data model: `groups.rs` (Rust structs + load/save `~/.config/bterminal/groups.json`), `groups.ts` (TypeScript interfaces), `groups-bridge.ts` (IPC adapter), `--group` CLI argument
+- v3 workspace store (`workspace.svelte.ts`): replaces `layout.svelte.ts`, manages groups/activeGroupId/activeTab/focusedProjectId with Svelte 5 runes
+- v3 SQLite migrations: `agent_messages` table (per-project message persistence), `project_agent_state` table (sdkSessionId/cost/status per project), `project_id` column on sessions
+- 12 new Workspace components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, CommandPalette, DocsTab, ContextTab, SettingsTab
+- v3 App.svelte full rewrite: GlobalTabBar + tab content area + StatusBar (no sidebar, no TilingGrid)
+- 24 new vitest tests for workspace store, 7 new cargo tests for groups (total: 138 vitest + 36 cargo)
+- v3 adversarial architecture review: 3 agents (Architect, Devil's Advocate, UX+Performance Specialist), 12 issues identified and resolved
+- v3 Mission Control redesign planning: architecture docs (`docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`), codebase reuse analysis
 - Claude profile/account switching: `claude_list_profiles()` reads `~/.config/switcher/profiles/` directories with `profile.toml` metadata (email, subscription_type, display_name); profile selector dropdown in AgentPane toolbar when multiple profiles available; selected profile's `config_dir` passed as `CLAUDE_CONFIG_DIR` env override to SDK
 - Skill discovery and autocomplete: `claude_list_skills()` reads `~/.claude/skills/` (directories with `SKILL.md` or standalone `.md` files); type `/` in agent prompt textarea to trigger autocomplete menu with arrow key navigation, Tab/Enter selection, Escape dismiss; `expandSkillPrompt()` reads skill content and injects as prompt
 - New frontend adapter `claude-bridge.ts`: `ClaudeProfile` and `ClaudeSkill` interfaces, `listProfiles()`, `listSkills()`, `readSkill()` IPC wrappers
@@ -24,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidecar runners inject `CLAUDE_CONFIG_DIR` into clean env when `claudeConfigDir` provided in query message (multi-account support)
 
 ### Fixed
+- AgentPane Svelte 5 event modifier syntax: `on:click` changed to `onclick` (Svelte 5 requires lowercase event handler attributes, not colon syntax)
 - CLAUDE* env var stripping now applied at Rust level in SidecarManager (bterminal-core/src/sidecar.rs): `env_clear()` + `envs(clean_env)` strips all CLAUDE-prefixed vars before spawning sidecar process, providing primary defense against nesting detection (JS-side stripping retained as defense-in-depth)
 
 ### Changed
