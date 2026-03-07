@@ -78,4 +78,20 @@ export async function initTheme(): Promise<void> {
   if (currentTheme !== 'mocha') {
     applyCssVariables(currentTheme);
   }
+
+  // Apply saved font settings
+  try {
+    const [fontFamily, fontSize] = await Promise.all([
+      getSetting('font_family'),
+      getSetting('font_size'),
+    ]);
+    if (fontFamily) {
+      document.documentElement.style.setProperty('--ui-font-family', `'${fontFamily}', monospace`);
+    }
+    if (fontSize) {
+      document.documentElement.style.setProperty('--ui-font-size', `${fontSize}px`);
+    }
+  } catch {
+    // Font settings are optional — defaults from catppuccin.css apply
+  }
 }

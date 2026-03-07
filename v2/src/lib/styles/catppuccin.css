@@ -43,6 +43,10 @@
   --warning: var(--ctp-yellow);
   --error: var(--ctp-red);
 
+  /* Typography */
+  --ui-font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --ui-font-size: 13px;
+
   /* Layout */
   --sidebar-width: 260px;
   --right-panel-width: 380px;

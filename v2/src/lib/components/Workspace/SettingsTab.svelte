@@ -29,8 +29,22 @@
   // Global settings
   let defaultShell = $state('');
   let defaultCwd = $state('');
+  let fontFamily = $state('');
+  let fontSize = $state('');
   let selectedTheme = $state<ThemeId>(getCurrentTheme());
   let themeDropdownOpen = $state(false);
+
+  const FONT_OPTIONS = [
+    'JetBrains Mono',
+    'Fira Code',
+    'Cascadia Code',
+    'Source Code Pro',
+    'IBM Plex Mono',
+    'Hack',
+    'Inconsolata',
+    'Ubuntu Mono',
+    'monospace',
+  ];
 
   // Group themes by category
   const themeGroups = $derived(() => {
@@ -47,14 +61,26 @@
   );
 
   onMount(async () => {
-    const [shell, cwd] = await Promise.all([
+    const [shell, cwd, font, size] = await Promise.all([
       getSetting('default_shell'),
       getSetting('default_cwd'),
+      getSetting('font_family'),
+      getSetting('font_size'),
     ]);
     defaultShell = shell ?? '';
     defaultCwd = cwd ?? '';
+    fontFamily = font ?? '';
+    fontSize = size ?? '';
     selectedTheme = getCurrentTheme();
+
+    // Apply saved font settings
+    if (font) applyFont('--ui-font-family', `'${font}', monospace`);
+    if (size) applyFont('--ui-font-size', `${size}px`);
   });
+
+  function applyFont(prop: string, value: string) {
+    document.documentElement.style.setProperty(prop, value);
+  }
 
   async function saveGlobalSetting(key: string, value: string) {
     try {
@@ -62,6 +88,20 @@
     } catch (e) {
       console.error(`Failed to save setting ${key}:`, e);
     }
+  }
+
+  async function handleFontFamilyChange(family: string) {
+    fontFamily = family;
+    applyFont('--ui-font-family', family ? `'${family}', monospace` : "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace");
+    await saveGlobalSetting('font_family', family);
+  }
+
+  async function handleFontSizeChange(size: string) {
+    const num = parseInt(size, 10);
+    if (isNaN(num) || num < 8 || num > 24) return;
+    fontSize = size;
+    applyFont('--ui-font-size', `${num}px`);
+    await saveGlobalSetting('font_size', size);
   }
 
   async function handleThemeChange(themeId: ThemeId) {
@@ -120,8 +160,8 @@
 <div class="settings-tab" onclick={handleClickOutside}>
   <section class="settings-section">
     <h2>Global</h2>
-    <div class="global-settings">
-      <div class="setting-row">
+    <div class="global-grid">
+      <div class="setting-field">
         <span class="setting-label">Theme</span>
         <div class="theme-dropdown" onkeydown={handleDropdownKeydown}>
           <button
@@ -167,7 +207,48 @@
           {/if}
         </div>
       </div>
-      <div class="setting-row">
+
+      <div class="setting-field">
+        <label for="font-family" class="setting-label">Font family</label>
+        <select
+          id="font-family"
+          class="setting-select"
+          onchange={e => handleFontFamilyChange((e.target as HTMLSelectElement).value)}
+        >
+          <option value="" selected={!fontFamily}>Default (JetBrains Mono)</option>
+          {#each FONT_OPTIONS as font}
+            <option value={font} selected={fontFamily === font}>{font}</option>
+          {/each}
+        </select>
+      </div>
+
+      <div class="setting-field">
+        <label for="font-size" class="setting-label">Font size</label>
+        <div class="size-control">
+          <button
+            class="size-btn"
+            onclick={() => handleFontSizeChange(String((parseInt(fontSize, 10) || 13) - 1))}
+            disabled={parseInt(fontSize, 10) <= 8}
+          >−</button>
+          <input
+            id="font-size"
+            type="number"
+            min="8"
+            max="24"
+            value={fontSize || '13'}
+            class="size-input"
+            onchange={e => handleFontSizeChange((e.target as HTMLInputElement).value)}
+          />
+          <span class="size-unit">px</span>
+          <button
+            class="size-btn"
+            onclick={() => handleFontSizeChange(String((parseInt(fontSize, 10) || 13) + 1))}
+            disabled={parseInt(fontSize, 10) >= 24}
+          >+</button>
+        </div>
+      </div>
+
+      <div class="setting-field">
         <label for="default-shell" class="setting-label">Default shell</label>
         <input
           id="default-shell"
@@ -176,7 +257,8 @@
           onchange={e => { defaultShell = (e.target as HTMLInputElement).value; saveGlobalSetting('default_shell', defaultShell); }}
         />
       </div>
-      <div class="setting-row">
+
+      <div class="setting-field">
         <label for="default-cwd" class="setting-label">Default CWD</label>
         <input
           id="default-cwd"
@@ -288,45 +370,98 @@
     margin-bottom: 24px;
   }
 
-  .global-settings {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  .global-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
 
-  .setting-row {
+  .setting-field {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 10px;
-    background: var(--ctp-surface0);
-    border-radius: 4px;
-    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .setting-label {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     color: var(--ctp-subtext0);
-    min-width: 100px;
-    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
 
-  .setting-row input {
-    padding: 4px 8px;
-    background: var(--ctp-base);
+  .setting-field input:not([type="number"]) {
+    padding: 6px 10px;
+    background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 3px;
+    border-radius: 4px;
     color: var(--ctp-text);
     font-size: 0.8rem;
-    flex: 1;
-    min-width: 0;
+  }
+
+  .setting-select {
+    padding: 6px 10px;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    color: var(--ctp-text);
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .size-control {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .size-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    color: var(--ctp-text);
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .size-btn:hover {
+    background: var(--ctp-surface1);
+  }
+
+  .size-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .size-input {
+    width: 48px;
+    padding: 4px 6px;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    color: var(--ctp-text);
+    font-size: 0.8rem;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+
+  .size-input::-webkit-inner-spin-button,
+  .size-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+  }
+
+  .size-unit {
+    font-size: 0.75rem;
+    color: var(--ctp-overlay0);
   }
 
   /* Custom theme dropdown */
   .theme-dropdown {
     position: relative;
-    flex: 1;
-    min-width: 180px;
   }
 
   .theme-trigger {
