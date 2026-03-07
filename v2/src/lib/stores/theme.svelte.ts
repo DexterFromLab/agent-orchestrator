@@ -81,16 +81,17 @@ export async function initTheme(): Promise<void> {
 
   // Apply saved font settings
   try {
-    const [fontFamily, fontSize] = await Promise.all([
-      getSetting('font_family'),
-      getSetting('font_size'),
+    const [uiFont, uiSize, termFont, termSize] = await Promise.all([
+      getSetting('ui_font_family'),
+      getSetting('ui_font_size'),
+      getSetting('term_font_family'),
+      getSetting('term_font_size'),
     ]);
-    if (fontFamily) {
-      document.documentElement.style.setProperty('--ui-font-family', `'${fontFamily}', monospace`);
-    }
-    if (fontSize) {
-      document.documentElement.style.setProperty('--ui-font-size', `${fontSize}px`);
-    }
+    const root = document.documentElement.style;
+    if (uiFont) root.setProperty('--ui-font-family', `'${uiFont}', sans-serif`);
+    if (uiSize) root.setProperty('--ui-font-size', `${uiSize}px`);
+    if (termFont) root.setProperty('--term-font-family', `'${termFont}', monospace`);
+    if (termSize) root.setProperty('--term-font-size', `${termSize}px`);
   } catch {
     // Font settings are optional — defaults from catppuccin.css apply
   }

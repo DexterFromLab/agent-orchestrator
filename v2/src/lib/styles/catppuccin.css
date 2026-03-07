@@ -46,6 +46,8 @@
   /* Typography */
   --ui-font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   --ui-font-size: 13px;
+  --term-font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --term-font-size: 13px;
 
   /* Layout */
   --sidebar-width: 260px;

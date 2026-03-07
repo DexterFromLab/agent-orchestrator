@@ -29,21 +29,40 @@
   // Global settings
   let defaultShell = $state('');
   let defaultCwd = $state('');
-  let fontFamily = $state('');
-  let fontSize = $state('');
+  let uiFont = $state('');
+  let uiFontSize = $state('');
+  let termFont = $state('');
+  let termFontSize = $state('');
   let selectedTheme = $state<ThemeId>(getCurrentTheme());
-  let themeDropdownOpen = $state(false);
 
-  const FONT_OPTIONS = [
-    'JetBrains Mono',
-    'Fira Code',
-    'Cascadia Code',
-    'Source Code Pro',
-    'IBM Plex Mono',
-    'Hack',
-    'Inconsolata',
-    'Ubuntu Mono',
-    'monospace',
+  // Dropdown open states
+  let themeDropdownOpen = $state(false);
+  let uiFontDropdownOpen = $state(false);
+  let termFontDropdownOpen = $state(false);
+
+  const UI_FONTS = [
+    { value: '', label: 'System Default' },
+    { value: 'Inter', label: 'Inter' },
+    { value: 'IBM Plex Sans', label: 'IBM Plex Sans' },
+    { value: 'Noto Sans', label: 'Noto Sans' },
+    { value: 'Roboto', label: 'Roboto' },
+    { value: 'Source Sans 3', label: 'Source Sans 3' },
+    { value: 'Ubuntu', label: 'Ubuntu' },
+    { value: 'JetBrains Mono', label: 'JetBrains Mono' },
+    { value: 'Fira Code', label: 'Fira Code' },
+  ];
+
+  const TERM_FONTS = [
+    { value: '', label: 'Default (JetBrains Mono)' },
+    { value: 'JetBrains Mono', label: 'JetBrains Mono' },
+    { value: 'Fira Code', label: 'Fira Code' },
+    { value: 'Cascadia Code', label: 'Cascadia Code' },
+    { value: 'Source Code Pro', label: 'Source Code Pro' },
+    { value: 'IBM Plex Mono', label: 'IBM Plex Mono' },
+    { value: 'Hack', label: 'Hack' },
+    { value: 'Inconsolata', label: 'Inconsolata' },
+    { value: 'Ubuntu Mono', label: 'Ubuntu Mono' },
+    { value: 'monospace', label: 'monospace' },
   ];
 
   // Group themes by category
@@ -60,25 +79,33 @@
     THEME_LIST.find(t => t.id === selectedTheme)?.label ?? selectedTheme,
   );
 
+  let uiFontLabel = $derived(
+    UI_FONTS.find(f => f.value === uiFont)?.label ?? 'System Default',
+  );
+
+  let termFontLabel = $derived(
+    TERM_FONTS.find(f => f.value === termFont)?.label ?? 'Default (JetBrains Mono)',
+  );
+
   onMount(async () => {
-    const [shell, cwd, font, size] = await Promise.all([
+    const [shell, cwd, font, size, tfont, tsize] = await Promise.all([
       getSetting('default_shell'),
       getSetting('default_cwd'),
-      getSetting('font_family'),
-      getSetting('font_size'),
+      getSetting('ui_font_family'),
+      getSetting('ui_font_size'),
+      getSetting('term_font_family'),
+      getSetting('term_font_size'),
     ]);
     defaultShell = shell ?? '';
     defaultCwd = cwd ?? '';
-    fontFamily = font ?? '';
-    fontSize = size ?? '';
+    uiFont = font ?? '';
+    uiFontSize = size ?? '';
+    termFont = tfont ?? '';
+    termFontSize = tsize ?? '';
     selectedTheme = getCurrentTheme();
-
-    // Apply saved font settings
-    if (font) applyFont('--ui-font-family', `'${font}', monospace`);
-    if (size) applyFont('--ui-font-size', `${size}px`);
   });
 
-  function applyFont(prop: string, value: string) {
+  function applyCssProp(prop: string, value: string) {
     document.documentElement.style.setProperty(prop, value);
   }
 
@@ -90,18 +117,40 @@
     }
   }
 
-  async function handleFontFamilyChange(family: string) {
-    fontFamily = family;
-    applyFont('--ui-font-family', family ? `'${family}', monospace` : "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace");
-    await saveGlobalSetting('font_family', family);
+  async function handleUiFontChange(family: string) {
+    uiFont = family;
+    uiFontDropdownOpen = false;
+    const val = family
+      ? `'${family}', sans-serif`
+      : "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace";
+    applyCssProp('--ui-font-family', val);
+    await saveGlobalSetting('ui_font_family', family);
   }
 
-  async function handleFontSizeChange(size: string) {
+  async function handleUiFontSizeChange(size: string) {
     const num = parseInt(size, 10);
     if (isNaN(num) || num < 8 || num > 24) return;
-    fontSize = size;
-    applyFont('--ui-font-size', `${num}px`);
-    await saveGlobalSetting('font_size', size);
+    uiFontSize = size;
+    applyCssProp('--ui-font-size', `${num}px`);
+    await saveGlobalSetting('ui_font_size', size);
+  }
+
+  async function handleTermFontChange(family: string) {
+    termFont = family;
+    termFontDropdownOpen = false;
+    const val = family
+      ? `'${family}', monospace`
+      : "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace";
+    applyCssProp('--term-font-family', val);
+    await saveGlobalSetting('term_font_family', family);
+  }
+
+  async function handleTermFontSizeChange(size: string) {
+    const num = parseInt(size, 10);
+    if (isNaN(num) || num < 8 || num > 24) return;
+    termFontSize = size;
+    applyCssProp('--term-font-size', `${num}px`);
+    await saveGlobalSetting('term_font_size', size);
   }
 
   async function handleThemeChange(themeId: ThemeId) {
@@ -110,16 +159,20 @@
     await setTheme(themeId);
   }
 
-  function handleDropdownKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
+  function handleClickOutside(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.custom-dropdown')) {
       themeDropdownOpen = false;
+      uiFontDropdownOpen = false;
+      termFontDropdownOpen = false;
     }
   }
 
-  function handleClickOutside(e: MouseEvent) {
-    const target = e.target as HTMLElement;
-    if (!target.closest('.theme-dropdown')) {
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
       themeDropdownOpen = false;
+      uiFontDropdownOpen = false;
+      termFontDropdownOpen = false;
     }
   }
 
@@ -157,16 +210,16 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="settings-tab" onclick={handleClickOutside}>
+<div class="settings-tab" onclick={handleClickOutside} onkeydown={handleKeydown}>
   <section class="settings-section">
-    <h2>Global</h2>
-    <div class="global-grid">
+    <h2>Appearance</h2>
+    <div class="settings-list">
       <div class="setting-field">
         <span class="setting-label">Theme</span>
-        <div class="theme-dropdown" onkeydown={handleDropdownKeydown}>
+        <div class="custom-dropdown">
           <button
-            class="theme-trigger"
-            onclick={() => (themeDropdownOpen = !themeDropdownOpen)}
+            class="dropdown-trigger"
+            onclick={() => { themeDropdownOpen = !themeDropdownOpen; uiFontDropdownOpen = false; termFontDropdownOpen = false; }}
             aria-haspopup="listbox"
             aria-expanded={themeDropdownOpen}
           >
@@ -174,16 +227,16 @@
               class="theme-swatch"
               style="background: {getPalette(selectedTheme).base}; border-color: {getPalette(selectedTheme).surface1};"
             ></span>
-            <span class="theme-trigger-label">{selectedThemeLabel}</span>
-            <span class="theme-arrow">{themeDropdownOpen ? '\u25B4' : '\u25BE'}</span>
+            <span class="dropdown-label">{selectedThemeLabel}</span>
+            <span class="dropdown-arrow">{themeDropdownOpen ? '\u25B4' : '\u25BE'}</span>
           </button>
           {#if themeDropdownOpen}
-            <div class="theme-menu" role="listbox">
+            <div class="dropdown-menu" role="listbox">
               {#each themeGroups() as [groupName, themes]}
-                <div class="theme-group-label">{groupName}</div>
+                <div class="dropdown-group-label">{groupName}</div>
                 {#each themes as t}
                   <button
-                    class="theme-option"
+                    class="dropdown-option"
                     class:active={t.id === selectedTheme}
                     role="option"
                     aria-selected={t.id === selectedTheme}
@@ -193,7 +246,7 @@
                       class="theme-swatch"
                       style="background: {getPalette(t.id).base}; border-color: {getPalette(t.id).surface1};"
                     ></span>
-                    <span class="theme-option-label">{t.label}</span>
+                    <span class="dropdown-option-label">{t.label}</span>
                     <span class="theme-colors">
                       <span class="color-dot" style="background: {getPalette(t.id).red};"></span>
                       <span class="color-dot" style="background: {getPalette(t.id).green};"></span>
@@ -209,47 +262,120 @@
       </div>
 
       <div class="setting-field">
-        <label for="font-family" class="setting-label">Font family</label>
-        <select
-          id="font-family"
-          class="setting-select"
-          onchange={e => handleFontFamilyChange((e.target as HTMLSelectElement).value)}
-        >
-          <option value="" selected={!fontFamily}>Default (JetBrains Mono)</option>
-          {#each FONT_OPTIONS as font}
-            <option value={font} selected={fontFamily === font}>{font}</option>
-          {/each}
-        </select>
-      </div>
-
-      <div class="setting-field">
-        <label for="font-size" class="setting-label">Font size</label>
-        <div class="size-control">
-          <button
-            class="size-btn"
-            onclick={() => handleFontSizeChange(String((parseInt(fontSize, 10) || 13) - 1))}
-            disabled={parseInt(fontSize, 10) <= 8}
-          >−</button>
-          <input
-            id="font-size"
-            type="number"
-            min="8"
-            max="24"
-            value={fontSize || '13'}
-            class="size-input"
-            onchange={e => handleFontSizeChange((e.target as HTMLInputElement).value)}
-          />
-          <span class="size-unit">px</span>
-          <button
-            class="size-btn"
-            onclick={() => handleFontSizeChange(String((parseInt(fontSize, 10) || 13) + 1))}
-            disabled={parseInt(fontSize, 10) >= 24}
-          >+</button>
+        <span class="setting-label">UI Font</span>
+        <div class="setting-row">
+          <div class="custom-dropdown dropdown-grow">
+            <button
+              class="dropdown-trigger"
+              onclick={() => { uiFontDropdownOpen = !uiFontDropdownOpen; themeDropdownOpen = false; termFontDropdownOpen = false; }}
+              aria-haspopup="listbox"
+              aria-expanded={uiFontDropdownOpen}
+            >
+              <span class="dropdown-label" style={uiFont ? `font-family: '${uiFont}', sans-serif` : ''}>{uiFontLabel}</span>
+              <span class="dropdown-arrow">{uiFontDropdownOpen ? '\u25B4' : '\u25BE'}</span>
+            </button>
+            {#if uiFontDropdownOpen}
+              <div class="dropdown-menu" role="listbox">
+                {#each UI_FONTS as f}
+                  <button
+                    class="dropdown-option"
+                    class:active={f.value === uiFont}
+                    role="option"
+                    aria-selected={f.value === uiFont}
+                    style={f.value ? `font-family: '${f.value}', sans-serif` : ''}
+                    onclick={() => handleUiFontChange(f.value)}
+                  >
+                    <span class="dropdown-option-label">{f.label}</span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+          <div class="size-control">
+            <button
+              class="size-btn"
+              onclick={() => handleUiFontSizeChange(String((parseInt(uiFontSize, 10) || 13) - 1))}
+              disabled={(parseInt(uiFontSize, 10) || 13) <= 8}
+            >&minus;</button>
+            <input
+              type="number"
+              min="8"
+              max="24"
+              value={uiFontSize || '13'}
+              class="size-input"
+              onchange={e => handleUiFontSizeChange((e.target as HTMLInputElement).value)}
+            />
+            <span class="size-unit">px</span>
+            <button
+              class="size-btn"
+              onclick={() => handleUiFontSizeChange(String((parseInt(uiFontSize, 10) || 13) + 1))}
+              disabled={(parseInt(uiFontSize, 10) || 13) >= 24}
+            >+</button>
+          </div>
         </div>
       </div>
 
       <div class="setting-field">
-        <label for="default-shell" class="setting-label">Default shell</label>
+        <span class="setting-label">Terminal Font</span>
+        <div class="setting-row">
+          <div class="custom-dropdown dropdown-grow">
+            <button
+              class="dropdown-trigger"
+              onclick={() => { termFontDropdownOpen = !termFontDropdownOpen; themeDropdownOpen = false; uiFontDropdownOpen = false; }}
+              aria-haspopup="listbox"
+              aria-expanded={termFontDropdownOpen}
+            >
+              <span class="dropdown-label" style={termFont ? `font-family: '${termFont}', monospace` : ''}>{termFontLabel}</span>
+              <span class="dropdown-arrow">{termFontDropdownOpen ? '\u25B4' : '\u25BE'}</span>
+            </button>
+            {#if termFontDropdownOpen}
+              <div class="dropdown-menu" role="listbox">
+                {#each TERM_FONTS as f}
+                  <button
+                    class="dropdown-option"
+                    class:active={f.value === termFont}
+                    role="option"
+                    aria-selected={f.value === termFont}
+                    style={f.value ? `font-family: '${f.value}', monospace` : ''}
+                    onclick={() => handleTermFontChange(f.value)}
+                  >
+                    <span class="dropdown-option-label">{f.label}</span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+          <div class="size-control">
+            <button
+              class="size-btn"
+              onclick={() => handleTermFontSizeChange(String((parseInt(termFontSize, 10) || 13) - 1))}
+              disabled={(parseInt(termFontSize, 10) || 13) <= 8}
+            >&minus;</button>
+            <input
+              type="number"
+              min="8"
+              max="24"
+              value={termFontSize || '13'}
+              class="size-input"
+              onchange={e => handleTermFontSizeChange((e.target as HTMLInputElement).value)}
+            />
+            <span class="size-unit">px</span>
+            <button
+              class="size-btn"
+              onclick={() => handleTermFontSizeChange(String((parseInt(termFontSize, 10) || 13) + 1))}
+              disabled={(parseInt(termFontSize, 10) || 13) >= 24}
+            >+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="settings-section">
+    <h2>Defaults</h2>
+    <div class="settings-list">
+      <div class="setting-field">
+        <label for="default-shell" class="setting-label">Shell</label>
         <input
           id="default-shell"
           value={defaultShell}
@@ -257,9 +383,8 @@
           onchange={e => { defaultShell = (e.target as HTMLInputElement).value; saveGlobalSetting('default_shell', defaultShell); }}
         />
       </div>
-
       <div class="setting-field">
-        <label for="default-cwd" class="setting-label">Default CWD</label>
+        <label for="default-cwd" class="setting-label">Working directory</label>
         <input
           id="default-cwd"
           value={defaultCwd}
@@ -356,24 +481,26 @@
     padding: 16px 24px;
     overflow-y: auto;
     height: 100%;
-    max-width: 900px;
+    max-width: 560px;
   }
 
   h2 {
-    font-size: 1rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--ctp-text);
-    margin: 0 0 12px;
+    margin: 0 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--ctp-surface0);
   }
 
   .settings-section {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
 
-  .global-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+  .settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 
   .setting-field {
@@ -389,7 +516,7 @@
     letter-spacing: 0.03em;
   }
 
-  .setting-field input:not([type="number"]) {
+  .setting-field > input {
     padding: 6px 10px;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
@@ -398,7 +525,27 @@
     font-size: 0.8rem;
   }
 
-  .setting-select {
+  .setting-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  /* Reusable custom dropdown */
+  .custom-dropdown {
+    position: relative;
+  }
+
+  .dropdown-grow {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dropdown-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
     padding: 6px 10px;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
@@ -406,12 +553,112 @@
     color: var(--ctp-text);
     font-size: 0.8rem;
     cursor: pointer;
+    text-align: left;
+    height: 100%;
   }
 
+  .dropdown-trigger:hover {
+    border-color: var(--ctp-surface2);
+  }
+
+  .dropdown-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dropdown-arrow {
+    color: var(--ctp-overlay0);
+    font-size: 0.7rem;
+    flex-shrink: 0;
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 100%;
+    width: max-content;
+    max-height: 360px;
+    overflow-y: auto;
+    background: var(--ctp-mantle);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    padding: 4px 0;
+  }
+
+  .dropdown-group-label {
+    padding: 6px 10px 2px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--ctp-overlay0);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .dropdown-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 10px;
+    background: transparent;
+    border: none;
+    color: var(--ctp-subtext1);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .dropdown-option:hover {
+    background: var(--ctp-surface0);
+    color: var(--ctp-text);
+  }
+
+  .dropdown-option.active {
+    background: var(--ctp-surface0);
+    color: var(--ctp-text);
+    font-weight: 600;
+  }
+
+  .dropdown-option-label {
+    flex: 1;
+  }
+
+  /* Theme-specific dropdown extras */
+  .theme-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid;
+    flex-shrink: 0;
+  }
+
+  .theme-colors {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .color-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* Size control (shared by UI and Terminal font) */
   .size-control {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
+    flex-shrink: 0;
   }
 
   .size-btn {
@@ -438,8 +685,8 @@
   }
 
   .size-input {
-    width: 48px;
-    padding: 4px 6px;
+    width: 40px;
+    padding: 4px 2px;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
     border-radius: 4px;
@@ -455,122 +702,9 @@
   }
 
   .size-unit {
-    font-size: 0.75rem;
-    color: var(--ctp-overlay0);
-  }
-
-  /* Custom theme dropdown */
-  .theme-dropdown {
-    position: relative;
-  }
-
-  .theme-trigger {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 4px 8px;
-    background: var(--ctp-base);
-    border: 1px solid var(--ctp-surface1);
-    border-radius: 3px;
-    color: var(--ctp-text);
-    font-size: 0.8rem;
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .theme-trigger:hover {
-    border-color: var(--ctp-surface2);
-  }
-
-  .theme-trigger-label {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .theme-arrow {
-    color: var(--ctp-overlay0);
     font-size: 0.7rem;
-    flex-shrink: 0;
-  }
-
-  .theme-swatch {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    border: 1px solid;
-    flex-shrink: 0;
-  }
-
-  .theme-menu {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    min-width: 280px;
-    max-height: 400px;
-    overflow-y: auto;
-    background: var(--ctp-mantle);
-    border: 1px solid var(--ctp-surface1);
-    border-radius: 4px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    z-index: 100;
-    padding: 4px 0;
-  }
-
-  .theme-group-label {
-    padding: 6px 10px 2px;
-    font-size: 0.65rem;
-    font-weight: 700;
     color: var(--ctp-overlay0);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .theme-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 5px 10px;
-    background: transparent;
-    border: none;
-    color: var(--ctp-subtext1);
-    font-size: 0.8rem;
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .theme-option:hover {
-    background: var(--ctp-surface0);
-    color: var(--ctp-text);
-  }
-
-  .theme-option.active {
-    background: var(--ctp-surface0);
-    color: var(--ctp-text);
-    font-weight: 600;
-  }
-
-  .theme-option-label {
-    flex: 1;
-    white-space: nowrap;
-  }
-
-  .theme-colors {
-    display: flex;
-    gap: 3px;
-    flex-shrink: 0;
-  }
-
-  .color-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+    margin-right: 2px;
   }
 
   /* Groups & Projects */
