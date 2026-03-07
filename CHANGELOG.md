@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ThemeId` union type, `ThemePalette` (26-color interface), `ThemeMeta` (id/label/group/isDark), `THEME_LIST` registry with group metadata, `ALL_THEME_IDS` for validation
 - Theme store `getCurrentTheme()`/`setTheme()` as primary API; deprecated `getCurrentFlavor()`/`setFlavor()` wrappers for backwards compat
 - SettingsTab custom themed dropdown for theme selection: color swatches (base color per theme), 4 accent color dots (red/green/blue/yellow), grouped sections (Catppuccin/Editor/Deep Dark) with styled headers, click-outside and Escape to close
-- SettingsTab global settings section: theme selector, default shell input, default CWD input — all persisted via settings-bridge (getSetting/setSetting), loaded on mount
+- SettingsTab global settings section: theme selector, font family select (9 monospace fonts + Default), font size +/- stepper (8-24px range), default shell input, default CWD input — all persisted via settings-bridge (getSetting/setSetting), loaded on mount
+- Typography CSS custom properties (`--ui-font-family`, `--ui-font-size`) in catppuccin.css with defaults (JetBrains Mono fallback chain, 13px); consumed by app.css body rule
+- `initTheme()` now restores saved font settings (font_family, font_size) from SQLite on startup alongside theme restoration
 - v3 Mission Control (All Phases 1-10 complete): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings)
 - v3 session continuity (P6): `persistSessionForProject()` saves agent state + messages to SQLite on session complete; `registerSessionProject()` maps session to project; `ClaudeSession.restoreMessagesFromRecords()` restores cached messages on mount
 - v3 workspace teardown (P7): `clearAllAgentSessions()` clears agent sessions on group switch; terminal tabs reset via `switchGroup()`
@@ -35,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Early error reporting when Claude CLI is not found — sidecar emits `agent_error` immediately instead of cryptic SDK failure
 
 ### Changed
+- SettingsTab global settings restructured from inline `.setting-row` layout (label left, control right) to 2-column `.global-grid` with `.setting-field` (label above control); labels now uppercase 0.7rem
+- `app.css` body font-family and font-size now use CSS custom properties (`var(--ui-font-family)`, `var(--ui-font-size)`) instead of hardcoded values
 - Theme system generalized from Catppuccin-only to multi-theme: all 17 themes map to same `--ctp-*` CSS custom properties (26 vars) — zero component-level changes needed
 - `CatppuccinFlavor` type deprecated in favor of `ThemeId`; `CatppuccinPalette` deprecated in favor of `ThemePalette`; `FLAVOR_LABELS` and `ALL_FLAVORS` deprecated in favor of `THEME_LIST` and `ALL_THEME_IDS`
 

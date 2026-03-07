@@ -389,6 +389,7 @@ No sidecar changes needed for v3.0.
 | AgentPane splits into ClaudeSession + TeamAgentsPanel | Team agents shown inline in right panel, not as separate panes. Saves xterm/pane slots. | 2026-03-07 |
 | Unmount/remount on group switch | Serialize xterm scrollbacks, destroy, remount new group. <100ms perceived. Frees ~80MB. | 2026-03-07 |
 | All themes map to --ctp-* CSS vars | 17 themes in 3 groups: 4 Catppuccin + 7 Editor (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) + 6 Deep Dark (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight). All map to same 26 --ctp-* CSS custom properties — zero component changes needed. | 2026-03-07 |
+| Typography via CSS custom properties | --ui-font-family and --ui-font-size defined in catppuccin.css :root, consumed by app.css body rule. Overridden at runtime by SettingsTab controls. Restored by initTheme() on startup. Persisted as font_family/font_size SQLite settings. | 2026-03-07 |
 
 ## Errors Encountered
 

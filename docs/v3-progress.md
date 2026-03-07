@@ -173,3 +173,28 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 
 #### Verification
 - No test changes needed — CSS-only change
+
+### Session: 2026-03-07 — Global Font Controls
+
+#### SettingsTab Font Family + Font Size Controls
+- [x] Added font family `<select>` with 9 monospace font options (JetBrains Mono, Fira Code, Cascadia Code, Source Code Pro, IBM Plex Mono, Hack, Inconsolata, Ubuntu Mono, monospace) + "Default" option
+- [x] Added font size +/- stepper control with numeric input (range 8-24px)
+- [x] Both controls apply live preview via CSS custom properties (`--ui-font-family`, `--ui-font-size`)
+- [x] Both settings persisted to SQLite via settings-bridge (`font_family`, `font_size` keys)
+- [x] `handleFontFamilyChange()` and `handleFontSizeChange()` functions with validation
+
+#### SettingsTab Layout Restructure
+- [x] Restructured global settings from inline `.setting-row` (label left, control right) to 2-column `.global-grid` with `.setting-field` (label above control)
+- [x] Labels now uppercase, 0.7rem, subtext0 color — consistent compact labeling
+- [x] All inputs/selects use consistent styling (surface0 bg, surface1 border, 4px radius)
+
+#### CSS Typography Variables
+- [x] Added `--ui-font-family` and `--ui-font-size` to catppuccin.css `:root` (defaults: JetBrains Mono fallback chain, 13px)
+- [x] Updated `app.css` body rule to use CSS vars instead of hardcoded font values
+
+#### Theme Store Font Restoration
+- [x] Extended `initTheme()` in `theme.svelte.ts` to load and apply saved `font_family` and `font_size` settings on startup
+- [x] Font restoration wrapped in try/catch — failures are non-fatal (CSS defaults apply)
+
+#### Verification
+- No test changes needed — UI/CSS-only changes, no logic changes

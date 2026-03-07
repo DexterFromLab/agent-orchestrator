@@ -10,6 +10,7 @@
 
 ## Completed
 
+- [x] **Global font controls** -- Font family select (9 monospace fonts) + font size +/- stepper (8-24px) in SettingsTab. Live preview via CSS vars, persisted to SQLite. initTheme() restores on startup. | Done: 2026-03-07
 - [x] **Deep Dark theme group** -- 6 new themes (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight). Total: 17 themes in 3 groups. | Done: 2026-03-07
 - [x] **Custom theme dropdown** -- Replaced native `<select>` with custom themed dropdown showing color swatches and accent dots. | Done: 2026-03-07
 - [x] **Multi-theme system** -- 7 editor themes (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) + 4 Catppuccin. ThemeId/ThemePalette/ThemeMeta types, THEME_LIST, custom dropdown. | Done: 2026-03-07

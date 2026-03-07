@@ -273,6 +273,17 @@
 - [x] Click-outside and Escape to close; aria-haspopup/aria-expanded for a11y
 - [x] Uses --ctp-* CSS vars — fully themed with active theme
 
+### Session: 2026-03-07 (continued) — Global Font Controls
+
+#### SettingsTab Font Controls + Layout Restructure
+- [x] Added font family select (9 monospace fonts + Default) with live CSS var preview
+- [x] Added font size +/- stepper (8-24px range) with live CSS var preview
+- [x] Restructured global settings: 2-column grid layout with labels above controls (replaced inline rows)
+- [x] Added --ui-font-family and --ui-font-size CSS custom properties to catppuccin.css
+- [x] app.css body rule now uses CSS vars instead of hardcoded font values
+- [x] initTheme() in theme.svelte.ts restores saved font settings on startup (try/catch, non-fatal)
+- [x] Font settings persisted as 'font_family' and 'font_size' keys in SQLite settings table
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections

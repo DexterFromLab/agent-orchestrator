@@ -64,8 +64,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/utils/detach.ts` | Detached pane mode (pop-out windows via URL params) |
 | `v2/src/lib/utils/updater.ts` | Tauri auto-updater utility |
 | `v2/src/lib/stores/notifications.svelte.ts` | Toast notification store (notify, dismiss) |
-| `v2/src/lib/stores/theme.svelte.ts` | Theme store (17 themes: 4 Catppuccin + 7 Editor + 6 Deep Dark) |
+| `v2/src/lib/stores/theme.svelte.ts` | Theme store (17 themes: 4 Catppuccin + 7 Editor + 6 Deep Dark, font restoration on startup) |
 | `v2/src/lib/styles/themes.ts` | Theme palette definitions (17 themes), ThemeId/ThemePalette/ThemeMeta types, THEME_LIST |
+| `v2/src/lib/styles/catppuccin.css` | CSS custom properties: 26 --ctp-* color vars + --ui-font-family + --ui-font-size |
 | `v2/src/lib/components/Agent/AgentTree.svelte` | SVG agent tree visualization |
 | `v2/src/lib/components/Context/ContextPane.svelte` | ctx database viewer (projects, entries, search) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (group name, project count, agent count, cost) |
