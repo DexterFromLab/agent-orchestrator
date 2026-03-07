@@ -4,7 +4,7 @@
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
-- Phases 1-7 + multi-machine (A-D) complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, 114 vitest + 29 cargo tests.
+- Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles (switcher-claude), skill discovery/autocomplete, 114 vitest + 29 cargo tests.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
@@ -29,7 +29,10 @@
 - Sidecar uses a single pre-built bundle (`sidecar/dist/agent-runner.mjs`) that runs on both Deno and Node.js. SidecarCommand struct in sidecar.rs abstracts runtime (Deno preferred for faster startup, Node.js fallback). Communicates with Rust via stdio NDJSON. Claude CLI auto-detected at startup via `findClaudeCli()` — checks ~/.local/bin/claude, ~/.claude/local/claude, /usr/local/bin/claude, /usr/bin/claude, then `which claude`. Path passed to SDK via `pathToClaudeCodeExecutable` option. Agents error immediately if CLI not found. CLAUDE* env var stripping is dual-layer: (1) Rust SidecarManager uses env_clear() + envs(clean_env) to strip all CLAUDE* vars before spawning the sidecar process, (2) JS runner also strips via SDK's `env` option (defense-in-depth). Without this, nesting detection triggers when BTerminal is launched from a Claude Code terminal. Session stop uses AbortController.abort() (not process.kill()). `agent-runner-deno.ts` exists as standalone alternative runner but is NOT used by SidecarManager.
 - AgentPane does NOT stop agents in onDestroy — onDestroy fires on layout remounts, not just explicit close. Stop-on-close is handled by TilingGrid.svelte's onClose handler (checks pane type + session status before calling stopAgent).
 - Agent dispatcher (`src/lib/agent-dispatcher.ts`) is a singleton that routes sidecar events to the agent store. Also handles subagent pane spawning (SUBAGENT_TOOL_NAMES detection, toolUseToChildPane routing map).
-- AgentQueryOptions supports `permission_mode` field (flows Rust -> sidecar -> SDK). Defaults to 'bypassPermissions', supports 'default' mode. allowDangerouslySkipPermissions is conditionally set.
+- AgentQueryOptions supports `permission_mode` field (flows Rust -> sidecar -> SDK). Defaults to 'bypassPermissions', supports 'default' mode. allowDangerouslySkipPermissions is conditionally set. Also supports: `setting_sources` (defaults to ['user', 'project']), `system_prompt`, `model`, `claude_config_dir` (for multi-account), `additional_directories`.
+- Claude profiles: claude_list_profiles() reads ~/.config/switcher/profiles/ with profile.toml metadata. Profile selector in AgentPane when >1 profile. Selected profile's config_dir -> claude_config_dir -> CLAUDE_CONFIG_DIR env var override in sidecar.
+- Skill discovery: claude_list_skills() reads ~/.claude/skills/ (dirs with SKILL.md or .md files). claude_read_skill() reads content. AgentPane `/` prefix triggers autocomplete menu. Skill content injected as prompt via expandSkillPrompt().
+- claude-bridge.ts adapter wraps profile/skill Tauri commands (ClaudeProfile, ClaudeSkill interfaces).
 - Sidecar build: `npm run build:sidecar` bundles SDK into agent-runner.mjs via esbuild (no --external, SDK included in bundle).
 - Maximum 4 active xterm.js instances to avoid WebKit2GTK memory issues.
 - Store files using Svelte 5 runes (`$state`, `$derived`) MUST have `.svelte.ts` extension (not `.ts`). Import with `.svelte` suffix. Plain `.ts` compiles but fails at runtime with "rune_outside_svelte".

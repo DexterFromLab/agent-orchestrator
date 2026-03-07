@@ -6,9 +6,13 @@
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines (local + 1 remote). Verify PTY + agent operations over WebSocket.
 - [ ] **Multi-machine TLS/certificate pinning** -- Add TLS support to bterminal-relay and certificate pinning in RemoteManager for production security.
 - [ ] **Agent Teams real-world testing** -- Frontend routing implemented (Phase 7). Needs testing with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 and real subagent spawning.
+- [ ] **Model selector in AgentPane** -- Dropdown for model override per session (field already passes through to SDK).
+- [ ] **System prompt field in AgentPane** -- Custom instructions per agent session (field already passes through to SDK).
+- [ ] **Additional directories picker** -- UI for additional_directories per session (field already passes through to SDK).
 
 ## Completed
 
+- [x] **Claude profiles & skill discovery** -- switcher-claude profile integration, skill autocomplete in agent prompt (`/` prefix), extended AgentQueryOptions with 5 new fields. | Done: 2026-03-07
 - [x] **Claude CLI path auto-detection** -- findClaudeCli() in both sidecar runners auto-detects Claude CLI path, passes to SDK via pathToClaudeCodeExecutable. Early error if CLI not found. | Done: 2026-03-07
 - [x] **Unified sidecar bundle** -- Single agent-runner.mjs runs on both Deno and Node.js. Rust-side CLAUDE* env var stripping (dual-layer). | Done: 2026-03-07
 - [x] **AgentPane onDestroy bug fix** -- Stop-on-close moved to TilingGrid onClose handler. | Done: 2026-03-06

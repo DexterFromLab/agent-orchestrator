@@ -146,8 +146,41 @@
 - [x] Early error: if Claude CLI not found, agent_error emitted immediately instead of cryptic SDK failure
 - [x] CLI path resolved once at sidecar startup, logged for debugging
 
+### Session: 2026-03-07 (continued) — Claude Profiles & Skill Discovery
+
+#### Claude Profile / Account Switching (switcher-claude integration)
+- [x] New Tauri commands: claude_list_profiles(), claude_list_skills(), claude_read_skill(), pick_directory()
+- [x] claude_list_profiles() reads ~/.config/switcher/profiles/ for profile directories with profile.toml metadata
+- [x] Config dir resolution: ~/.config/switcher-claude/{name}/ or fallback ~/.claude/
+- [x] extract_toml_value() simple TOML parser for profile metadata (email, subscription_type, display_name)
+- [x] Always includes "default" profile if no switcher profiles found
+
+#### Skill Discovery & Autocomplete
+- [x] claude_list_skills() reads ~/.claude/skills/ directory (directories with SKILL.md or standalone .md files)
+- [x] Description extracted from first non-heading, non-empty line (max 120 chars)
+- [x] claude_read_skill(path) reads full skill file content
+- [x] New frontend adapter: v2/src/lib/adapters/claude-bridge.ts (ClaudeProfile, ClaudeSkill interfaces)
+
+#### AgentPane Session Toolbar
+- [x] Working directory input (cwdInput) — editable text field, replaces fixed cwd prop
+- [x] Profile/account selector dropdown (shown when >1 profile available)
+- [x] Selected profile's config_dir passed as claude_config_dir in AgentQueryOptions
+- [x] Skill autocomplete menu: type `/` to trigger, arrow keys navigate, Tab/Enter select, Escape dismiss
+- [x] expandSkillPrompt(): reads skill content via readSkill(), prepends to prompt with optional user args
+
+#### Extended AgentQueryOptions (full stack passthrough)
+- [x] New fields in Rust AgentQueryOptions struct: setting_sources, system_prompt, model, claude_config_dir, additional_directories
+- [x] Sidecar QueryMessage interface updated with matching fields
+- [x] Both sidecar runners (agent-runner.ts, agent-runner-deno.ts) pass new fields to SDK query()
+- [x] CLAUDE_CONFIG_DIR injected into cleanEnv when claudeConfigDir provided (multi-account support)
+- [x] settingSources defaults to ['user', 'project'] (loads CLAUDE.md and project settings)
+- [x] Frontend AgentQueryOptions interface updated in agent-bridge.ts
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections
 - [ ] E2E testing with Playwright/WebDriver (when display server available)
 - [ ] Test agent teams with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+- [ ] Model selector in AgentPane toolbar (dropdown for model override)
+- [ ] System prompt field in AgentPane toolbar (custom instructions per session)
+- [ ] Additional directories picker in AgentPane toolbar

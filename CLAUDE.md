@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) complete. Packaging: .deb + AppImage via GitHub Actions CI.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -31,7 +31,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/bterminal-core/` | Shared crate: EventSink trait, PtyManager, SidecarManager |
 | `v2/bterminal-relay/` | Standalone relay binary (WebSocket server, token auth, CLI) |
 | `v2/src-tauri/src/pty.rs` | PTY backend (thin re-export from bterminal-core) |
-| `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings + 12 remote) |
+| `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings + 12 remote + 4 claude profile/skill) |
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |
 | `v2/src-tauri/src/remote.rs` | RemoteManager (WebSocket client connections to relays) |
@@ -41,7 +41,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/stores/layout.svelte.ts` | Layout store (panes, presets, groups, persistence, Svelte 5 runes) |
 | `v2/src/lib/stores/agents.svelte.ts` | Agent session store (messages, cost, parent/child hierarchy) |
 | `v2/src/lib/components/Terminal/TerminalPane.svelte` | xterm.js terminal pane |
-| `v2/src/lib/components/Agent/AgentPane.svelte` | Agent session pane (prompt, messages, cost) |
+| `v2/src/lib/components/Agent/AgentPane.svelte` | Agent session pane (prompt, messages, cost, profile selector, skill autocomplete) |
 | `v2/src/lib/adapters/pty-bridge.ts` | PTY IPC wrapper (Tauri invoke/listen) |
 | `v2/src/lib/adapters/agent-bridge.ts` | Agent IPC wrapper (Tauri invoke/listen) |
 | `v2/src/lib/adapters/sdk-messages.ts` | SDK message adapter (stream-json parser) |
@@ -50,6 +50,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/settings-bridge.ts` | Settings IPC wrapper (get/set/list) |
 | `v2/src/lib/adapters/ctx-bridge.ts` | ctx database IPC wrapper |
 | `v2/src/lib/adapters/ssh-bridge.ts` | SSH session IPC wrapper |
+| `v2/src/lib/adapters/claude-bridge.ts` | Claude profiles + skills IPC wrapper |
 | `v2/src/lib/adapters/remote-bridge.ts` | Remote machine management IPC wrapper |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
 | `v2/src/lib/utils/agent-tree.ts` | Agent tree builder (hierarchy from messages) |
@@ -84,13 +85,13 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Context DB: `~/.claude-context/context.db`
 - Theme: Catppuccin Mocha
 
-## v2 Stack (Phases 1-7 + Multi-Machine A-D complete, branch: v2-mission-control)
+## v2 Stack (Phases 1-7 + Multi-Machine A-D + Profiles/Skills complete, branch: v2-mission-control)
 
 - Tauri 2.x (Rust backend) + Svelte 5 (frontend)
 - Cargo workspace: bterminal-core (shared), bterminal-relay (remote binary), src-tauri (Tauri app)
 - xterm.js with Canvas addon (no WebGL on WebKit2GTK)
 - Agent sessions via `@anthropic-ai/claude-agent-sdk` query() function (migrated from raw CLI spawning)
-- Sidecar uses SDK internally (single .mjs bundle, Deno-first + Node.js fallback, stdio NDJSON to Rust, auto-detects Claude CLI path via findClaudeCli())
+- Sidecar uses SDK internally (single .mjs bundle, Deno-first + Node.js fallback, stdio NDJSON to Rust, auto-detects Claude CLI path via findClaudeCli(), supports CLAUDE_CONFIG_DIR override for multi-account)
 - portable-pty for terminal management (in bterminal-core)
 - Multi-machine: bterminal-relay WebSocket server + RemoteManager WebSocket client
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup

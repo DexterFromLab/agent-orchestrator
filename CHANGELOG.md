@@ -8,8 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Claude profile/account switching: `claude_list_profiles()` reads `~/.config/switcher/profiles/` directories with `profile.toml` metadata (email, subscription_type, display_name); profile selector dropdown in AgentPane toolbar when multiple profiles available; selected profile's `config_dir` passed as `CLAUDE_CONFIG_DIR` env override to SDK
+- Skill discovery and autocomplete: `claude_list_skills()` reads `~/.claude/skills/` (directories with `SKILL.md` or standalone `.md` files); type `/` in agent prompt textarea to trigger autocomplete menu with arrow key navigation, Tab/Enter selection, Escape dismiss; `expandSkillPrompt()` reads skill content and injects as prompt
+- New frontend adapter `claude-bridge.ts`: `ClaudeProfile` and `ClaudeSkill` interfaces, `listProfiles()`, `listSkills()`, `readSkill()` IPC wrappers
+- AgentPane session toolbar: editable working directory input, profile/account selector (shown when >1 profile), all rendered above prompt form
+- Extended `AgentQueryOptions` with 5 new fields across full stack (Rust struct, sidecar JSON, SDK options): `setting_sources` (defaults to `['user', 'project']`), `system_prompt`, `model`, `claude_config_dir`, `additional_directories`
+- 4 new Tauri commands: `claude_list_profiles`, `claude_list_skills`, `claude_read_skill`, `pick_directory`
 - Claude CLI path auto-detection: `findClaudeCli()` in both sidecar runners checks common paths (~/.local/bin/claude, ~/.claude/local/claude, /usr/local/bin/claude, /usr/bin/claude) then falls back to `which`/`where`; resolved path passed to SDK via `pathToClaudeCodeExecutable` option
 - Early error reporting when Claude CLI is not found — sidecar emits `agent_error` immediately instead of cryptic SDK failure
+
+### Changed
+- AgentPane `cwd` prop renamed to `initialCwd` — now editable via text input in session toolbar instead of fixed prop
+- Sidecar runners now pass `settingSources` (defaults to `['user', 'project']`), `systemPrompt`, `model`, and `additionalDirectories` to SDK `query()` options
+- Sidecar runners inject `CLAUDE_CONFIG_DIR` into clean env when `claudeConfigDir` provided in query message (multi-account support)
 
 ### Fixed
 - CLAUDE* env var stripping now applied at Rust level in SidecarManager (bterminal-core/src/sidecar.rs): `env_clear()` + `envs(clean_env)` strips all CLAUDE-prefixed vars before spawning sidecar process, providing primary defense against nesting detection (JS-side stripping retained as defense-in-depth)

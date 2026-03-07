@@ -61,9 +61,13 @@ bterminal-v2/
       adapters/
         sdk-messages.ts      # SDK message abstraction layer
         pty-bridge.ts        # PTY IPC wrapper
+        agent-bridge.ts      # Agent IPC wrapper (local + remote routing)
+        claude-bridge.ts     # Claude profiles + skills IPC wrapper
         settings-bridge.ts   # Settings IPC wrapper
         ctx-bridge.ts        # ctx database IPC wrapper
         ssh-bridge.ts        # SSH session IPC wrapper
+        remote-bridge.ts     # Remote machine management IPC wrapper
+        session-bridge.ts    # Session/layout persistence IPC wrapper
       utils/
         agent-tree.ts        # Agent tree builder (hierarchy from messages)
         highlight.ts         # Shiki syntax highlighter (lazy singleton)
@@ -298,3 +302,29 @@ Architecture designed in [multi-machine.md](multi-machine.md). Implementation ex
 - [x] Relay command response propagation — implemented in bterminal-relay main.rs
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning
+
+---
+
+## Extras: Claude Profiles & Skill Discovery [status: complete]
+
+### Claude Profile / Account Switching
+- [x] Tauri command claude_list_profiles(): reads ~/.config/switcher/profiles/ directories
+- [x] Profile metadata from profile.toml (email, subscription_type, display_name)
+- [x] Config dir resolution: ~/.config/switcher-claude/{name}/ or fallback ~/.claude/
+- [x] Default profile fallback when no switcher profiles exist
+- [x] Profile selector dropdown in AgentPane toolbar (shown when >1 profile)
+- [x] Selected profile's config_dir passed as claude_config_dir -> CLAUDE_CONFIG_DIR env override
+
+### Skill Discovery & Autocomplete
+- [x] Tauri command claude_list_skills(): reads ~/.claude/skills/ (dirs with SKILL.md or .md files)
+- [x] Tauri command claude_read_skill(path): reads skill file content
+- [x] Frontend adapter: claude-bridge.ts (ClaudeProfile, ClaudeSkill interfaces, listProfiles/listSkills/readSkill)
+- [x] Skill autocomplete in AgentPane: `/` prefix triggers menu, arrow keys navigate, Tab/Enter select
+- [x] expandSkillPrompt(): reads skill content, injects as prompt with optional user args
+
+### Extended AgentQueryOptions
+- [x] Rust struct (bterminal-core/src/sidecar.rs): setting_sources, system_prompt, model, claude_config_dir, additional_directories
+- [x] Sidecar JSON passthrough (both agent-runner.ts and agent-runner-deno.ts)
+- [x] SDK query() options: settingSources defaults to ['user', 'project'], systemPrompt, model, additionalDirectories
+- [x] CLAUDE_CONFIG_DIR env injection for multi-account support
+- [x] Frontend AgentQueryOptions interface (agent-bridge.ts) updated with new fields

@@ -3,7 +3,7 @@
 ## Goal
 Redesign BTerminal from a GTK3 terminal emulator into a **multi-session Claude agent dashboard** optimized for 32:9 ultrawide (5120x1440). Simultaneous visibility of all active sessions, agent tree visualization, inline markdown rendering, maximum information density.
 
-## Status: Phases 1-7 + Multi-Machine (A-D) Complete — Rev 5
+## Status: Phases 1-7 + Multi-Machine (A-D) + Profiles/Skills Complete — Rev 6
 
 ---
 
@@ -153,6 +153,9 @@ See [phases.md](phases.md) for the full phased implementation plan.
 | Stop-on-close in TilingGrid, not AgentPane | Removed onDestroy stopAgent() from AgentPane (fired on layout remounts). Stop logic moved to TilingGrid onClose handler — only fires on explicit user close. | 2026-03-06 |
 | Bundle SDK into sidecar | Removed --external flag from esbuild build:sidecar. SDK bundled into agent-runner.mjs — no runtime dependency on node_modules. | 2026-03-06 |
 | pathToClaudeCodeExecutable | Auto-detect Claude CLI path at sidecar startup via findClaudeCli() (checks common paths + `which`). Pass to SDK query() options. Early error if CLI not found. | 2026-03-07 |
+| Claude profiles (switcher-claude) | Read ~/.config/switcher/profiles/ for multi-account support. Profile selector in AgentPane toolbar when >1 profile. Selected profile's config_dir passed as CLAUDE_CONFIG_DIR to SDK env. | 2026-03-07 |
+| Skill discovery & autocomplete | Read ~/.claude/skills/ for skill files. `/` prefix triggers autocomplete in prompt textarea. Skill content read and injected as prompt. | 2026-03-07 |
+| Extended AgentQueryOptions | Added setting_sources, system_prompt, model, claude_config_dir, additional_directories to full stack (Rust struct -> sidecar JSON -> SDK options). settingSources defaults to ['user', 'project']. | 2026-03-07 |
 
 ## Open Questions
 
