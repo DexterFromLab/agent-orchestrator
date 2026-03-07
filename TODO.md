@@ -10,6 +10,7 @@
 
 ## Completed
 
+- [x] **Settings drawer conversion** -- Converted Settings from full-page tab to collapsible side drawer (right side, 32em width, semi-transparent backdrop). GlobalTabBar now 3 tabs + gear icon toggle. WorkspaceTab type: 'sessions' | 'docs' | 'context'. Alt+1..3 for tabs, Ctrl+, toggles drawer, Escape closes. | Done: 2026-03-07
 - [x] **SettingsTab global settings redesign** -- Split font into UI font (sans-serif options) + Terminal font (monospace options), each with custom dropdown + size stepper. Single-column layout with Appearance/Defaults subsections. All custom themed dropdowns (no native select). New CSS vars: --term-font-family, --term-font-size. Setting keys: ui_font_family, ui_font_size, term_font_family, term_font_size. | Done: 2026-03-07
 - [x] **Global font controls** -- Font family select (9 monospace fonts) + font size +/- stepper (8-24px) in SettingsTab. Live preview via CSS vars, persisted to SQLite. initTheme() restores on startup. | Done: 2026-03-07
 - [x] **Deep Dark theme group** -- 6 new themes (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight). Total: 17 themes in 3 groups. | Done: 2026-03-07

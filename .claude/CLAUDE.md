@@ -65,7 +65,7 @@
 - v3 workspace store (`workspace.svelte.ts`) replaces layout store for v3. Groups loaded from `~/.config/bterminal/groups.json` via `groups-bridge.ts`. State: groups, activeGroupId, activeTab, focusedProjectId. Derived: activeGroup, activeProjects.
 - v3 groups backend (`groups.rs`): load_groups(), save_groups(), default_groups(). Tauri commands: groups_load, groups_save.
 - v3 SQLite additions: agent_messages table (per-project message persistence), project_agent_state table (sdkSessionId, cost, status per project), sessions.project_id column.
-- v3 App.svelte fully rewritten: no sidebar, no TilingGrid. Renders GlobalTabBar + tab content (Sessions/Docs/Context/Settings) + StatusBar.
+- v3 App.svelte fully rewritten: no sidebar, no TilingGrid. Renders GlobalTabBar (3 tabs + gear icon) + tab content (Sessions/Docs/Context) + settings drawer (right-side overlay, 32em, semi-transparent backdrop, Escape/click-outside to close) + StatusBar. Settings is NOT a tab — it's a collapsible side drawer toggled by gear icon in GlobalTabBar or Ctrl+,.
 - v3 component tree: App -> GlobalTabBar + ProjectGrid -> ProjectBox -> (ProjectHeader + ClaudeSession + TeamAgentsPanel + TerminalTabs). See `docs/v3-task_plan.md` for full tree.
 - Svelte 5 event syntax: use `onclick` not `on:click`. Svelte 5 requires lowercase event handler attributes (no colon syntax).
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Settings converted from full-page tab to collapsible side drawer: right-side overlay (32em width, semi-transparent backdrop), close via Escape/click-outside/close button
+- GlobalTabBar reduced from 4 tabs (Sessions/Docs/Context/Settings) to 3 tabs + gear icon toggle for settings drawer; gear icon highlights blue when active
+- `WorkspaceTab` type reduced from `'sessions' | 'docs' | 'context' | 'settings'` to `'sessions' | 'docs' | 'context'`
+- Keyboard shortcuts: Alt+1..3 for tabs (was Alt+1..4), Ctrl+, toggles settings drawer (was setActiveTab('settings')), Escape closes drawer
+- SettingsTab styling adjusted for drawer context: reduced padding (12px 16px), removed max-width, flex:1 for scrollable content
+- App.svelte wraps tab content + settings drawer in `.content-area` container with relative positioning for drawer overlay
+
 ### Added
 - SettingsTab split font controls: separate UI font (sans-serif options: System Sans-Serif, Inter, Roboto, Open Sans, Lato, Noto Sans, Source Sans 3, IBM Plex Sans, Ubuntu) and Terminal font (monospace options: JetBrains Mono, Fira Code, Cascadia Code, Source Code Pro, IBM Plex Mono, Hack, Inconsolata, Ubuntu Mono, monospace), each with custom themed dropdown + size stepper (8-24px), font previews in own typeface
 - `--term-font-family` and `--term-font-size` CSS custom properties in catppuccin.css (defaults: JetBrains Mono fallback chain, 13px)
@@ -18,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SettingsTab global settings section: theme selector, UI font dropdown (sans-serif options), Terminal font dropdown (monospace options), each with size stepper (8-24px), default shell input, default CWD input — all custom themed dropdowns (no native `<select>`), all persisted via settings-bridge
 - Typography CSS custom properties (`--ui-font-family`, `--ui-font-size`, `--term-font-family`, `--term-font-size`) in catppuccin.css with defaults; consumed by app.css body rule
 - `initTheme()` now restores 4 saved font settings (ui_font_family, ui_font_size, term_font_family, term_font_size) from SQLite on startup alongside theme restoration
-- v3 Mission Control (All Phases 1-10 complete): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings)
+- v3 Mission Control (All Phases 1-10 complete): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, 3 workspace tabs (Sessions/Docs/Context) + settings drawer
 - v3 session continuity (P6): `persistSessionForProject()` saves agent state + messages to SQLite on session complete; `registerSessionProject()` maps session to project; `ClaudeSession.restoreMessagesFromRecords()` restores cached messages on mount
 - v3 workspace teardown (P7): `clearAllAgentSessions()` clears agent sessions on group switch; terminal tabs reset via `switchGroup()`
 - v3 data model: `groups.rs` (Rust structs + load/save `~/.config/bterminal/groups.json`), `groups.ts` (TypeScript interfaces), `groups-bridge.ts` (IPC adapter), `--group` CLI argument

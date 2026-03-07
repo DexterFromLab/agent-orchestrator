@@ -27,7 +27,7 @@ BTerminal v3: Project orchestration dashboard (projects in a workspace)
 4. Per-project settings: Claude subscription, working dir, icon (nerd font), name, identifier, description, enabled
 5. Project group = workspace on screen
 6. Each project box: Claude session (default, resume previous) + team agents (right) + terminal tabs (below)
-7. **4 workspace tabs**: Sessions | Docs | Context | Settings
+7. **3 workspace tabs + settings drawer**: Sessions | Docs | Context tabs, settings as collapsible side drawer (gear icon toggle)
 8. App launchable with `--group <name>` CLI arg
 9. JSON config file defines all groups (`~/.config/bterminal/groups.json`)
 10. Session continuity: resume previous + restore history visually
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS project_agent_state (
 ```
 App.svelte                              [REWRITTEN]
 ├── CommandPalette.svelte               [NEW]
-├── GlobalTabBar.svelte                 [NEW] Sessions | Docs | Context | Settings
+├── GlobalTabBar.svelte                 [NEW] Sessions | Docs | Context + gear icon
 ├── [Tab: Sessions]
 │   └── ProjectGrid.svelte             [NEW] Horizontal flex + scroll-snap
 │       └── ProjectBox.svelte           [NEW] Per-project container
@@ -175,7 +175,7 @@ App.svelte                              [REWRITTEN]
 │       └── MarkdownPane.svelte        [SURVIVES]
 ├── [Tab: Context]
 │   └── ContextPane.svelte             [SURVIVES, extracted from pane]
-├── [Tab: Settings]
+├── [Drawer: Settings]                  Collapsible side drawer (right, 32em)
 │   └── SettingsTab.svelte             [NEW]
 │       ├── ProjectSettingsEditor.svelte [NEW]
 │       └── GlobalSettings.svelte       [NEW]
@@ -291,12 +291,13 @@ No sidecar changes needed for v3.0.
 | Ctrl+K | Command palette | App |
 | Ctrl+G | Switch group (palette filtered) | App |
 | Ctrl+1..5 | Focus project by index | App |
-| Alt+1..4 | Switch workspace tab | App |
+| Alt+1..3 | Switch workspace tab | App |
 | Ctrl+N | New terminal in focused project | Workspace |
 | Ctrl+Shift+N | New agent query | Workspace |
 | Ctrl+Tab | Next terminal tab | Project |
 | Ctrl+W | Close terminal tab | Project |
-| Ctrl+, | Settings tab | App |
+| Ctrl+, | Toggle settings drawer | App |
+| Escape | Close settings drawer | App |
 | Ctrl+Shift+C/V | Copy/paste in terminal | Terminal |
 
 ---
@@ -318,7 +319,7 @@ No sidecar changes needed for v3.0.
 ### Phase 2: Project Box Shell [status: complete]
 **Milestone: Project boxes render horizontally with headers, workspace tabs switch**
 
-- [x] Create GlobalTabBar.svelte (Sessions | Docs | Context | Settings)
+- [x] Create GlobalTabBar.svelte (Sessions | Docs | Context + gear icon)
 - [x] Create ProjectGrid.svelte (flex + scroll-snap container)
 - [x] Create ProjectBox.svelte (CSS grid: header | session-area | terminal-area)
 - [x] Create ProjectHeader.svelte (icon + name + status dot + accent color)
@@ -382,7 +383,7 @@ No sidecar changes needed for v3.0.
 | xterm budget: 4 active, unlimited suspended | WebKit2GTK OOM at ~5 instances. Serialize scrollback to text buffer, destroy xterm, recreate on focus. PTY stays alive. | 2026-03-07 |
 | Flexbox + scroll-snap over CSS Grid | Allows horizontal scroll on narrow screens. Scroll-snap gives clean project-to-project scrolling. | 2026-03-07 |
 | Team panel: inline >2560px, overlay <2560px | Adapts to available space. Collapsed when no subagents running. | 2026-03-07 |
-| 4 workspace tabs (Sessions/Docs/Context/Settings) | ctx viewer as separate tab per user requirement. Docs auto-discovered from projects. | 2026-03-07 |
+| 3 workspace tabs + settings drawer | Sessions/Docs/Context as tabs, Settings as collapsible side drawer (32em, gear icon toggle, Escape/click-outside to close). Keeps tab bar clean, settings always accessible without losing tab context. | 2026-03-07 |
 | Project accent colors from Catppuccin palette | Visual distinction: blue/green/mauve/peach/pink per slot 1-5. Applied to border + header tint. | 2026-03-07 |
 | Remote machines deferred to v3.1 | Elevate to project level (project.remote_machine_id) but don't implement in MVP. | 2026-03-07 |
 | Keyboard shortcut layers: App > Workspace > Terminal | Prevents conflicts. Terminal captures raw keys only when focused. App layer uses Ctrl+K/G. | 2026-03-07 |

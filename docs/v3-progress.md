@@ -199,6 +199,22 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 #### Verification
 - No test changes needed — UI/CSS-only changes, no logic changes
 
+### Session: 2026-03-07 — Settings Drawer Conversion
+
+#### Settings Tab to Drawer
+- [x] Converted Settings from a full-page tab to a collapsible side drawer
+- [x] GlobalTabBar now has 3 tabs (Sessions/Docs/Context) + gear icon toggle for settings drawer
+- [x] App.svelte renders SettingsTab in an `<aside>` drawer (right side, 32em width, semi-transparent backdrop)
+- [x] Drawer close: Escape key, click-outside (backdrop), close button (X icon)
+- [x] Gear icon in GlobalTabBar highlights blue when drawer is open (active state)
+- [x] GlobalTabBar accepts props: `settingsOpen`, `ontoggleSettings`
+- [x] Removed 'settings' from WorkspaceTab union type (now 'sessions' | 'docs' | 'context')
+- [x] Alt+1..3 for tabs (was Alt+1..4), Ctrl+, toggles drawer (was setActiveTab('settings'))
+- [x] SettingsTab padding reduced (12px 16px), max-width removed, flex:1 for drawer context
+
+#### Verification
+- All 138 vitest tests pass
+
 ### Session: 2026-03-07 — SettingsTab Global Settings Redesign
 
 #### Font Settings Split (UI Font + Terminal Font)
