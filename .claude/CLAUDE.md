@@ -65,7 +65,7 @@
 - v3 workspace store (`workspace.svelte.ts`) replaces layout store for v3. Groups loaded from `~/.config/bterminal/groups.json` via `groups-bridge.ts`. State: groups, activeGroupId, activeTab, focusedProjectId. Derived: activeGroup, activeProjects.
 - v3 groups backend (`groups.rs`): load_groups(), save_groups(), default_groups(). Tauri commands: groups_load, groups_save.
 - v3 SQLite additions: agent_messages table (per-project message persistence), project_agent_state table (sdkSessionId, cost, status per project), sessions.project_id column.
-- v3 App.svelte fully rewritten: VSCode-style sidebar layout. Horizontal: left icon rail (GlobalTabBar, 36px, 4 SVG icons) + expandable drawer panel (28em, max 50%, renders active tab content) + main workspace (ProjectGrid always visible) + StatusBar. Settings is a regular sidebar tab. Keyboard: Alt+1..4 (tabs), Ctrl+B (toggle sidebar), Ctrl+, (settings), Escape (close).
+- v3 App.svelte fully rewritten: VSCode-style sidebar layout. Horizontal: left icon rail (GlobalTabBar, 2.75rem, 4 SVG icons) + expandable drawer panel (28em, max 50%, renders active tab content) + main workspace (ProjectGrid always visible) + StatusBar. Settings is a regular sidebar tab. Keyboard: Alt+1..4 (tabs), Ctrl+B (toggle sidebar), Ctrl+, (settings), Escape (close).
 - v3 component tree: App -> GlobalTabBar (icon rail) + sidebar-panel? (drawer) + workspace (ProjectGrid) + StatusBar. See `docs/v3-task_plan.md` for full tree.
 - Svelte 5 event syntax: use `onclick` not `on:click`. Svelte 5 requires lowercase event handler attributes (no colon syntax).
 
@@ -99,3 +99,4 @@ All operational rules live in `.claude/rules/`. Every `.md` file in that directo
 | 15 | `memora.md` | Persistent memory across sessions |
 | 16 | `sub-agents.md` | When to use sub-agents and team agents |
 | 17 | `document-imports.md` | Resolve @ imports in CLAUDE.md before acting |
+| 18 | `relative-units.md` | Use rem/em for layout, px only for icons/borders |

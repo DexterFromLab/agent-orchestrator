@@ -326,7 +326,8 @@ All 10 phases complete. Detailed checklists in [v3-progress.md](v3-progress.md).
 | xterm budget: 4 active, unlimited suspended | WebKit2GTK OOM at ~5 instances. Serialize scrollback to text buffer, destroy xterm, recreate on focus. PTY stays alive. | 2026-03-07 |
 | Flexbox + scroll-snap over CSS Grid | Allows horizontal scroll on narrow screens. Scroll-snap gives clean project-to-project scrolling. | 2026-03-07 |
 | Team panel: inline >2560px, overlay <2560px | Adapts to available space. Collapsed when no subagents running. | 2026-03-07 |
-| VSCode-style left sidebar (replaces top tab bar + settings drawer) | Vertical icon rail (36px, 4 SVG icons) + expandable drawer panel (28em, max 50%) + always-visible workspace. Settings is a regular tab, not special drawer. ProjectGrid always visible. Ctrl+B toggles sidebar. | 2026-03-08 |
+| VSCode-style left sidebar (replaces top tab bar + settings drawer) | Vertical icon rail (2.75rem, 4 SVG icons) + expandable drawer panel (28em, max 50%) + always-visible workspace. Settings is a regular tab, not special drawer. ProjectGrid always visible. Ctrl+B toggles sidebar. | 2026-03-08 |
+| CSS relative units (rule 18) | Use rem/em for all layout CSS. Pixels only for icon sizes, borders, box shadows. Exception: --ui-font-size/--term-font-size store px for xterm.js API. | 2026-03-08 |
 | Project accent colors from Catppuccin palette | Visual distinction: blue/green/mauve/peach/pink per slot 1-5. Applied to border + header tint. | 2026-03-07 |
 | Remote machines deferred to v3.1 | Elevate to project level (project.remote_machine_id) but don't implement in MVP. | 2026-03-07 |
 | Keyboard shortcut layers: App > Workspace > Terminal | Prevents conflicts. Terminal captures raw keys only when focused. App layer uses Ctrl+K/G. | 2026-03-07 |

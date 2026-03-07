@@ -271,3 +271,16 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 
 #### Verification
 - No test changes needed — UI/CSS-only changes, no logic changes
+
+### Session: 2026-03-08 — CSS Relative Units Rule
+
+#### New Rule: 18-relative-units.md
+- [x] Created `.claude/rules/18-relative-units.md` enforcing rem/em for layout CSS
+- [x] Pixels allowed only for icon sizes, borders/outlines, box shadows
+- [x] Exception: --ui-font-size/--term-font-size CSS vars store px (xterm.js API requirement)
+- [x] Added rule #18 to `.claude/CLAUDE.md` rule index
+
+#### CSS Conversions
+- [x] GlobalTabBar.svelte: rail width 36px -> 2.75rem, button 28px -> 2rem, gap 2px -> 0.25rem, padding 6px 4px -> 0.5rem 0.375rem, border-radius 4px -> 0.375rem
+- [x] App.svelte: sidebar header padding 8px 12px -> 0.5rem 0.75rem, close button 22px -> 1.375rem, border-radius 4px -> 0.25rem
+- [x] Also changed GlobalTabBar rail-btn color from --ctp-overlay1 to --ctp-subtext0 for better contrast

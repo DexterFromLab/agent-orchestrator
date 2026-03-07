@@ -134,6 +134,7 @@ cd v2/src-tauri && cargo test               # Cargo tests (backend)
 ## Conventions
 
 - 17 themes in 3 groups: 4 Catppuccin (Mocha default) + 7 Editor + 6 Deep Dark (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight)
+- CSS uses rem/em for layout; px only for icons/borders (see `.claude/rules/18-relative-units.md`)
 - Session configs stored as JSON
 - Single-file Python app (v1) — will change to multi-file Rust+Svelte (v2)
 - Polish language in some code comments (v1 legacy)

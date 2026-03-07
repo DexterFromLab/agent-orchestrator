@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CSS relative units rule (`.claude/rules/18-relative-units.md`): enforces rem/em for layout CSS, px only for icons/borders/shadows
+
 ### Changed
-- UI redesigned from top tab bar + right-side settings drawer to VSCode-style left sidebar: vertical icon rail (GlobalTabBar, 36px, 4 SVG icons) + expandable drawer panel (28em, max 50%) + always-visible main workspace (ProjectGrid)
+- GlobalTabBar.svelte CSS converted from px to rem: rail width 2.75rem, button 2rem, gap 0.25rem, padding 0.5rem 0.375rem, border-radius 0.375rem; rail-btn color changed from --ctp-overlay1 to --ctp-subtext0 for better contrast
+- App.svelte sidebar header CSS converted from px to rem: padding 0.5rem 0.75rem, close button 1.375rem, border-radius 0.25rem
+- UI redesigned from top tab bar + right-side settings drawer to VSCode-style left sidebar: vertical icon rail (GlobalTabBar, 2.75rem, 4 SVG icons) + expandable drawer panel (28em, max 50%) + always-visible main workspace (ProjectGrid)
 - GlobalTabBar rewritten from horizontal text tabs + gear icon to vertical icon rail with SVG icons for Sessions, Docs, Context, Settings; Props: `expanded`/`ontoggle` (was `settingsOpen`/`ontoggleSettings`)
 - Settings is now a regular sidebar tab (not a special right-side drawer); `WorkspaceTab` type: `'sessions' | 'docs' | 'context' | 'settings'`
 - App.svelte layout: `.main-row` flex container with icon rail + optional sidebar panel + workspace; state renamed `settingsOpen` -> `drawerOpen`
