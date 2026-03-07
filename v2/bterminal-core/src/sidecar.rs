@@ -19,6 +19,11 @@ pub struct AgentQueryOptions {
     pub max_budget_usd: Option<f64>,
     pub resume_session_id: Option<String>,
     pub permission_mode: Option<String>,
+    pub setting_sources: Option<Vec<String>>,
+    pub system_prompt: Option<String>,
+    pub model: Option<String>,
+    pub claude_config_dir: Option<String>,
+    pub additional_directories: Option<Vec<String>>,
 }
 
 /// Directories to search for sidecar scripts.
@@ -178,6 +183,11 @@ impl SidecarManager {
             "maxBudgetUsd": options.max_budget_usd,
             "resumeSessionId": options.resume_session_id,
             "permissionMode": options.permission_mode,
+            "settingSources": options.setting_sources,
+            "systemPrompt": options.system_prompt,
+            "model": options.model,
+            "claudeConfigDir": options.claude_config_dir,
+            "additionalDirectories": options.additional_directories,
         });
 
         self.send_message(&msg)

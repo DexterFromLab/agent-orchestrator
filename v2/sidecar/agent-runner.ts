@@ -41,6 +41,11 @@ interface QueryMessage {
   maxBudgetUsd?: number;
   resumeSessionId?: string;
   permissionMode?: string;
+  settingSources?: string[];
+  systemPrompt?: string;
+  model?: string;
+  claudeConfigDir?: string;
+  additionalDirectories?: string[];
 }
 
 interface StopMessage {
@@ -65,7 +70,7 @@ function handleMessage(msg: Record<string, unknown>) {
 }
 
 async function handleQuery(msg: QueryMessage) {
-  const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId, permissionMode } = msg;
+  const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId, permissionMode, settingSources, systemPrompt, model, claudeConfigDir, additionalDirectories } = msg;
 
   if (sessions.has(sessionId)) {
     send({ type: 'error', sessionId, message: 'Session already running' });
@@ -82,6 +87,10 @@ async function handleQuery(msg: QueryMessage) {
     if (!key.startsWith('CLAUDE')) {
       cleanEnv[key] = value;
     }
+  }
+  // Override CLAUDE_CONFIG_DIR for multi-account support
+  if (claudeConfigDir) {
+    cleanEnv['CLAUDE_CONFIG_DIR'] = claudeConfigDir;
   }
 
   try {
@@ -106,6 +115,10 @@ async function handleQuery(msg: QueryMessage) {
         ],
         permissionMode: (permissionMode ?? 'bypassPermissions') as 'bypassPermissions' | 'default',
         allowDangerouslySkipPermissions: (permissionMode ?? 'bypassPermissions') === 'bypassPermissions',
+        settingSources: settingSources ?? ['user', 'project'],
+        systemPrompt: systemPrompt ?? undefined,
+        model: model ?? undefined,
+        additionalDirectories: additionalDirectories ?? undefined,
       },
     });
 

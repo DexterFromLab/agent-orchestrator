@@ -12,6 +12,7 @@
   } from '../../stores/agents.svelte';
   import { focusPane } from '../../stores/layout.svelte';
   import { isSidecarAlive, setSidecarAlive } from '../../agent-dispatcher';
+  import { listProfiles, listSkills, readSkill, type ClaudeProfile, type ClaudeSkill } from '../../adapters/claude-bridge';
   import AgentTree from './AgentTree.svelte';
   import { getHighlighter, highlightCode, escapeHtml } from '../../utils/highlight';
   import type {
@@ -31,7 +32,7 @@
     onExit?: () => void;
   }
 
-  let { sessionId, prompt: initialPrompt = '', cwd, onExit }: Props = $props();
+  let { sessionId, prompt: initialPrompt = '', cwd: initialCwd, onExit }: Props = $props();
 
   let session = $derived(getAgentSession(sessionId));
   let inputPrompt = $state(initialPrompt);
@@ -43,6 +44,24 @@
   let parentSession = $derived(session?.parentSessionId ? getAgentSession(session.parentSessionId) : undefined);
   let childSessions = $derived(session ? getChildSessions(session.id) : []);
   let totalCost = $derived(session && childSessions.length > 0 ? getTotalCost(session.id) : null);
+
+  // Working directory
+  let cwdInput = $state(initialCwd ?? '');
+  let showCwdPicker = $state(false);
+
+  // Profile selector
+  let profiles = $state<ClaudeProfile[]>([]);
+  let selectedProfile = $state('');
+
+  // Skill autocomplete
+  let skills = $state<ClaudeSkill[]>([]);
+  let showSkillMenu = $state(false);
+  let filteredSkills = $derived(
+    inputPrompt.startsWith('/')
+      ? skills.filter(s => s.name.toLowerCase().startsWith(inputPrompt.slice(1).toLowerCase()))
+      : []
+  );
+  let skillMenuIndex = $state(0);
 
   const mdRenderer = new Renderer();
   mdRenderer.code = function({ text, lang }: { text: string; lang?: string }) {
@@ -63,6 +82,13 @@
 
   onMount(async () => {
     await getHighlighter();
+    // Load profiles and skills in parallel
+    const [profileList, skillList] = await Promise.all([
+      listProfiles().catch(() => []),
+      listSkills().catch(() => []),
+    ]);
+    profiles = profileList;
+    skills = skillList;
     if (initialPrompt) {
       await startQuery(initialPrompt);
     }
@@ -93,20 +119,44 @@
       updateAgentStatus(sessionId, 'starting');
     }
 
+    const profile = profiles.find(p => p.name === selectedProfile);
     await queryAgent({
       session_id: sessionId,
       prompt: text,
-      cwd,
+      cwd: cwdInput || undefined,
       max_turns: 50,
       resume_session_id: resumeId,
+      setting_sources: ['user', 'project'],
+      claude_config_dir: profile?.config_dir,
     });
     inputPrompt = '';
     followUpPrompt = '';
   }
 
-  function handleSubmit(e: Event) {
+  async function expandSkillPrompt(text: string): Promise<string> {
+    if (!text.startsWith('/')) return text;
+    const skillName = text.slice(1).split(/\s+/)[0];
+    const skill = skills.find(s => s.name === skillName);
+    if (!skill) return text;
+    try {
+      const content = await readSkill(skill.source_path);
+      const args = text.slice(1 + skillName.length).trim();
+      return args ? `${content}\n\nUser input: ${args}` : content;
+    } catch {
+      return text;
+    }
+  }
+
+  async function handleSubmit(e: Event) {
     e.preventDefault();
-    startQuery(inputPrompt);
+    const expanded = await expandSkillPrompt(inputPrompt);
+    showSkillMenu = false;
+    startQuery(expanded);
+  }
+
+  function handleSkillSelect(skill: ClaudeSkill) {
+    inputPrompt = `/${skill.name} `;
+    showSkillMenu = false;
   }
 
   function handleStop() {
@@ -174,19 +224,93 @@
 <div class="agent-pane">
   {#if !session || session.messages.length === 0}
     <div class="prompt-area">
+      <div class="session-toolbar">
+        <div class="toolbar-row">
+          <label class="toolbar-label">
+            <span class="toolbar-icon">DIR</span>
+            <input
+              type="text"
+              class="toolbar-input"
+              bind:value={cwdInput}
+              placeholder="Working directory (default: ~)"
+              onfocus={() => showCwdPicker = true}
+              onblur={() => setTimeout(() => showCwdPicker = false, 150)}
+            />
+          </label>
+          {#if profiles.length > 1}
+            <label class="toolbar-label">
+              <span class="toolbar-icon">ACC</span>
+              <select class="toolbar-select" bind:value={selectedProfile}>
+                <option value="">Default account</option>
+                {#each profiles as profile (profile.name)}
+                  <option value={profile.name}>
+                    {profile.display_name || profile.name}
+                    {#if profile.subscription_type}
+                      ({profile.subscription_type})
+                    {/if}
+                  </option>
+                {/each}
+              </select>
+            </label>
+          {/if}
+        </div>
+      </div>
       <form onsubmit={handleSubmit} class="prompt-form">
-        <textarea
-          bind:value={inputPrompt}
-          placeholder="Ask Claude something..."
-          class="prompt-input"
-          rows="3"
-          onkeydown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              startQuery(inputPrompt);
-            }
-          }}
-        ></textarea>
+        <div class="prompt-wrapper">
+          <textarea
+            bind:value={inputPrompt}
+            placeholder="Ask Claude something... (type / for skills)"
+            class="prompt-input"
+            rows="3"
+            oninput={() => {
+              showSkillMenu = inputPrompt.startsWith('/') && filteredSkills.length > 0;
+              skillMenuIndex = 0;
+            }}
+            onkeydown={async (e) => {
+              if (showSkillMenu && filteredSkills.length > 0) {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  skillMenuIndex = Math.min(skillMenuIndex + 1, filteredSkills.length - 1);
+                  return;
+                }
+                if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  skillMenuIndex = Math.max(skillMenuIndex - 1, 0);
+                  return;
+                }
+                if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+                  e.preventDefault();
+                  handleSkillSelect(filteredSkills[skillMenuIndex]);
+                  return;
+                }
+                if (e.key === 'Escape') {
+                  showSkillMenu = false;
+                  return;
+                }
+              }
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const expanded = await expandSkillPrompt(inputPrompt);
+                showSkillMenu = false;
+                startQuery(expanded);
+              }
+            }}
+          ></textarea>
+          {#if showSkillMenu && filteredSkills.length > 0}
+            <div class="skill-menu">
+              {#each filteredSkills as skill, i (skill.name)}
+                <button
+                  class="skill-item"
+                  class:active={i === skillMenuIndex}
+                  onmousedown|preventDefault={() => handleSkillSelect(skill)}
+                >
+                  <span class="skill-name">/{skill.name}</span>
+                  <span class="skill-desc">{skill.description}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
         <button type="submit" class="send-btn" disabled={!inputPrompt.trim()}>Send</button>
       </form>
     </div>
@@ -814,4 +938,132 @@
 
   .follow-up-btn:hover { opacity: 0.9; }
   .follow-up-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Session toolbar */
+  .session-toolbar {
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 8px;
+  }
+
+  .toolbar-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .toolbar-icon {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--ctp-crust);
+    background: var(--ctp-overlay1);
+    padding: 2px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .toolbar-input {
+    flex: 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: 11px;
+    padding: 3px 6px;
+    font-family: var(--font-mono);
+  }
+
+  .toolbar-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .toolbar-select {
+    flex: 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: 11px;
+    padding: 3px 4px;
+    font-family: inherit;
+  }
+
+  .toolbar-select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  /* Skill autocomplete */
+  .prompt-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  .skill-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+    margin-bottom: 4px;
+  }
+
+  .skill-item {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 6px 10px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .skill-item:hover, .skill-item.active {
+    background: var(--accent);
+    color: var(--ctp-crust);
+  }
+
+  .skill-name {
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--ctp-green);
+    flex-shrink: 0;
+  }
+
+  .skill-item:hover .skill-name, .skill-item.active .skill-name {
+    color: var(--ctp-crust);
+  }
+
+  .skill-desc {
+    color: var(--text-muted);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .skill-item:hover .skill-desc, .skill-item.active .skill-desc {
+    color: var(--ctp-crust);
+    opacity: 0.8;
+  }
 </style>

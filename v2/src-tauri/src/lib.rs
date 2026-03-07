@@ -205,6 +205,170 @@ fn ctx_search(state: State<'_, AppState>, query: String) -> Result<Vec<ctx::CtxE
     state.ctx_db.search(&query)
 }
 
+// --- Claude profile commands (switcher-claude integration) ---
+
+#[derive(serde::Serialize)]
+struct ClaudeProfile {
+    name: String,
+    email: Option<String>,
+    subscription_type: Option<String>,
+    display_name: Option<String>,
+    config_dir: String,
+}
+
+#[tauri::command]
+fn claude_list_profiles() -> Vec<ClaudeProfile> {
+    let mut profiles = Vec::new();
+
+    // Read profiles from ~/.config/switcher/profiles/
+    let config_dir = dirs::config_dir().unwrap_or_default();
+    let profiles_dir = config_dir.join("switcher").join("profiles");
+    let alt_dir_root = config_dir.join("switcher-claude");
+
+    if let Ok(entries) = std::fs::read_dir(&profiles_dir) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() { continue; }
+            let name = entry.file_name().to_string_lossy().to_string();
+
+            // Read profile.toml for metadata
+            let toml_path = entry.path().join("profile.toml");
+            let (email, subscription_type, display_name) = if toml_path.exists() {
+                let content = std::fs::read_to_string(&toml_path).unwrap_or_default();
+                (
+                    extract_toml_value(&content, "email"),
+                    extract_toml_value(&content, "subscription_type"),
+                    extract_toml_value(&content, "display_name"),
+                )
+            } else {
+                (None, None, None)
+            };
+
+            // Alt dir for CLAUDE_CONFIG_DIR
+            let alt_path = alt_dir_root.join(&name);
+            let config_dir_str = if alt_path.exists() {
+                alt_path.to_string_lossy().to_string()
+            } else {
+                // Fallback to default ~/.claude
+                dirs::home_dir()
+                    .unwrap_or_default()
+                    .join(".claude")
+                    .to_string_lossy()
+                    .to_string()
+            };
+
+            profiles.push(ClaudeProfile {
+                name,
+                email,
+                subscription_type,
+                display_name,
+                config_dir: config_dir_str,
+            });
+        }
+    }
+
+    // Always include a "default" profile for ~/.claude
+    if profiles.is_empty() {
+        let home = dirs::home_dir().unwrap_or_default();
+        profiles.push(ClaudeProfile {
+            name: "default".to_string(),
+            email: None,
+            subscription_type: None,
+            display_name: None,
+            config_dir: home.join(".claude").to_string_lossy().to_string(),
+        });
+    }
+
+    profiles
+}
+
+fn extract_toml_value(content: &str, key: &str) -> Option<String> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix(key) {
+            if let Some(rest) = rest.trim().strip_prefix('=') {
+                let val = rest.trim().trim_matches('"');
+                if !val.is_empty() {
+                    return Some(val.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+// --- Skill discovery commands ---
+
+#[derive(serde::Serialize)]
+struct ClaudeSkill {
+    name: String,
+    description: String,
+    source_path: String,
+}
+
+#[tauri::command]
+fn claude_list_skills() -> Vec<ClaudeSkill> {
+    let mut skills = Vec::new();
+    let home = dirs::home_dir().unwrap_or_default();
+
+    // Search for skills in ~/.claude/skills/ (same as Claude Code CLI)
+    let skills_dir = home.join(".claude").join("skills");
+    if let Ok(entries) = std::fs::read_dir(&skills_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            // Skills can be directories with SKILL.md or standalone .md files
+            let (name, skill_file) = if path.is_dir() {
+                let skill_md = path.join("SKILL.md");
+                if skill_md.exists() {
+                    (entry.file_name().to_string_lossy().to_string(), skill_md)
+                } else {
+                    continue;
+                }
+            } else if path.extension().map_or(false, |e| e == "md") {
+                let stem = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+                (stem, path.clone())
+            } else {
+                continue;
+            };
+
+            // Extract description from first non-empty, non-heading line
+            let description = if let Ok(content) = std::fs::read_to_string(&skill_file) {
+                content.lines()
+                    .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .chars()
+                    .take(120)
+                    .collect()
+            } else {
+                String::new()
+            };
+
+            skills.push(ClaudeSkill {
+                name,
+                description,
+                source_path: skill_file.to_string_lossy().to_string(),
+            });
+        }
+    }
+
+    skills
+}
+
+#[tauri::command]
+fn claude_read_skill(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read skill: {e}"))
+}
+
+// --- Directory picker command ---
+
+#[tauri::command]
+fn pick_directory() -> Option<String> {
+    // Use native file dialog via rfd
+    // Fallback: return None and let frontend use a text input
+    None
+}
+
 // --- Remote machine commands ---
 
 #[tauri::command]
@@ -307,6 +471,10 @@ pub fn run() {
             remote_pty_write,
             remote_pty_resize,
             remote_pty_kill,
+            claude_list_profiles,
+            claude_list_skills,
+            claude_read_skill,
+            pick_directory,
         ])
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {

@@ -12,6 +12,11 @@ export interface AgentQueryOptions {
   max_budget_usd?: number;
   resume_session_id?: string;
   permission_mode?: string;
+  setting_sources?: string[];
+  system_prompt?: string;
+  model?: string;
+  claude_config_dir?: string;
+  additional_directories?: string[];
   remote_machine_id?: string;
 }
 
