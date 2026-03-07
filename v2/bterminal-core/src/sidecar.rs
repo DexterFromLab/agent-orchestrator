@@ -61,8 +61,16 @@ impl SidecarManager {
 
         log::info!("Starting sidecar: {} {}", cmd.program, cmd.args.join(" "));
 
+        // Build a clean environment stripping all CLAUDE* vars to prevent
+        // the SDK from detecting nesting when BTerminal is launched from a Claude Code terminal
+        let clean_env: Vec<(String, String)> = std::env::vars()
+            .filter(|(k, _)| !k.starts_with("CLAUDE"))
+            .collect();
+
         let mut child = Command::new(&cmd.program)
             .args(&cmd.args)
+            .env_clear()
+            .envs(clean_env)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
