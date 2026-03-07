@@ -15,7 +15,7 @@
   import { deriveIdentifier } from '../../types/groups';
   import { getSetting, setSetting } from '../../adapters/settings-bridge';
   import { getCurrentTheme, setTheme } from '../../stores/theme.svelte';
-  import { THEME_LIST, type ThemeId } from '../../styles/themes';
+  import { THEME_LIST, getPalette, type ThemeId } from '../../styles/themes';
 
   let activeGroupId = $derived(getActiveGroupId());
   let activeGroup = $derived(getActiveGroup());
@@ -30,8 +30,9 @@
   let defaultShell = $state('');
   let defaultCwd = $state('');
   let selectedTheme = $state<ThemeId>(getCurrentTheme());
+  let themeDropdownOpen = $state(false);
 
-  // Group themes by category for <optgroup>
+  // Group themes by category
   const themeGroups = $derived(() => {
     const map = new Map<string, typeof THEME_LIST>();
     for (const t of THEME_LIST) {
@@ -40,6 +41,10 @@
     }
     return [...map.entries()];
   });
+
+  let selectedThemeLabel = $derived(
+    THEME_LIST.find(t => t.id === selectedTheme)?.label ?? selectedTheme,
+  );
 
   onMount(async () => {
     const [shell, cwd] = await Promise.all([
@@ -61,7 +66,21 @@
 
   async function handleThemeChange(themeId: ThemeId) {
     selectedTheme = themeId;
+    themeDropdownOpen = false;
     await setTheme(themeId);
+  }
+
+  function handleDropdownKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      themeDropdownOpen = false;
+    }
+  }
+
+  function handleClickOutside(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.theme-dropdown')) {
+      themeDropdownOpen = false;
+    }
   }
 
   // New project form
@@ -96,28 +115,60 @@
   }
 </script>
 
-<div class="settings-tab">
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="settings-tab" onclick={handleClickOutside}>
   <section class="settings-section">
     <h2>Global</h2>
     <div class="global-settings">
       <div class="setting-row">
-        <label for="theme-select">Theme</label>
-        <select
-          id="theme-select"
-          value={selectedTheme}
-          onchange={e => handleThemeChange((e.target as HTMLSelectElement).value as ThemeId)}
-        >
-          {#each themeGroups() as [groupName, themes]}
-            <optgroup label={groupName}>
-              {#each themes as t}
-                <option value={t.id}>{t.label}</option>
+        <span class="setting-label">Theme</span>
+        <div class="theme-dropdown" onkeydown={handleDropdownKeydown}>
+          <button
+            class="theme-trigger"
+            onclick={() => (themeDropdownOpen = !themeDropdownOpen)}
+            aria-haspopup="listbox"
+            aria-expanded={themeDropdownOpen}
+          >
+            <span
+              class="theme-swatch"
+              style="background: {getPalette(selectedTheme).base}; border-color: {getPalette(selectedTheme).surface1};"
+            ></span>
+            <span class="theme-trigger-label">{selectedThemeLabel}</span>
+            <span class="theme-arrow">{themeDropdownOpen ? '\u25B4' : '\u25BE'}</span>
+          </button>
+          {#if themeDropdownOpen}
+            <div class="theme-menu" role="listbox">
+              {#each themeGroups() as [groupName, themes]}
+                <div class="theme-group-label">{groupName}</div>
+                {#each themes as t}
+                  <button
+                    class="theme-option"
+                    class:active={t.id === selectedTheme}
+                    role="option"
+                    aria-selected={t.id === selectedTheme}
+                    onclick={() => handleThemeChange(t.id)}
+                  >
+                    <span
+                      class="theme-swatch"
+                      style="background: {getPalette(t.id).base}; border-color: {getPalette(t.id).surface1};"
+                    ></span>
+                    <span class="theme-option-label">{t.label}</span>
+                    <span class="theme-colors">
+                      <span class="color-dot" style="background: {getPalette(t.id).red};"></span>
+                      <span class="color-dot" style="background: {getPalette(t.id).green};"></span>
+                      <span class="color-dot" style="background: {getPalette(t.id).blue};"></span>
+                      <span class="color-dot" style="background: {getPalette(t.id).yellow};"></span>
+                    </span>
+                  </button>
+                {/each}
               {/each}
-            </optgroup>
-          {/each}
-        </select>
+            </div>
+          {/if}
+        </div>
       </div>
       <div class="setting-row">
-        <label for="default-shell">Default shell</label>
+        <label for="default-shell" class="setting-label">Default shell</label>
         <input
           id="default-shell"
           value={defaultShell}
@@ -126,7 +177,7 @@
         />
       </div>
       <div class="setting-row">
-        <label for="default-cwd">Default CWD</label>
+        <label for="default-cwd" class="setting-label">Default CWD</label>
         <input
           id="default-cwd"
           value={defaultCwd}
@@ -253,15 +304,14 @@
     min-width: 0;
   }
 
-  .setting-row label {
+  .setting-label {
     font-size: 0.8rem;
     color: var(--ctp-subtext0);
     min-width: 100px;
     flex-shrink: 0;
   }
 
-  .setting-row input,
-  .setting-row select {
+  .setting-row input {
     padding: 4px 8px;
     background: var(--ctp-base);
     border: 1px solid var(--ctp-surface1);
@@ -272,20 +322,123 @@
     min-width: 0;
   }
 
-  .setting-row select {
+  /* Custom theme dropdown */
+  .theme-dropdown {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .theme-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 4px 8px;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 3px;
+    color: var(--ctp-text);
+    font-size: 0.8rem;
     cursor: pointer;
+    text-align: left;
   }
 
-  .setting-row select optgroup {
-    font-weight: 600;
-    color: var(--ctp-subtext0);
+  .theme-trigger:hover {
+    border-color: var(--ctp-surface2);
   }
 
-  .setting-row select option {
-    font-weight: normal;
+  .theme-trigger-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .theme-arrow {
+    color: var(--ctp-overlay0);
+    font-size: 0.7rem;
+    flex-shrink: 0;
+  }
+
+  .theme-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid;
+    flex-shrink: 0;
+  }
+
+  .theme-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--ctp-mantle);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    padding: 4px 0;
+  }
+
+  .theme-group-label {
+    padding: 6px 10px 2px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--ctp-overlay0);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .theme-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 10px;
+    background: transparent;
+    border: none;
+    color: var(--ctp-subtext1);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .theme-option:hover {
+    background: var(--ctp-surface0);
     color: var(--ctp-text);
   }
 
+  .theme-option.active {
+    background: var(--ctp-surface0);
+    color: var(--ctp-text);
+    font-weight: 600;
+  }
+
+  .theme-option-label {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .theme-colors {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .color-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* Groups & Projects */
   .group-list {
     display: flex;
     flex-direction: column;
