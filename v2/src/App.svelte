@@ -25,13 +25,21 @@
   let detachedConfig = getDetachedConfig();
 
   let paletteOpen = $state(false);
-  let settingsOpen = $state(false);
+  let drawerOpen = $state(false);
   let loaded = $state(false);
 
   let activeTab = $derived(getActiveTab());
 
-  function toggleSettings() {
-    settingsOpen = !settingsOpen;
+  // Panel titles
+  const panelTitles: Record<string, string> = {
+    sessions: 'Sessions',
+    docs: 'Documentation',
+    context: 'Context',
+    settings: 'Settings',
+  };
+
+  function toggleDrawer() {
+    drawerOpen = !drawerOpen;
   }
 
   onMount(() => {
@@ -50,11 +58,20 @@
         return;
       }
 
-      // Alt+1..3 — switch workspace tab
-      if (e.altKey && !e.ctrlKey && e.key >= '1' && e.key <= '3') {
+      // Alt+1..4 — switch sidebar tab (and open drawer)
+      if (e.altKey && !e.ctrlKey && e.key >= '1' && e.key <= '4') {
         e.preventDefault();
-        const tabs = ['sessions', 'docs', 'context'] as const;
-        setActiveTab(tabs[parseInt(e.key) - 1]);
+        const tabs = ['sessions', 'docs', 'context', 'settings'] as const;
+        const idx = parseInt(e.key) - 1;
+        if (idx < tabs.length) {
+          const tab = tabs[idx];
+          if (getActiveTab() === tab && drawerOpen) {
+            drawerOpen = false;
+          } else {
+            setActiveTab(tab);
+            drawerOpen = true;
+          }
+        }
         return;
       }
 
@@ -69,17 +86,29 @@
         return;
       }
 
-      // Ctrl+, — toggle settings drawer
+      // Ctrl+, — toggle settings panel
       if (e.ctrlKey && e.key === ',') {
         e.preventDefault();
-        toggleSettings();
+        if (getActiveTab() === 'settings' && drawerOpen) {
+          drawerOpen = false;
+        } else {
+          setActiveTab('settings');
+          drawerOpen = true;
+        }
         return;
       }
 
-      // Escape — close settings drawer
-      if (e.key === 'Escape' && settingsOpen) {
+      // Ctrl+B — toggle sidebar
+      if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
         e.preventDefault();
-        settingsOpen = false;
+        drawerOpen = !drawerOpen;
+        return;
+      }
+
+      // Escape — close drawer
+      if (e.key === 'Escape' && drawerOpen) {
+        e.preventDefault();
+        drawerOpen = false;
         return;
       }
     }
@@ -111,35 +140,36 @@
   </div>
 {:else if loaded}
   <div class="app-shell">
-    <GlobalTabBar {settingsOpen} ontoggleSettings={toggleSettings} />
+    <div class="main-row">
+      <GlobalTabBar expanded={drawerOpen} ontoggle={toggleDrawer} />
 
-    <div class="content-area">
-      <main class="tab-content">
-        {#if activeTab === 'sessions'}
-          <ProjectGrid />
-        {:else if activeTab === 'docs'}
-          <DocsTab />
-        {:else if activeTab === 'context'}
-          <ContextTab />
-        {/if}
-      </main>
-
-      {#if settingsOpen}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="drawer-backdrop" onclick={() => settingsOpen = false}></div>
-        <aside class="settings-drawer">
-          <div class="drawer-header">
-            <h2>Settings</h2>
-            <button class="drawer-close" onclick={() => settingsOpen = false} title="Close (Esc)">
+      {#if drawerOpen}
+        <aside class="sidebar-panel">
+          <div class="panel-header">
+            <h2>{panelTitles[activeTab] ?? ''}</h2>
+            <button class="panel-close" onclick={() => drawerOpen = false} title="Close sidebar (Ctrl+B)">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
             </button>
           </div>
-          <SettingsTab />
+          <div class="panel-content">
+            {#if activeTab === 'sessions'}
+              <ProjectGrid />
+            {:else if activeTab === 'docs'}
+              <DocsTab />
+            {:else if activeTab === 'context'}
+              <ContextTab />
+            {:else if activeTab === 'settings'}
+              <SettingsTab />
+            {/if}
+          </div>
         </aside>
       {/if}
+
+      <main class="workspace">
+        <ProjectGrid />
+      </main>
     </div>
 
     <StatusBar />
@@ -166,62 +196,45 @@
     overflow: hidden;
   }
 
-  .content-area {
+  .main-row {
     flex: 1;
-    position: relative;
+    display: flex;
     overflow: hidden;
   }
 
-  .tab-content {
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .drawer-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.3);
-    z-index: 50;
-  }
-
-  .settings-drawer {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 32em;
-    max-width: 90%;
-    background: var(--ctp-base);
-    border-left: 1px solid var(--ctp-surface1);
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
-    z-index: 51;
+  .sidebar-panel {
+    width: 28em;
+    max-width: 50%;
     display: flex;
     flex-direction: column;
+    background: var(--ctp-base);
+    border-right: 1px solid var(--ctp-surface1);
     overflow: hidden;
+    flex-shrink: 0;
   }
 
-  .drawer-header {
+  .panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 16px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
   }
 
-  .drawer-header h2 {
-    font-size: 0.9rem;
+  .panel-header h2 {
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--ctp-text);
     margin: 0;
   }
 
-  .drawer-close {
+  .panel-close {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     background: transparent;
     border: none;
     border-radius: 4px;
@@ -229,9 +242,19 @@
     cursor: pointer;
   }
 
-  .drawer-close:hover {
+  .panel-close:hover {
     color: var(--ctp-text);
     background: var(--ctp-surface0);
+  }
+
+  .panel-content {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .workspace {
+    flex: 1;
+    overflow: hidden;
   }
 
   .loading {

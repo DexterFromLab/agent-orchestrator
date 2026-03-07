@@ -480,7 +480,7 @@
   .settings-tab {
     padding: 12px 16px;
     overflow-y: auto;
-    flex: 1;
+    height: 100%;
   }
 
   h2 {
