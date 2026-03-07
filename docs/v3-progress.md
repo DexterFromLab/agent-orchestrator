@@ -77,3 +77,25 @@
 - All 36 cargo tests pass
 - Vite build succeeds
 - ~1,836 lines of dead code removed
+
+### Session: 2026-03-07 — SettingsTab Global Settings + Cleanup
+
+#### SettingsTab Global Settings Section
+- [x] Added "Global" section to SettingsTab.svelte with three settings:
+  - Theme flavor dropdown (Catppuccin Latte/Frappe/Macchiato/Mocha) via `setFlavor()` from theme store
+  - Default shell text input (persisted via `setSetting('default_shell', ...)`)
+  - Default CWD text input (persisted via `setSetting('default_cwd', ...)`)
+- [x] Global settings load on mount via `getSetting()` from settings-bridge
+- [x] Added imports: `onMount`, `getSetting`/`setSetting`, `getCurrentFlavor`/`setFlavor`, `CatppuccinFlavor` type
+
+#### A11y Fixes
+- [x] Changed project field labels from `<div class="project-field"><label>` to wrapping `<label class="project-field"><span class="field-label">` pattern — proper label/input association
+- [x] Global settings use `id`/`for` label association (e.g., `id="theme-flavor"`, `id="default-shell"`)
+
+#### CSS Cleanup
+- [x] Removed unused `.project-field label` selector (replaced by `.field-label`)
+- [x] Simplified `.project-field input[type="text"], .project-field input:not([type])` to `.project-field input:not([type="checkbox"])`
+
+#### Rust Cleanup (committed separately)
+- [x] Removed dead `update_ssh_session()` method from session.rs and its test
+- [x] Fixed stale TilingGrid comment in AgentPane.svelte

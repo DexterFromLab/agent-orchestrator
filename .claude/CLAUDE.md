@@ -46,7 +46,7 @@
 - Layout store persists to SQLite on every addPane/removePane/setPreset/setPaneGroup change (fire-and-forget). Restores on app startup via `restoreFromDb()`.
 - Session groups: Pane.group? field in layout store, group_name column in sessions table, collapsible group headers in sidebar. Right-click pane to set group.
 - File watcher uses notify crate v6, watches parent directory (NonRecursive), emits `file-changed` Tauri events.
-- Settings use key-value `settings` table in SQLite (session.rs). Frontend: `settings-bridge.ts` adapter. v3 uses SettingsTab.svelte (v2 SettingsDialog.svelte deleted in P10).
+- Settings use key-value `settings` table in SQLite (session.rs). Frontend: `settings-bridge.ts` adapter. v3 uses SettingsTab.svelte (v2 SettingsDialog.svelte deleted in P10). SettingsTab has two sections: Global (theme flavor, default shell, default CWD — persisted via settings-bridge) and Group/Project CRUD.
 - Notifications use ephemeral toast system: `notifications.svelte.ts` store (max 5, 4s auto-dismiss), `ToastContainer.svelte` display. Agent dispatcher emits toasts on agent complete/error/crash.
 - StatusBar component shows active group name, project count, agent count, tokens, cost. Uses workspace store (v3 rewrite, no longer uses layout store).
 - Agent tree (AgentTree.svelte) uses SVG with recursive layout. Tree data built by `agent-tree.ts` utility from agent messages.

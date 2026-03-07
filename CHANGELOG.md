@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- SettingsTab global settings section: theme flavor dropdown (Catppuccin 4 flavors), default shell input, default CWD input — all persisted via settings-bridge (getSetting/setSetting), loaded on mount
 - v3 Mission Control (All Phases 1-10 complete): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings)
 - v3 session continuity (P6): `persistSessionForProject()` saves agent state + messages to SQLite on session complete; `registerSessionProject()` maps session to project; `ClaudeSession.restoreMessagesFromRecords()` restores cached messages on mount
 - v3 workspace teardown (P7): `clearAllAgentSessions()` clears agent sessions on group switch; terminal tabs reset via `switchGroup()`
@@ -27,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 4 new Tauri commands: `claude_list_profiles`, `claude_list_skills`, `claude_read_skill`, `pick_directory`
 - Claude CLI path auto-detection: `findClaudeCli()` in both sidecar runners checks common paths (~/.local/bin/claude, ~/.claude/local/claude, /usr/local/bin/claude, /usr/bin/claude) then falls back to `which`/`where`; resolved path passed to SDK via `pathToClaudeCodeExecutable` option
 - Early error reporting when Claude CLI is not found — sidecar emits `agent_error` immediately instead of cryptic SDK failure
+
+### Fixed
+- SettingsTab a11y: project field labels changed from `<div><label>` to wrapping `<label><span class="field-label">` pattern for proper label/input association
+- SettingsTab CSS: removed unused `.project-field label` selector, simplified input selector to `.project-field input:not([type="checkbox"])`
+
+### Removed
+- Dead `update_ssh_session()` method from session.rs and its unit test (method was unused after SSH CRUD refactoring)
+- Stale TilingGrid reference in AgentPane.svelte comment (TilingGrid was deleted in v3 P10)
 
 ### Changed
 - StatusBar rewritten for v3 workspace store: shows active group name, project count, agent count instead of pane counts; version label updated to "BTerminal v3"
