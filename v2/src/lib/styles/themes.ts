@@ -5,7 +5,9 @@
 export type ThemeId =
   | 'mocha' | 'macchiato' | 'frappe' | 'latte'
   | 'vscode-dark' | 'atom-one-dark' | 'monokai' | 'dracula'
-  | 'nord' | 'solarized-dark' | 'github-dark';
+  | 'nord' | 'solarized-dark' | 'github-dark'
+  | 'tokyo-night' | 'gruvbox-dark' | 'ayu-dark' | 'poimandres'
+  | 'vesper' | 'midnight';
 
 /** Keep for backwards compat — subset of ThemeId */
 export type CatppuccinFlavor = 'latte' | 'frappe' | 'macchiato' | 'mocha';
@@ -86,6 +88,12 @@ export const THEME_LIST: ThemeMeta[] = [
   { id: 'nord',           label: 'Nord',                group: 'Editor',     isDark: true },
   { id: 'solarized-dark', label: 'Solarized Dark',      group: 'Editor',     isDark: true },
   { id: 'github-dark',    label: 'GitHub Dark',         group: 'Editor',     isDark: true },
+  { id: 'tokyo-night',    label: 'Tokyo Night',         group: 'Deep Dark',  isDark: true },
+  { id: 'gruvbox-dark',   label: 'Gruvbox Dark',        group: 'Deep Dark',  isDark: true },
+  { id: 'ayu-dark',       label: 'Ayu Dark',            group: 'Deep Dark',  isDark: true },
+  { id: 'poimandres',     label: 'Poimandres',          group: 'Deep Dark',  isDark: true },
+  { id: 'vesper',         label: 'Vesper',              group: 'Deep Dark',  isDark: true },
+  { id: 'midnight',       label: 'Midnight',            group: 'Deep Dark',  isDark: true },
 ];
 
 const palettes: Record<ThemeId, ThemePalette> = {
@@ -213,6 +221,78 @@ const palettes: Record<ThemeId, ThemePalette> = {
     overlay2: '#6e7681', overlay1: '#565c64', overlay0: '#484f58',
     surface2: '#373e47', surface1: '#30363d', surface0: '#21262d',
     base: '#0d1117', mantle: '#090c10', crust: '#050608',
+  },
+
+  // --- Tokyo Night ---
+  'tokyo-night': {
+    rosewater: '#f7768e', flamingo: '#ff9e64', pink: '#bb9af7', mauve: '#bb9af7',
+    red: '#f7768e', maroon: '#db4b4b', peach: '#ff9e64', yellow: '#e0af68',
+    green: '#9ece6a', teal: '#73daca', sky: '#7dcfff', sapphire: '#7aa2f7',
+    blue: '#7aa2f7', lavender: '#bb9af7',
+    text: '#c0caf5', subtext1: '#a9b1d6', subtext0: '#9aa5ce',
+    overlay2: '#787c99', overlay1: '#565f89', overlay0: '#414868',
+    surface2: '#3b4261', surface1: '#292e42', surface0: '#232433',
+    base: '#1a1b26', mantle: '#16161e', crust: '#101014',
+  },
+
+  // --- Gruvbox Dark ---
+  'gruvbox-dark': {
+    rosewater: '#d65d0e', flamingo: '#cc241d', pink: '#d3869b', mauve: '#b16286',
+    red: '#fb4934', maroon: '#cc241d', peach: '#fe8019', yellow: '#fabd2f',
+    green: '#b8bb26', teal: '#8ec07c', sky: '#83a598', sapphire: '#83a598',
+    blue: '#458588', lavender: '#d3869b',
+    text: '#ebdbb2', subtext1: '#d5c4a1', subtext0: '#bdae93',
+    overlay2: '#a89984', overlay1: '#928374', overlay0: '#7c6f64',
+    surface2: '#504945', surface1: '#3c3836', surface0: '#32302f',
+    base: '#1d2021', mantle: '#191b1c', crust: '#141617',
+  },
+
+  // --- Ayu Dark ---
+  'ayu-dark': {
+    rosewater: '#f07178', flamingo: '#f07178', pink: '#d2a6ff', mauve: '#d2a6ff',
+    red: '#f07178', maroon: '#f07178', peach: '#ff8f40', yellow: '#ffb454',
+    green: '#aad94c', teal: '#95e6cb', sky: '#73b8ff', sapphire: '#59c2ff',
+    blue: '#59c2ff', lavender: '#d2a6ff',
+    text: '#bfbdb6', subtext1: '#acaaa4', subtext0: '#9b9892',
+    overlay2: '#73726e', overlay1: '#5c5b57', overlay0: '#464542',
+    surface2: '#383838', surface1: '#2c2c2c', surface0: '#242424',
+    base: '#0b0e14', mantle: '#080a0f', crust: '#05070a',
+  },
+
+  // --- Poimandres ---
+  'poimandres': {
+    rosewater: '#d0679d', flamingo: '#d0679d', pink: '#fcc5e9', mauve: '#a6accd',
+    red: '#d0679d', maroon: '#d0679d', peach: '#e4f0fb', yellow: '#fffac2',
+    green: '#5de4c7', teal: '#5de4c7', sky: '#89ddff', sapphire: '#add7ff',
+    blue: '#91b4d5', lavender: '#a6accd',
+    text: '#e4f0fb', subtext1: '#d0d6e0', subtext0: '#a6accd',
+    overlay2: '#767c9d', overlay1: '#506477', overlay0: '#3e4f5e',
+    surface2: '#303340', surface1: '#252b37', surface0: '#1e2433',
+    base: '#1b1e28', mantle: '#171922', crust: '#12141c',
+  },
+
+  // --- Vesper ---
+  'vesper': {
+    rosewater: '#de6e6e', flamingo: '#de6e6e', pink: '#c79bf0', mauve: '#c79bf0',
+    red: '#de6e6e', maroon: '#de6e6e', peach: '#ffcfa8', yellow: '#ffc799',
+    green: '#7cb37c', teal: '#6bccb0', sky: '#8abeb7', sapphire: '#6eb4bf',
+    blue: '#6eb4bf', lavender: '#c79bf0',
+    text: '#b8b5ad', subtext1: '#a09d95', subtext0: '#878480',
+    overlay2: '#6e6b66', overlay1: '#55524d', overlay0: '#3d3a36',
+    surface2: '#302e2a', surface1: '#252320', surface0: '#1c1a17',
+    base: '#101010', mantle: '#0a0a0a', crust: '#050505',
+  },
+
+  // --- Midnight (pure black OLED) ---
+  midnight: {
+    rosewater: '#e8a0bf', flamingo: '#ea6f91', pink: '#e8a0bf', mauve: '#c4a7e7',
+    red: '#eb6f92', maroon: '#ea6f91', peach: '#f6c177', yellow: '#ebbcba',
+    green: '#9ccfd8', teal: '#9ccfd8', sky: '#a4d4e4', sapphire: '#8bbee8',
+    blue: '#7ba4cc', lavender: '#c4a7e7',
+    text: '#c4c4c4', subtext1: '#a8a8a8', subtext0: '#8c8c8c',
+    overlay2: '#6e6e6e', overlay1: '#525252', overlay0: '#383838',
+    surface2: '#262626', surface1: '#1a1a1a', surface0: '#111111',
+    base: '#000000', mantle: '#000000', crust: '#000000',
   },
 };
 
