@@ -1,80 +1,73 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import SessionList from './lib/components/Sidebar/SessionList.svelte';
-  import TilingGrid from './lib/components/Layout/TilingGrid.svelte';
-  import StatusBar from './lib/components/StatusBar/StatusBar.svelte';
-  import ToastContainer from './lib/components/Notifications/ToastContainer.svelte';
-  import SettingsDialog from './lib/components/Settings/SettingsDialog.svelte';
-  import { addPane, focusPaneByIndex, removePane, getPanes, restoreFromDb } from './lib/stores/layout.svelte';
+  import { onMount } from 'svelte';
   import { initTheme } from './lib/stores/theme.svelte';
   import { isDetachedMode, getDetachedConfig } from './lib/utils/detach';
+  import { startAgentDispatcher, stopAgentDispatcher } from './lib/agent-dispatcher';
+  import { loadWorkspace, getActiveTab, setActiveTab, setActiveProject, getEnabledProjects } from './lib/stores/workspace.svelte';
+
+  // Workspace components
+  import GlobalTabBar from './lib/components/Workspace/GlobalTabBar.svelte';
+  import ProjectGrid from './lib/components/Workspace/ProjectGrid.svelte';
+  import DocsTab from './lib/components/Workspace/DocsTab.svelte';
+  import ContextTab from './lib/components/Workspace/ContextTab.svelte';
+  import SettingsTab from './lib/components/Workspace/SettingsTab.svelte';
+  import CommandPalette from './lib/components/Workspace/CommandPalette.svelte';
+
+  // Shared
+  import StatusBar from './lib/components/StatusBar/StatusBar.svelte';
+  import ToastContainer from './lib/components/Notifications/ToastContainer.svelte';
+
+  // Detached mode (preserved from v2)
   import TerminalPane from './lib/components/Terminal/TerminalPane.svelte';
   import AgentPane from './lib/components/Agent/AgentPane.svelte';
 
-  let settingsOpen = $state(false);
   let detached = isDetachedMode();
   let detachedConfig = getDetachedConfig();
-  import { startAgentDispatcher, stopAgentDispatcher } from './lib/agent-dispatcher';
 
-  function newTerminal() {
-    const id = crypto.randomUUID();
-    const num = getPanes().length + 1;
-    addPane({
-      id,
-      type: 'terminal',
-      title: `Terminal ${num}`,
-    });
-  }
+  let paletteOpen = $state(false);
+  let loaded = $state(false);
 
-  function newAgent() {
-    const id = crypto.randomUUID();
-    const num = getPanes().filter(p => p.type === 'agent').length + 1;
-    addPane({
-      id,
-      type: 'agent',
-      title: `Agent ${num}`,
-    });
-  }
+  let activeTab = $derived(getActiveTab());
 
   onMount(() => {
     initTheme();
     startAgentDispatcher();
-    if (!detached) restoreFromDb();
+
+    if (!detached) {
+      loadWorkspace().then(() => { loaded = true; });
+    }
 
     function handleKeydown(e: KeyboardEvent) {
-      // Ctrl+N — new terminal
-      if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
+      // Ctrl+K — command palette
+      if (e.ctrlKey && !e.shiftKey && e.key === 'k') {
         e.preventDefault();
-        newTerminal();
+        paletteOpen = !paletteOpen;
         return;
       }
 
-      // Ctrl+Shift+N — new agent
-      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+      // Alt+1..4 — switch workspace tab
+      if (e.altKey && !e.ctrlKey && e.key >= '1' && e.key <= '4') {
         e.preventDefault();
-        newAgent();
+        const tabs = ['sessions', 'docs', 'context', 'settings'] as const;
+        setActiveTab(tabs[parseInt(e.key) - 1]);
         return;
       }
 
-      // Ctrl+1-4 — focus pane by index
-      if (e.ctrlKey && !e.shiftKey && e.key >= '1' && e.key <= '4') {
+      // Ctrl+1..5 — focus project by index
+      if (e.ctrlKey && !e.shiftKey && e.key >= '1' && e.key <= '5') {
         e.preventDefault();
-        focusPaneByIndex(parseInt(e.key) - 1);
+        const projects = getEnabledProjects();
+        const idx = parseInt(e.key) - 1;
+        if (idx < projects.length) {
+          setActiveProject(projects[idx].id);
+        }
         return;
       }
 
-      // Ctrl+, — settings
+      // Ctrl+, — settings tab
       if (e.ctrlKey && e.key === ',') {
         e.preventDefault();
-        settingsOpen = !settingsOpen;
-        return;
-      }
-
-      // Ctrl+W — close focused pane
-      if (e.ctrlKey && !e.shiftKey && e.key === 'w') {
-        e.preventDefault();
-        const focused = getPanes().find(p => p.focused);
-        if (focused) removePane(focused.id);
+        setActiveTab('settings');
         return;
       }
     }
@@ -104,15 +97,28 @@
       <TerminalPane />
     {/if}
   </div>
+{:else if loaded}
+  <div class="app-shell">
+    <GlobalTabBar />
+
+    <main class="tab-content">
+      {#if activeTab === 'sessions'}
+        <ProjectGrid />
+      {:else if activeTab === 'docs'}
+        <DocsTab />
+      {:else if activeTab === 'context'}
+        <ContextTab />
+      {:else if activeTab === 'settings'}
+        <SettingsTab />
+      {/if}
+    </main>
+
+    <StatusBar />
+  </div>
+
+  <CommandPalette open={paletteOpen} onclose={() => paletteOpen = false} />
 {:else}
-  <aside class="sidebar">
-    <SessionList />
-  </aside>
-  <main class="workspace">
-    <TilingGrid />
-  </main>
-  <StatusBar />
-  <SettingsDialog open={settingsOpen} onClose={() => settingsOpen = false} />
+  <div class="loading">Loading workspace...</div>
 {/if}
 <ToastContainer />
 
@@ -120,20 +126,29 @@
   .detached-pane {
     height: 100vh;
     width: 100vw;
-    background: var(--bg-primary);
+    background: var(--ctp-base);
   }
 
-  .sidebar {
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border);
-    overflow-y: auto;
+  .app-shell {
     display: flex;
     flex-direction: column;
+    height: 100vh;
+    background: var(--ctp-base);
+    overflow: hidden;
   }
 
-  .workspace {
-    background: var(--bg-primary);
+  .tab-content {
+    flex: 1;
     overflow: hidden;
-    position: relative;
+  }
+
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: var(--ctp-overlay0);
+    font-size: 0.9rem;
+    background: var(--ctp-base);
   }
 </style>

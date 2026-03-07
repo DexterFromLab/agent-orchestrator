@@ -302,7 +302,7 @@
                 <button
                   class="skill-item"
                   class:active={i === skillMenuIndex}
-                  onmousedown|preventDefault={() => handleSkillSelect(skill)}
+                  onmousedown={(e) => { e.preventDefault(); handleSkillSelect(skill); }}
                 >
                   <span class="skill-name">/{skill.name}</span>
                   <span class="skill-desc">{skill.description}</span>

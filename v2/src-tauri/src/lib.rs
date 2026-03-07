@@ -1,5 +1,6 @@
 mod ctx;
 mod event_sink;
+mod groups;
 mod pty;
 mod remote;
 mod sidecar;
@@ -8,9 +9,10 @@ mod watcher;
 
 use ctx::CtxDb;
 use event_sink::TauriEventSink;
+use groups::{GroupsFile, MdFileEntry};
 use pty::{PtyManager, PtyOptions};
 use remote::{RemoteManager, RemoteMachineConfig};
-use session::{Session, SessionDb, LayoutState, SshSession};
+use session::{Session, SessionDb, LayoutState, SshSession, AgentMessageRecord, ProjectAgentState};
 use sidecar::{AgentQueryOptions, SidecarConfig, SidecarManager};
 use watcher::FileWatcherManager;
 use std::sync::Arc;
@@ -360,12 +362,90 @@ fn claude_read_skill(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read skill: {e}"))
 }
 
+// --- Group config commands (v3) ---
+
+#[tauri::command]
+fn groups_load() -> Result<GroupsFile, String> {
+    groups::load_groups()
+}
+
+#[tauri::command]
+fn groups_save(config: GroupsFile) -> Result<(), String> {
+    groups::save_groups(&config)
+}
+
+#[tauri::command]
+fn discover_markdown_files(cwd: String) -> Result<Vec<MdFileEntry>, String> {
+    groups::discover_markdown_files(&cwd)
+}
+
+// --- Agent message persistence commands (v3) ---
+
+#[tauri::command]
+fn agent_messages_save(
+    state: State<'_, AppState>,
+    session_id: String,
+    project_id: String,
+    sdk_session_id: Option<String>,
+    messages: Vec<AgentMessageRecord>,
+) -> Result<(), String> {
+    state.session_db.save_agent_messages(
+        &session_id,
+        &project_id,
+        sdk_session_id.as_deref(),
+        &messages,
+    )
+}
+
+#[tauri::command]
+fn agent_messages_load(
+    state: State<'_, AppState>,
+    project_id: String,
+) -> Result<Vec<AgentMessageRecord>, String> {
+    state.session_db.load_agent_messages(&project_id)
+}
+
+#[tauri::command]
+fn project_agent_state_save(
+    state: State<'_, AppState>,
+    agent_state: ProjectAgentState,
+) -> Result<(), String> {
+    state.session_db.save_project_agent_state(&agent_state)
+}
+
+#[tauri::command]
+fn project_agent_state_load(
+    state: State<'_, AppState>,
+    project_id: String,
+) -> Result<Option<ProjectAgentState>, String> {
+    state.session_db.load_project_agent_state(&project_id)
+}
+
 // --- Directory picker command ---
 
 #[tauri::command]
 fn pick_directory() -> Option<String> {
     // Use native file dialog via rfd
     // Fallback: return None and let frontend use a text input
+    None
+}
+
+// --- CLI argument commands ---
+
+#[tauri::command]
+fn cli_get_group() -> Option<String> {
+    let args: Vec<String> = std::env::args().collect();
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "--group" {
+            if i + 1 < args.len() {
+                return Some(args[i + 1].clone());
+            }
+        } else if let Some(val) = args[i].strip_prefix("--group=") {
+            return Some(val.to_string());
+        }
+        i += 1;
+    }
     None
 }
 
@@ -475,6 +555,14 @@ pub fn run() {
             claude_list_skills,
             claude_read_skill,
             pick_directory,
+            groups_load,
+            groups_save,
+            discover_markdown_files,
+            agent_messages_save,
+            agent_messages_load,
+            project_agent_state_save,
+            project_agent_state_load,
+            cli_get_group,
         ])
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
