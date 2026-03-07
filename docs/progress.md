@@ -284,6 +284,20 @@
 - [x] initTheme() in theme.svelte.ts restores saved font settings on startup (try/catch, non-fatal)
 - [x] Font settings persisted as 'font_family' and 'font_size' keys in SQLite settings table
 
+### Session: 2026-03-07 (continued) — SettingsTab Global Settings Redesign
+
+#### Font Settings Split (UI Font + Terminal Font)
+- [x] Split single font into UI font (sans-serif: System Sans-Serif, Inter, Roboto, etc.) and Terminal font (monospace: JetBrains Mono, Fira Code, etc.)
+- [x] Each font dropdown renders preview text in its own typeface
+- [x] Independent size steppers (8-24px) for UI and Terminal font
+- [x] Setting keys changed: font_family/font_size -> ui_font_family/ui_font_size + term_font_family/term_font_size
+
+#### SettingsTab Layout + CSS Updates
+- [x] Rewrote global settings: single-column layout, "Appearance" + "Defaults" subsections
+- [x] All dropdowns are custom themed (no native `<select>` anywhere)
+- [x] Added --term-font-family and --term-font-size CSS vars to catppuccin.css
+- [x] Updated initTheme() to restore 4 font settings instead of 2
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections

@@ -10,6 +10,7 @@
 
 ## Completed
 
+- [x] **SettingsTab global settings redesign** -- Split font into UI font (sans-serif options) + Terminal font (monospace options), each with custom dropdown + size stepper. Single-column layout with Appearance/Defaults subsections. All custom themed dropdowns (no native select). New CSS vars: --term-font-family, --term-font-size. Setting keys: ui_font_family, ui_font_size, term_font_family, term_font_size. | Done: 2026-03-07
 - [x] **Global font controls** -- Font family select (9 monospace fonts) + font size +/- stepper (8-24px) in SettingsTab. Live preview via CSS vars, persisted to SQLite. initTheme() restores on startup. | Done: 2026-03-07
 - [x] **Deep Dark theme group** -- 6 new themes (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight). Total: 17 themes in 3 groups. | Done: 2026-03-07
 - [x] **Custom theme dropdown** -- Replaced native `<select>` with custom themed dropdown showing color swatches and accent dots. | Done: 2026-03-07
@@ -19,7 +20,3 @@
 - [x] **v3 Architecture planning** -- Adversarial review (3 agents, 12 issues resolved), final architecture in docs/v3-task_plan.md. | Done: 2026-03-07
 - [x] **Claude profiles & skill discovery** -- switcher-claude integration, skill autocomplete, extended AgentQueryOptions. | Done: 2026-03-07
 - [x] **Claude CLI path auto-detection** -- findClaudeCli() + pathToClaudeCodeExecutable. | Done: 2026-03-07
-- [x] **Unified sidecar bundle** -- Single agent-runner.mjs, dual-layer CLAUDE* env var stripping. | Done: 2026-03-07
-- [x] **AgentPane onDestroy bug fix** -- Stop-on-close moved to TilingGrid onClose. | Done: 2026-03-06
-- [x] **Sidecar SDK migration** -- @anthropic-ai/claude-agent-sdk query(). | Done: 2026-03-06
-- [x] **Multi-machine support (Phases A-D)** -- bterminal-core, bterminal-relay, RemoteManager, frontend. | Done: 2026-03-06

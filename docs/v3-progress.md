@@ -198,3 +198,26 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 
 #### Verification
 - No test changes needed — UI/CSS-only changes, no logic changes
+
+### Session: 2026-03-07 — SettingsTab Global Settings Redesign
+
+#### Font Settings Split (UI Font + Terminal Font)
+- [x] Split single font setting into UI font (sans-serif options) and Terminal font (monospace options)
+- [x] UI font dropdown: System Sans-Serif, Inter, Roboto, Open Sans, Lato, Noto Sans, Source Sans 3, IBM Plex Sans, Ubuntu + Default
+- [x] Terminal font dropdown: JetBrains Mono, Fira Code, Cascadia Code, Source Code Pro, IBM Plex Mono, Hack, Inconsolata, Ubuntu Mono, monospace + Default
+- [x] Each font dropdown renders preview text in its own typeface
+- [x] Size steppers (8-24px) for both UI and Terminal font independently
+- [x] Changed setting keys: font_family -> ui_font_family, font_size -> ui_font_size, + new term_font_family, term_font_size
+
+#### SettingsTab Layout Redesign
+- [x] Rewrote global settings as single-column layout with labels above controls
+- [x] Split into "Appearance" subsection (theme, UI font, terminal font) and "Defaults" subsection (shell, CWD)
+- [x] All dropdowns now use reusable custom themed dropdowns (no native `<select>` anywhere)
+
+#### CSS + Theme Store Updates
+- [x] Added `--term-font-family` and `--term-font-size` CSS custom properties to catppuccin.css
+- [x] Updated `initTheme()` in theme.svelte.ts: loads 4 font settings (ui_font_family, ui_font_size, term_font_family, term_font_size) instead of 2
+- [x] UI font fallback changed from monospace to sans-serif
+
+#### Verification
+- No test changes needed — UI/CSS-only changes, no logic changes

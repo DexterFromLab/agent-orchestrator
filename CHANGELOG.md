@@ -8,14 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- SettingsTab split font controls: separate UI font (sans-serif options: System Sans-Serif, Inter, Roboto, Open Sans, Lato, Noto Sans, Source Sans 3, IBM Plex Sans, Ubuntu) and Terminal font (monospace options: JetBrains Mono, Fira Code, Cascadia Code, Source Code Pro, IBM Plex Mono, Hack, Inconsolata, Ubuntu Mono, monospace), each with custom themed dropdown + size stepper (8-24px), font previews in own typeface
+- `--term-font-family` and `--term-font-size` CSS custom properties in catppuccin.css (defaults: JetBrains Mono fallback chain, 13px)
 - Deep Dark theme group: 6 new themes (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight) — total 17 themes across 3 groups (Catppuccin, Editor, Deep Dark). Midnight is pure OLED black (#000000), Ayu Dark near-black (#0b0e14), Vesper warm dark (#101010)
 - Multi-theme system: 7 new editor themes (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) alongside 4 Catppuccin flavors
 - `ThemeId` union type, `ThemePalette` (26-color interface), `ThemeMeta` (id/label/group/isDark), `THEME_LIST` registry with group metadata, `ALL_THEME_IDS` for validation
 - Theme store `getCurrentTheme()`/`setTheme()` as primary API; deprecated `getCurrentFlavor()`/`setFlavor()` wrappers for backwards compat
 - SettingsTab custom themed dropdown for theme selection: color swatches (base color per theme), 4 accent color dots (red/green/blue/yellow), grouped sections (Catppuccin/Editor/Deep Dark) with styled headers, click-outside and Escape to close
-- SettingsTab global settings section: theme selector, font family select (9 monospace fonts + Default), font size +/- stepper (8-24px range), default shell input, default CWD input — all persisted via settings-bridge (getSetting/setSetting), loaded on mount
-- Typography CSS custom properties (`--ui-font-family`, `--ui-font-size`) in catppuccin.css with defaults (JetBrains Mono fallback chain, 13px); consumed by app.css body rule
-- `initTheme()` now restores saved font settings (font_family, font_size) from SQLite on startup alongside theme restoration
+- SettingsTab global settings section: theme selector, UI font dropdown (sans-serif options), Terminal font dropdown (monospace options), each with size stepper (8-24px), default shell input, default CWD input — all custom themed dropdowns (no native `<select>`), all persisted via settings-bridge
+- Typography CSS custom properties (`--ui-font-family`, `--ui-font-size`, `--term-font-family`, `--term-font-size`) in catppuccin.css with defaults; consumed by app.css body rule
+- `initTheme()` now restores 4 saved font settings (ui_font_family, ui_font_size, term_font_family, term_font_size) from SQLite on startup alongside theme restoration
 - v3 Mission Control (All Phases 1-10 complete): multi-project dashboard with project groups, per-project Claude sessions, team agents panel, terminal tabs, workspace tabs (Sessions/Docs/Context/Settings)
 - v3 session continuity (P6): `persistSessionForProject()` saves agent state + messages to SQLite on session complete; `registerSessionProject()` maps session to project; `ClaudeSession.restoreMessagesFromRecords()` restores cached messages on mount
 - v3 workspace teardown (P7): `clearAllAgentSessions()` clears agent sessions on group switch; terminal tabs reset via `switchGroup()`
@@ -37,7 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Early error reporting when Claude CLI is not found — sidecar emits `agent_error` immediately instead of cryptic SDK failure
 
 ### Changed
-- SettingsTab global settings restructured from inline `.setting-row` layout (label left, control right) to 2-column `.global-grid` with `.setting-field` (label above control); labels now uppercase 0.7rem
+- SettingsTab global settings restructured to single-column layout with labels above controls, split into "Appearance" (theme, UI font, terminal font) and "Defaults" (shell, CWD) subsections; all native `<select>` replaced with custom themed dropdowns
+- Font setting keys changed from `font_family`/`font_size` to `ui_font_family`/`ui_font_size` + `term_font_family`/`term_font_size`; UI font fallback changed from monospace to sans-serif
 - `app.css` body font-family and font-size now use CSS custom properties (`var(--ui-font-family)`, `var(--ui-font-size)`) instead of hardcoded values
 - Theme system generalized from Catppuccin-only to multi-theme: all 17 themes map to same `--ctp-*` CSS custom properties (26 vars) — zero component-level changes needed
 - `CatppuccinFlavor` type deprecated in favor of `ThemeId`; `CatppuccinPalette` deprecated in favor of `ThemePalette`; `FLAVOR_LABELS` and `ALL_FLAVORS` deprecated in favor of `THEME_LIST` and `ALL_THEME_IDS`
