@@ -9,13 +9,13 @@
 
 ## Completed
 
-- [x] **AgentPane onDestroy bug fix** -- Removed onDestroy stopAgent() from AgentPane (fired on layout remounts). Stop-on-close moved to TilingGrid onClose handler. | Done: 2026-03-06
-- [x] **Permission mode passthrough** -- Added permission_mode field flowing Rust -> sidecar -> SDK. Defaults to bypassPermissions, supports default mode. | Done: 2026-03-06
-- [x] **SDK bundling fix** -- Removed --external flag from esbuild build:sidecar. SDK now bundled into agent-runner.mjs. | Done: 2026-03-06
-- [x] **Sidecar SDK migration** -- Migrated both sidecar runners from raw `claude` CLI spawning to `@anthropic-ai/claude-agent-sdk` query(). Fixes silent hang bug (CLI #6775). SDK handles subprocess internally. Added ^0.2.70 dependency, build:sidecar script, updated Deno permissions. | Done: 2026-03-06
-- [x] **Sidecar CLAUDE* env var leak fix** -- Both sidecar runners now strip ALL CLAUDE-prefixed env vars via SDK `env` option. Prevents nesting detection when BTerminal launched from Claude Code terminal. | Done: 2026-03-06
-- [x] **Multi-machine reconnection** -- Exponential backoff reconnection (1s-30s cap) in RemoteManager, attempt_tcp_probe() (TCP-only), frontend reconnection listeners + auto-reconnect. | Done: 2026-03-06
-- [x] **Relay command response propagation** -- Structured responses (pty_created, pong, error) with commandId correlation, send_error() helper. | Done: 2026-03-06
-- [x] **Multi-machine support (Phases A-D)** -- bterminal-core crate extraction, bterminal-relay WebSocket binary, RemoteManager, frontend integration. | Done: 2026-03-06
-- [x] **Agent Teams frontend support** -- Subagent pane spawning, parent/child navigation, message routing by parentId, SUBAGENT_TOOL_NAMES detection in dispatcher. | Done: 2026-03-06
-- [x] **Subagent cost aggregation** -- `getTotalCost()` recursive helper in agents store, total cost shown in parent pane done-bar when children present. | Done: 2026-03-06
+- [x] **Claude CLI path auto-detection** -- findClaudeCli() in both sidecar runners auto-detects Claude CLI path, passes to SDK via pathToClaudeCodeExecutable. Early error if CLI not found. | Done: 2026-03-07
+- [x] **Unified sidecar bundle** -- Single agent-runner.mjs runs on both Deno and Node.js. Rust-side CLAUDE* env var stripping (dual-layer). | Done: 2026-03-07
+- [x] **AgentPane onDestroy bug fix** -- Stop-on-close moved to TilingGrid onClose handler. | Done: 2026-03-06
+- [x] **Permission mode passthrough** -- permission_mode field flowing Rust -> sidecar -> SDK. | Done: 2026-03-06
+- [x] **Sidecar SDK migration** -- Migrated from raw CLI spawning to @anthropic-ai/claude-agent-sdk query(). | Done: 2026-03-06
+- [x] **Sidecar CLAUDE* env var leak fix** -- Strip ALL CLAUDE-prefixed env vars (dual-layer). | Done: 2026-03-06
+- [x] **Multi-machine reconnection** -- Exponential backoff, TCP probe, frontend listeners + auto-reconnect. | Done: 2026-03-06
+- [x] **Multi-machine support (Phases A-D)** -- bterminal-core, bterminal-relay, RemoteManager, frontend. | Done: 2026-03-06
+- [x] **Agent Teams frontend support** -- Subagent pane spawning, parent/child navigation, message routing. | Done: 2026-03-06
+- [x] **Subagent cost aggregation** -- getTotalCost() recursive helper, total cost in parent pane. | Done: 2026-03-06

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Claude CLI path auto-detection: `findClaudeCli()` in both sidecar runners checks common paths (~/.local/bin/claude, ~/.claude/local/claude, /usr/local/bin/claude, /usr/bin/claude) then falls back to `which`/`where`; resolved path passed to SDK via `pathToClaudeCodeExecutable` option
+- Early error reporting when Claude CLI is not found — sidecar emits `agent_error` immediately instead of cryptic SDK failure
+
 ### Fixed
 - CLAUDE* env var stripping now applied at Rust level in SidecarManager (bterminal-core/src/sidecar.rs): `env_clear()` + `envs(clean_env)` strips all CLAUDE-prefixed vars before spawning sidecar process, providing primary defense against nesting detection (JS-side stripping retained as defense-in-depth)
 

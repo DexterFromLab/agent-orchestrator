@@ -152,6 +152,7 @@ See [phases.md](phases.md) for the full phased implementation plan.
 | Permission mode passthrough | AgentQueryOptions.permission_mode flows Rust -> sidecar -> SDK. Defaults to 'bypassPermissions', supports 'default'. Enables non-bypass agent sessions. | 2026-03-06 |
 | Stop-on-close in TilingGrid, not AgentPane | Removed onDestroy stopAgent() from AgentPane (fired on layout remounts). Stop logic moved to TilingGrid onClose handler — only fires on explicit user close. | 2026-03-06 |
 | Bundle SDK into sidecar | Removed --external flag from esbuild build:sidecar. SDK bundled into agent-runner.mjs — no runtime dependency on node_modules. | 2026-03-06 |
+| pathToClaudeCodeExecutable | Auto-detect Claude CLI path at sidecar startup via findClaudeCli() (checks common paths + `which`). Pass to SDK query() options. Early error if CLI not found. | 2026-03-07 |
 
 ## Open Questions
 

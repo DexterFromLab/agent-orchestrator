@@ -24,7 +24,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `docs/task_plan.md` | v2 architecture decisions and strategies |
 | `docs/phases.md` | v2 implementation phases (1-7 + multi-machine A-D) |
 | `docs/findings.md` | v2 research findings |
-| `docs/progress.md` | Session progress log |
+| `docs/progress.md` | Session progress log (recent) |
+| `docs/progress-archive.md` | Archived progress log (2026-03-05 to 2026-03-06 early) |
 | `docs/multi-machine.md` | Multi-machine architecture (implemented, Phases A-D) |
 | `v2/Cargo.toml` | Cargo workspace root (members: src-tauri, bterminal-core, bterminal-relay) |
 | `v2/bterminal-core/` | Shared crate: EventSink trait, PtyManager, SidecarManager |
@@ -67,7 +68,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Settings/SettingsDialog.svelte` | Settings modal (shell, cwd, max panes, theme) |
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |
-| `v2/sidecar/agent-runner.ts` | Sidecar source (compiled to .mjs by esbuild) |
+| `v2/sidecar/agent-runner.ts` | Sidecar source (compiled to .mjs by esbuild, includes findClaudeCli()) |
+| `v2/sidecar/agent-runner-deno.ts` | Standalone Deno sidecar runner (not used by SidecarManager, alternative) |
 | `v2/sidecar/dist/agent-runner.mjs` | Bundled sidecar (runs on both Deno and Node.js) |
 | `v2/src/lib/adapters/sdk-messages.test.ts` | Vitest tests for SDK message adapter (25 tests) |
 | `v2/src/lib/adapters/agent-bridge.test.ts` | Vitest tests for agent IPC bridge (11 tests) |
@@ -88,7 +90,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Cargo workspace: bterminal-core (shared), bterminal-relay (remote binary), src-tauri (Tauri app)
 - xterm.js with Canvas addon (no WebGL on WebKit2GTK)
 - Agent sessions via `@anthropic-ai/claude-agent-sdk` query() function (migrated from raw CLI spawning)
-- Sidecar uses SDK internally (single .mjs bundle, Deno-first + Node.js fallback, stdio NDJSON to Rust)
+- Sidecar uses SDK internally (single .mjs bundle, Deno-first + Node.js fallback, stdio NDJSON to Rust, auto-detects Claude CLI path via findClaudeCli())
 - portable-pty for terminal management (in bterminal-core)
 - Multi-machine: bterminal-relay WebSocket server + RemoteManager WebSocket client
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup

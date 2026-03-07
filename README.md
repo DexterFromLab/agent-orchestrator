@@ -147,7 +147,8 @@ See [docs/multi-machine.md](docs/multi-machine.md) for full architecture details
 | [docs/task_plan.md](docs/task_plan.md) | v2 architecture decisions, error handling, testing strategy |
 | [docs/phases.md](docs/phases.md) | v2 implementation phases (1-7 + multi-machine A-D) with checklists |
 | [docs/findings.md](docs/findings.md) | Research findings (Agent SDK, Tauri, xterm.js, performance) |
-| [docs/progress.md](docs/progress.md) | Session-by-session progress log |
+| [docs/progress.md](docs/progress.md) | Session-by-session progress log (recent) |
+| [docs/progress-archive.md](docs/progress-archive.md) | Archived progress log (2026-03-05 to 2026-03-06 early) |
 | [docs/multi-machine.md](docs/multi-machine.md) | Multi-machine architecture (implemented, WebSocket relay, reconnection) |
 
 ## License
