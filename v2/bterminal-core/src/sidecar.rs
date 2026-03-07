@@ -1,5 +1,5 @@
 // Sidecar lifecycle management (Deno-first, Node.js fallback)
-// Spawns agent-runner-deno.ts (or agent-runner.mjs), communicates via stdio NDJSON
+// Spawns bundled agent-runner.mjs via deno or node, communicates via stdio NDJSON
 
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
@@ -207,14 +207,27 @@ impl SidecarManager {
     }
 
     fn resolve_sidecar_command(&self) -> Result<SidecarCommand, String> {
-        let mut checked_deno = Vec::new();
-        let mut checked_node = Vec::new();
+        // Single bundled .mjs works with both Deno and Node.js.
+        // Try Deno first (faster startup, better perf), fall back to Node.js.
+        let has_deno = Command::new("deno")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .is_ok();
+        let has_node = Command::new("node")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .is_ok();
 
-        // Try Deno first in each search path
+        let mut checked = Vec::new();
+
         for base in &self.config.search_paths {
-            let deno_path = base.join("agent-runner-deno.ts");
-            if deno_path.exists() {
-                if Command::new("deno").arg("--version").output().is_ok() {
+            let mjs_path = base.join("dist").join("agent-runner.mjs");
+            if mjs_path.exists() {
+                if has_deno {
                     return Ok(SidecarCommand {
                         program: "deno".to_string(),
                         args: vec![
@@ -224,36 +237,30 @@ impl SidecarManager {
                             "--allow-read".to_string(),
                             "--allow-write".to_string(),
                             "--allow-net".to_string(),
-                            deno_path.to_string_lossy().to_string(),
+                            mjs_path.to_string_lossy().to_string(),
                         ],
                     });
                 }
-                log::warn!(
-                    "Deno sidecar found at {} but deno not in PATH, falling back to Node.js",
-                    deno_path.display()
-                );
+                if has_node {
+                    return Ok(SidecarCommand {
+                        program: "node".to_string(),
+                        args: vec![mjs_path.to_string_lossy().to_string()],
+                    });
+                }
             }
-            checked_deno.push(deno_path);
+            checked.push(mjs_path);
         }
 
-        // Fallback to Node.js
-        for base in &self.config.search_paths {
-            let node_path = base.join("dist").join("agent-runner.mjs");
-            if node_path.exists() {
-                return Ok(SidecarCommand {
-                    program: "node".to_string(),
-                    args: vec![node_path.to_string_lossy().to_string()],
-                });
-            }
-            checked_node.push(node_path);
-        }
-
-        let deno_list: Vec<_> = checked_deno.iter().map(|p| p.display().to_string()).collect();
-        let node_list: Vec<_> = checked_node.iter().map(|p| p.display().to_string()).collect();
+        let paths: Vec<_> = checked.iter().map(|p| p.display().to_string()).collect();
+        let runtime_note = if !has_deno && !has_node {
+            ". Neither deno nor node found in PATH"
+        } else {
+            ""
+        };
         Err(format!(
-            "Sidecar not found. Checked Deno ({}) and Node.js ({})",
-            deno_list.join(", "),
-            node_list.join(", "),
+            "Sidecar not found. Checked: {}{}",
+            paths.join(", "),
+            runtime_note,
         ))
     }
 }

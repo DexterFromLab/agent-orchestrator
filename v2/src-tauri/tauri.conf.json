@@ -44,7 +44,6 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "../sidecar/agent-runner-deno.ts",
       "../sidecar/dist/agent-runner.mjs"
     ],
     "category": "DeveloperTool",
