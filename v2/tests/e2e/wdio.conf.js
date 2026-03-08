@@ -60,6 +60,10 @@ export const config = {
    * Uses --debug --no-bundle for fastest build time.
    */
   onPrepare() {
+    if (process.env.SKIP_BUILD) {
+      console.log('SKIP_BUILD set — using existing debug binary.');
+      return Promise.resolve();
+    }
     return new Promise((resolve, reject) => {
       console.log('Building Tauri debug binary...');
       const build = spawn('cargo', ['tauri', 'build', '--debug', '--no-bundle'], {
