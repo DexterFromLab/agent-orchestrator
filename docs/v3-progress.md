@@ -317,3 +317,11 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Fixed dialog not opening: added `"dialog:default"` permission to `v2/src-tauri/capabilities/default.json` — Tauri IPC security blocked invoke() without capability
 - [x] Verified via Playwright: error was `Cannot read properties of undefined (reading 'invoke')` in browser context (expected — Tauri IPC only exists in WebView), confirming code is correct
 - [x] Clean rebuild required after capability changes (cached binary doesn't pick up new permissions)
+
+#### Modal + Dark-Themed Dialog
+- [x] Root cause: `tauri-plugin-dialog` skips `set_parent(&window)` on Linux via `cfg(any(windows, target_os = "macos"))` gate in commands.rs — dialog not modal
+- [x] Root cause: native GTK file chooser uses system GTK theme, not app's CSS theme — dialog appears light
+- [x] Fix: custom `pick_directory` Tauri command using `rfd::AsyncFileDialog` directly with `.set_parent(&window)` — modal on Linux
+- [x] Fix: `std::env::set_var("GTK_THEME", "Adwaita:dark")` at start of `run()` in lib.rs — dark-themed dialog
+- [x] Added `rfd = { version = "0.16", default-features = false, features = ["gtk3"] }` as direct dep — MUST disable defaults to avoid gtk3+xdg-portal feature conflict
+- [x] Switched SettingsTab from `@tauri-apps/plugin-dialog` `open()` to `invoke<string | null>('pick_directory')`

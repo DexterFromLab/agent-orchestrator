@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Native directory picker for CWD fields: `tauri-plugin-dialog` (Rust crate + `@tauri-apps/plugin-dialog` npm) provides native OS folder picker; browse buttons added to Default CWD, existing project CWD, and Add Project path inputs in SettingsTab
+- Native directory picker for CWD fields: custom `pick_directory` Tauri command using `rfd` crate with `set_parent(&window)` for modal behavior on Linux; browse buttons added to Default CWD, existing project CWD, and Add Project path inputs in SettingsTab
+- `rfd = { version = "0.16", default-features = false, features = ["gtk3"] }` direct dependency for modal file dialogs (zero extra compile — already built transitively via tauri-plugin-dialog)
 - CSS relative units rule (`.claude/rules/18-relative-units.md`): enforces rem/em for layout CSS, px only for icons/borders/shadows
 
 ### Removed
@@ -16,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Native directory picker not opening: added missing `"dialog:default"` permission to `v2/src-tauri/capabilities/default.json` — Tauri's IPC security layer silently blocked `invoke()` calls without this capability
+- Native directory picker not modal on Linux: replaced `@tauri-apps/plugin-dialog` `open()` with custom `pick_directory` Tauri command using `rfd::AsyncFileDialog::set_parent(&window)` — the plugin skips `set_parent` on Linux via `cfg(any(windows, target_os = "macos"))` gate
+- Native directory picker not dark-themed: set `GTK_THEME=Adwaita:dark` via `std::env::set_var` at Tauri startup to force dark theme on native GTK dialogs
 - Sidebar drawer not scaling to content width: removed leftover v2 grid layout on `#app` in `app.css` (`display: grid; grid-template-columns: var(--sidebar-width) 1fr` + media queries) that constrained `.app-shell` to 260px first column; v3 `.app-shell` manages its own flexbox layout internally
 - ContextPane.svelte CSS converted from px to rem: font-size, padding, margin, gap; added `white-space: nowrap` on `.ctx-header`/`.ctx-error` for intrinsic width measurement
 
