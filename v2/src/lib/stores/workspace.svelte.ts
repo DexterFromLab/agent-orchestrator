@@ -20,7 +20,7 @@ let activeTab = $state<WorkspaceTab>('sessions');
 let activeProjectId = $state<string | null>(null);
 
 /** Terminal tabs per project (keyed by project ID) */
-let projectTerminals = $state<Map<string, TerminalTab[]>>(new Map());
+let projectTerminals = $state<Record<string, TerminalTab[]>>({});
 
 // --- Getters ---
 
@@ -68,7 +68,7 @@ export async function switchGroup(groupId: string): Promise<void> {
   if (groupId === activeGroupId) return;
 
   // Teardown: clear terminal tabs and agent sessions for the old group
-  projectTerminals = new Map();
+  projectTerminals = {};
   clearAllAgentSessions();
 
   activeGroupId = groupId;
@@ -90,19 +90,17 @@ export async function switchGroup(groupId: string): Promise<void> {
 // --- Terminal tab management per project ---
 
 export function getTerminalTabs(projectId: string): TerminalTab[] {
-  return projectTerminals.get(projectId) ?? [];
+  return projectTerminals[projectId] ?? [];
 }
 
 export function addTerminalTab(projectId: string, tab: TerminalTab): void {
-  const tabs = projectTerminals.get(projectId) ?? [];
-  tabs.push(tab);
-  projectTerminals.set(projectId, [...tabs]);
+  const tabs = projectTerminals[projectId] ?? [];
+  projectTerminals[projectId] = [...tabs, tab];
 }
 
 export function removeTerminalTab(projectId: string, tabId: string): void {
-  const tabs = projectTerminals.get(projectId) ?? [];
-  const filtered = tabs.filter(t => t.id !== tabId);
-  projectTerminals.set(projectId, filtered);
+  const tabs = projectTerminals[projectId] ?? [];
+  projectTerminals[projectId] = tabs.filter(t => t.id !== tabId);
 }
 
 // --- Persistence ---
@@ -111,7 +109,7 @@ export async function loadWorkspace(initialGroupId?: string): Promise<void> {
   try {
     const config = await loadGroups();
     groupsConfig = config;
-    projectTerminals = new Map();
+    projectTerminals = {};
 
     // CLI --group flag takes priority, then explicit param, then persisted
     let cliGroup: string | null = null;
