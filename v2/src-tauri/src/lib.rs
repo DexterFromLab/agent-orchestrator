@@ -240,7 +240,10 @@ fn claude_list_profiles() -> Vec<ClaudeProfile> {
             // Read profile.toml for metadata
             let toml_path = entry.path().join("profile.toml");
             let (email, subscription_type, display_name) = if toml_path.exists() {
-                let content = std::fs::read_to_string(&toml_path).unwrap_or_default();
+                let content = std::fs::read_to_string(&toml_path).unwrap_or_else(|e| {
+                    log::warn!("Failed to read {}: {e}", toml_path.display());
+                    String::new()
+                });
                 (
                     extract_toml_value(&content, "email"),
                     extract_toml_value(&content, "subscription_type"),
@@ -606,7 +609,10 @@ pub fn run() {
                 .handle()
                 .path()
                 .resource_dir()
-                .unwrap_or_default();
+                .unwrap_or_else(|e| {
+                    log::warn!("Failed to resolve resource_dir: {e}");
+                    std::path::PathBuf::new()
+                });
             let dev_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .parent()
                 .unwrap()

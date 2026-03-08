@@ -86,7 +86,7 @@ async function handleQuery(msg: QueryMessage) {
   // Strip CLAUDE* env vars to prevent nesting detection by the spawned CLI
   const cleanEnv: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (!key.startsWith('CLAUDE')) {
+    if (!key.startsWith('CLAUDE') && !key.startsWith('ANTHROPIC_')) {
       cleanEnv[key] = value;
     }
   }

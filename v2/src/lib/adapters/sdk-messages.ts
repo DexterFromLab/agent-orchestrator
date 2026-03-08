@@ -66,14 +66,24 @@ export interface ErrorContent {
   message: string;
 }
 
+/** Runtime guard — returns value if it's a string, fallback otherwise */
+function str(v: unknown, fallback = ''): string {
+  return typeof v === 'string' ? v : fallback;
+}
+
+/** Runtime guard — returns value if it's a number, fallback otherwise */
+function num(v: unknown, fallback = 0): number {
+  return typeof v === 'number' ? v : fallback;
+}
+
 /**
  * Adapt a raw SDK stream-json message to our internal format.
  * When SDK changes wire format, only this function needs updating.
  */
 export function adaptSDKMessage(raw: Record<string, unknown>): AgentMessage[] {
-  const uuid = (raw.uuid as string) ?? crypto.randomUUID();
+  const uuid = str(raw.uuid) || crypto.randomUUID();
   const timestamp = Date.now();
-  const parentId = raw.parent_tool_use_id as string | undefined;
+  const parentId = typeof raw.parent_tool_use_id === 'string' ? raw.parent_tool_use_id : undefined;
 
   switch (raw.type) {
     case 'system':
@@ -99,17 +109,17 @@ function adaptSystemMessage(
   uuid: string,
   timestamp: number,
 ): AgentMessage[] {
-  const subtype = raw.subtype as string;
+  const subtype = str(raw.subtype);
 
   if (subtype === 'init') {
     return [{
       id: uuid,
       type: 'init',
       content: {
-        sessionId: raw.session_id as string,
-        model: raw.model as string,
-        cwd: raw.cwd as string,
-        tools: (raw.tools as string[]) ?? [],
+        sessionId: str(raw.session_id),
+        model: str(raw.model),
+        cwd: str(raw.cwd),
+        tools: Array.isArray(raw.tools) ? raw.tools.filter((t): t is string => typeof t === 'string') : [],
       } satisfies InitContent,
       timestamp,
     }];
@@ -120,7 +130,7 @@ function adaptSystemMessage(
     type: 'status',
     content: {
       subtype,
-      message: raw.status as string | undefined,
+      message: typeof raw.status === 'string' ? raw.status : undefined,
     } satisfies StatusContent,
     timestamp,
   }];
@@ -133,11 +143,11 @@ function adaptAssistantMessage(
   parentId?: string,
 ): AgentMessage[] {
   const messages: AgentMessage[] = [];
-  const msg = raw.message as Record<string, unknown> | undefined;
+  const msg = typeof raw.message === 'object' && raw.message !== null ? raw.message as Record<string, unknown> : undefined;
   if (!msg) return messages;
 
-  const content = msg.content as Array<Record<string, unknown>> | undefined;
-  if (!Array.isArray(content)) return messages;
+  const content = Array.isArray(msg.content) ? msg.content as Array<Record<string, unknown>> : undefined;
+  if (!content) return messages;
 
   for (const block of content) {
     switch (block.type) {
@@ -146,7 +156,7 @@ function adaptAssistantMessage(
           id: `${uuid}-text-${messages.length}`,
           type: 'text',
           parentId,
-          content: { text: block.text as string } satisfies TextContent,
+          content: { text: str(block.text) } satisfies TextContent,
           timestamp,
         });
         break;
@@ -155,7 +165,7 @@ function adaptAssistantMessage(
           id: `${uuid}-think-${messages.length}`,
           type: 'thinking',
           parentId,
-          content: { text: (block.thinking ?? block.text) as string } satisfies ThinkingContent,
+          content: { text: str(block.thinking ?? block.text) } satisfies ThinkingContent,
           timestamp,
         });
         break;
@@ -165,8 +175,8 @@ function adaptAssistantMessage(
           type: 'tool_call',
           parentId,
           content: {
-            toolUseId: block.id as string,
-            name: block.name as string,
+            toolUseId: str(block.id),
+            name: str(block.name),
             input: block.input,
           } satisfies ToolCallContent,
           timestamp,
@@ -185,11 +195,11 @@ function adaptUserMessage(
   parentId?: string,
 ): AgentMessage[] {
   const messages: AgentMessage[] = [];
-  const msg = raw.message as Record<string, unknown> | undefined;
+  const msg = typeof raw.message === 'object' && raw.message !== null ? raw.message as Record<string, unknown> : undefined;
   if (!msg) return messages;
 
-  const content = msg.content as Array<Record<string, unknown>> | undefined;
-  if (!Array.isArray(content)) return messages;
+  const content = Array.isArray(msg.content) ? msg.content as Array<Record<string, unknown>> : undefined;
+  if (!content) return messages;
 
   for (const block of content) {
     if (block.type === 'tool_result') {
@@ -198,7 +208,7 @@ function adaptUserMessage(
         type: 'tool_result',
         parentId,
         content: {
-          toolUseId: block.tool_use_id as string,
+          toolUseId: str(block.tool_use_id),
           output: block.content ?? raw.tool_use_result,
         } satisfies ToolResultContent,
         timestamp,
@@ -214,20 +224,20 @@ function adaptResultMessage(
   uuid: string,
   timestamp: number,
 ): AgentMessage[] {
-  const usage = raw.usage as Record<string, number> | undefined;
+  const usage = typeof raw.usage === 'object' && raw.usage !== null ? raw.usage as Record<string, unknown> : undefined;
 
   return [{
     id: uuid,
     type: 'cost',
     content: {
-      totalCostUsd: (raw.total_cost_usd as number) ?? 0,
-      durationMs: (raw.duration_ms as number) ?? 0,
-      inputTokens: usage?.input_tokens ?? 0,
-      outputTokens: usage?.output_tokens ?? 0,
-      numTurns: (raw.num_turns as number) ?? 0,
-      isError: (raw.is_error as boolean) ?? false,
-      result: raw.result as string | undefined,
-      errors: raw.errors as string[] | undefined,
+      totalCostUsd: num(raw.total_cost_usd),
+      durationMs: num(raw.duration_ms),
+      inputTokens: num(usage?.input_tokens),
+      outputTokens: num(usage?.output_tokens),
+      numTurns: num(raw.num_turns),
+      isError: raw.is_error === true,
+      result: typeof raw.result === 'string' ? raw.result : undefined,
+      errors: Array.isArray(raw.errors) ? raw.errors.filter((e): e is string => typeof e === 'string') : undefined,
     } satisfies CostContent,
     timestamp,
   }];

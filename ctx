@@ -278,7 +278,11 @@ def cmd_history(args):
         print("Usage: ctx history <project> [limit]")
         sys.exit(1)
     project = args[0]
-    limit = int(args[1]) if len(args) > 1 else 10
+    try:
+        limit = int(args[1]) if len(args) > 1 else 10
+    except ValueError:
+        print(f"Error: limit must be an integer, got '{args[1]}'")
+        sys.exit(1)
     db = get_db()
     rows = db.execute(
         "SELECT summary, created_at FROM summaries WHERE project = ? ORDER BY created_at DESC LIMIT ?",
@@ -301,16 +305,24 @@ def cmd_search(args):
     query = " ".join(args)
     db = get_db()
 
-    # Search project contexts
-    results_ctx = db.execute(
-        "SELECT project, key, value FROM contexts_fts WHERE contexts_fts MATCH ?",
-        (query,),
-    ).fetchall()
+    # Search project contexts (FTS5 MATCH can fail on malformed query syntax)
+    try:
+        results_ctx = db.execute(
+            "SELECT project, key, value FROM contexts_fts WHERE contexts_fts MATCH ?",
+            (query,),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        print(f"Invalid search query: '{query}' (FTS5 syntax error)")
+        db.close()
+        sys.exit(1)
 
     # Search shared contexts
-    results_shared = db.execute(
-        "SELECT key, value FROM shared_fts WHERE shared_fts MATCH ?", (query,)
-    ).fetchall()
+    try:
+        results_shared = db.execute(
+            "SELECT key, value FROM shared_fts WHERE shared_fts MATCH ?", (query,)
+        ).fetchall()
+    except sqlite3.OperationalError:
+        results_shared = []
 
     # Search summaries (simple LIKE since no FTS on summaries)
     results_sum = db.execute(

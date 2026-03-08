@@ -278,10 +278,11 @@ async function persistSessionForProject(sessionId: string): Promise<void> {
       input_tokens: session.inputTokens,
       output_tokens: session.outputTokens,
       last_prompt: session.prompt,
-      updated_at: Date.now(),
+      updated_at: Math.floor(Date.now() / 1000),
     });
 
-    // Save messages
+    // Save messages (use seconds to match session.rs convention)
+    const nowSecs = Math.floor(Date.now() / 1000);
     const records: AgentMessageRecord[] = session.messages.map((m, i) => ({
       id: i,
       session_id: sessionId,
@@ -290,7 +291,7 @@ async function persistSessionForProject(sessionId: string): Promise<void> {
       message_type: m.type,
       content: JSON.stringify(m.content),
       parent_id: m.parentId ?? null,
-      created_at: Date.now(),
+      created_at: nowSecs,
     }));
 
     if (records.length > 0) {

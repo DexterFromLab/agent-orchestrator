@@ -72,8 +72,10 @@ impl FileWatcherManager {
         )
         .map_err(|e| format!("Failed to create watcher: {e}"))?;
 
+        let watch_dir = file_path.parent()
+            .ok_or_else(|| format!("Cannot watch root-level path: {path}"))?;
         watcher
-            .watch(file_path.parent().unwrap_or(&file_path), RecursiveMode::NonRecursive)
+            .watch(watch_dir, RecursiveMode::NonRecursive)
             .map_err(|e| format!("Failed to watch path: {e}"))?;
 
         let mut watchers = self.watchers.lock().unwrap();

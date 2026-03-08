@@ -284,7 +284,8 @@ impl SessionDb {
 
     pub fn save_layout(&self, layout: &LayoutState) -> Result<(), String> {
         let conn = self.conn.lock().unwrap();
-        let pane_ids_json = serde_json::to_string(&layout.pane_ids).unwrap_or_default();
+        let pane_ids_json = serde_json::to_string(&layout.pane_ids)
+            .map_err(|e| format!("Serialize pane_ids failed: {e}"))?;
         conn.execute(
             "UPDATE layout_state SET preset = ?1, pane_ids = ?2 WHERE id = 1",
             params![layout.preset, pane_ids_json],

@@ -127,7 +127,7 @@ impl CtxDb {
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
         ).map_err(|e| format!("Failed to reopen database: {e}"))?;
 
-        let mut lock = self.conn.lock().unwrap();
+        let mut lock = self.conn.lock().map_err(|_| "ctx database lock poisoned".to_string())?;
         *lock = Some(ro_conn);
 
         Ok(())
@@ -149,7 +149,7 @@ impl CtxDb {
     }
 
     pub fn get_context(&self, project: &str) -> Result<Vec<CtxEntry>, String> {
-        let lock = self.conn.lock().unwrap();
+        let lock = self.conn.lock().map_err(|_| "ctx database lock poisoned".to_string())?;
         let conn = lock.as_ref().ok_or("ctx database not found")?;
 
         let mut stmt = conn
@@ -173,7 +173,7 @@ impl CtxDb {
     }
 
     pub fn get_shared(&self) -> Result<Vec<CtxEntry>, String> {
-        let lock = self.conn.lock().unwrap();
+        let lock = self.conn.lock().map_err(|_| "ctx database lock poisoned".to_string())?;
         let conn = lock.as_ref().ok_or("ctx database not found")?;
 
         let mut stmt = conn
@@ -197,7 +197,7 @@ impl CtxDb {
     }
 
     pub fn get_summaries(&self, project: &str, limit: i64) -> Result<Vec<CtxSummary>, String> {
-        let lock = self.conn.lock().unwrap();
+        let lock = self.conn.lock().map_err(|_| "ctx database lock poisoned".to_string())?;
         let conn = lock.as_ref().ok_or("ctx database not found")?;
 
         let mut stmt = conn
@@ -220,7 +220,7 @@ impl CtxDb {
     }
 
     pub fn search(&self, query: &str) -> Result<Vec<CtxEntry>, String> {
-        let lock = self.conn.lock().unwrap();
+        let lock = self.conn.lock().map_err(|_| "ctx database lock poisoned".to_string())?;
         let conn = lock.as_ref().ok_or("ctx database not found")?;
 
         let mut stmt = conn
@@ -236,7 +236,14 @@ impl CtxDb {
                     updated_at: String::new(), // FTS5 virtual table doesn't store updated_at
                 })
             })
-            .map_err(|e| format!("ctx search failed: {e}"))?
+            .map_err(|e| {
+                let msg = e.to_string();
+                if msg.contains("fts5") || msg.contains("syntax") {
+                    format!("Invalid search query syntax: {e}")
+                } else {
+                    format!("ctx search failed: {e}")
+                }
+            })?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| format!("ctx row read failed: {e}"))?;
 

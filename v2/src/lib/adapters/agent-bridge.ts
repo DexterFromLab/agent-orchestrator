@@ -56,7 +56,9 @@ export async function onSidecarMessage(
   callback: (msg: SidecarMessage) => void,
 ): Promise<UnlistenFn> {
   return listen<SidecarMessage>('sidecar-message', (event) => {
-    callback(event.payload as SidecarMessage);
+    const payload = event.payload;
+    if (typeof payload !== 'object' || payload === null) return;
+    callback(payload as SidecarMessage);
   });
 }
 

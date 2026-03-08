@@ -226,11 +226,10 @@ impl RemoteManager {
 
             // Mark disconnected and clear connection
             {
-                if let Ok(mut machines) = machines_ref.try_lock() {
-                    if let Some(machine) = machines.get_mut(&mid) {
-                        machine.status = "disconnected".to_string();
-                        machine.connection = None;
-                    }
+                let mut machines = machines_ref.lock().await;
+                if let Some(machine) = machines.get_mut(&mid) {
+                    machine.status = "disconnected".to_string();
+                    machine.connection = None;
                 }
             }
             let _ = app_handle.emit("remote-machine-disconnected", &serde_json::json!({
