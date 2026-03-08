@@ -421,14 +421,7 @@ fn project_agent_state_load(
     state.session_db.load_project_agent_state(&project_id)
 }
 
-// --- Directory picker command ---
-
-#[tauri::command]
-fn pick_directory() -> Option<String> {
-    // Use native file dialog via rfd
-    // Fallback: return None and let frontend use a text input
-    None
-}
+// Directory picker: uses tauri-plugin-dialog (frontend API: @tauri-apps/plugin-dialog)
 
 // --- CLI argument commands ---
 
@@ -554,7 +547,6 @@ pub fn run() {
             claude_list_profiles,
             claude_list_skills,
             claude_read_skill,
-            pick_directory,
             groups_load,
             groups_save,
             discover_markdown_files,
@@ -565,6 +557,7 @@ pub fn run() {
             cli_get_group,
         ])
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(

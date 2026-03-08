@@ -16,6 +16,7 @@
   import { getSetting, setSetting } from '../../adapters/settings-bridge';
   import { getCurrentTheme, setTheme } from '../../stores/theme.svelte';
   import { THEME_LIST, getPalette, type ThemeId } from '../../styles/themes';
+  import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
   let activeGroupId = $derived(getActiveGroupId());
   let activeGroup = $derived(getActiveGroup());
@@ -174,6 +175,11 @@
       uiFontDropdownOpen = false;
       termFontDropdownOpen = false;
     }
+  }
+
+  async function browseDirectory(): Promise<string | null> {
+    const selected = await openDialog({ directory: true, multiple: false });
+    return typeof selected === 'string' ? selected : null;
   }
 
   // New project form
@@ -385,12 +391,17 @@
       </div>
       <div class="setting-field">
         <label for="default-cwd" class="setting-label">Working directory</label>
-        <input
-          id="default-cwd"
-          value={defaultCwd}
-          placeholder="~"
-          onchange={e => { defaultCwd = (e.target as HTMLInputElement).value; saveGlobalSetting('default_cwd', defaultCwd); }}
-        />
+        <div class="input-with-browse">
+          <input
+            id="default-cwd"
+            value={defaultCwd}
+            placeholder="~"
+            onchange={e => { defaultCwd = (e.target as HTMLInputElement).value; saveGlobalSetting('default_cwd', defaultCwd); }}
+          />
+          <button class="browse-btn" title="Browse..." onclick={async () => { const d = await browseDirectory(); if (d) { defaultCwd = d; saveGlobalSetting('default_cwd', d); } }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
       </div>
     </div>
   </section>
@@ -434,10 +445,15 @@
           </label>
           <label class="project-field project-field-grow">
             <span class="field-label">CWD</span>
-            <input
-              value={project.cwd}
-              onchange={e => updateProject(activeGroupId, project.id, { cwd: (e.target as HTMLInputElement).value })}
-            />
+            <div class="input-with-browse">
+              <input
+                value={project.cwd}
+                onchange={e => updateProject(activeGroupId, project.id, { cwd: (e.target as HTMLInputElement).value })}
+              />
+              <button class="browse-btn" title="Browse..." onclick={async () => { const d = await browseDirectory(); if (d) updateProject(activeGroupId, project.id, { cwd: d }); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
           </label>
           <label class="project-field">
             <span class="field-label">Icon</span>
@@ -464,7 +480,12 @@
       {#if activeGroup.projects.length < 5}
         <div class="add-form">
           <input bind:value={newName} placeholder="Project name" />
-          <input bind:value={newCwd} placeholder="/path/to/project" />
+          <div class="input-with-browse add-form-path">
+            <input bind:value={newCwd} placeholder="/path/to/project" />
+            <button class="browse-btn" title="Browse..." onclick={async () => { const d = await browseDirectory(); if (d) newCwd = d; }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
           <button class="btn-primary" onclick={handleAddProject} disabled={!newName.trim() || !newCwd.trim()}>
             Add Project
           </button>
@@ -516,7 +537,8 @@
     letter-spacing: 0.03em;
   }
 
-  .setting-field > input {
+  .setting-field > input,
+  .setting-field .input-with-browse input {
     padding: 6px 10px;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
@@ -834,5 +856,39 @@
     color: var(--ctp-overlay0);
     font-size: 0.8rem;
     font-style: italic;
+  }
+
+  .input-with-browse {
+    display: flex;
+    gap: 4px;
+    align-items: stretch;
+  }
+
+  .input-with-browse input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .add-form-path {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .browse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.5rem;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    color: var(--ctp-subtext0);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .browse-btn:hover {
+    color: var(--ctp-text);
+    background: var(--ctp-surface1);
   }
 </style>
