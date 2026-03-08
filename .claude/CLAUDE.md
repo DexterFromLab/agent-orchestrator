@@ -72,7 +72,7 @@
 - v3 App.svelte: VSCode-style sidebar layout. Horizontal: left icon rail (GlobalTabBar, 2.75rem, single Settings gear icon) + expandable drawer panel (Settings only, content-driven width, max 50%) + main workspace (ProjectGrid always visible) + StatusBar. Sidebar has Settings only — Sessions/Docs/Context are project-specific (in ProjectBox tabs). Keyboard: Ctrl+B (toggle sidebar), Ctrl+, (settings), Escape (close).
 - v3 component tree: App -> GlobalTabBar (settings icon) + sidebar-panel? (SettingsTab) + workspace (ProjectGrid) + StatusBar. See `docs/v3-task_plan.md` for full tree.
 - MarkdownPane reactively watches filePath changes via $effect (not onMount-only). Uses sans-serif font (--ui-font-family), all --ctp-* theme vars. Styled blockquotes with translucent backgrounds, table row hover, link hover underlines.
-- ProjectBox terminal area only visible on Claude tab ({#if activeTab === 'claude'}). Grid rows: auto auto 1fr (+ terminal when on Claude tab).
+- ProjectBox uses CSS `style:display` (flex/none) instead of `{#if}` for tab content panes — keeps ClaudeSession mounted across tab switches (prevents session ID reset and message loss). Terminal section also uses `style:display`. Grid rows: auto auto 1fr auto.
 - Svelte 5 event syntax: use `onclick` not `on:click`. Svelte 5 requires lowercase event handler attributes (no colon syntax).
 
 ## Memora Tags
