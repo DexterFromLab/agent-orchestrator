@@ -102,3 +102,4 @@ All operational rules live in `.claude/rules/`. Every `.md` file in that directo
 | 16 | `sub-agents.md` | When to use sub-agents and team agents |
 | 17 | `document-imports.md` | Resolve @ imports in CLAUDE.md before acting |
 | 18 | `relative-units.md` | Use rem/em for layout, px only for icons/borders |
+| 51 | `theme-integration.md` | All colors via --ctp-* CSS vars, never hardcode |

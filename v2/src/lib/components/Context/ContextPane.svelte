@@ -78,7 +78,19 @@
   </div>
 
   {#if error}
-    <div class="ctx-error">{error}</div>
+    <div class="ctx-error-box">
+      <div class="ctx-error-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <div class="ctx-error-text">{error}</div>
+      <div class="ctx-error-hint">
+        Run <code>ctx init</code> in a terminal tab to create the context database.
+      </div>
+    </div>
   {/if}
 
   <div class="ctx-body">
@@ -172,14 +184,14 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--bg-primary);
-    color: var(--text-primary);
+    background: var(--ctp-base);
+    color: var(--ctp-text);
     font-size: 0.8rem;
   }
 
   .ctx-header {
     padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--ctp-surface0);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -196,25 +208,49 @@
   .search-input {
     flex: 1;
     min-width: 10em;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius);
-    color: var(--text-primary);
-    font-family: var(--font-mono);
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface0);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-family: var(--term-font-family, monospace);
     font-size: 0.7rem;
     padding: 0.25rem 0.5rem;
   }
 
   .search-input:focus {
     outline: none;
-    border-color: var(--accent);
+    border-color: var(--ctp-blue);
   }
 
-  .ctx-error {
+  .ctx-error-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.5rem 1rem;
+    text-align: center;
+  }
+
+  .ctx-error-icon {
+    color: var(--ctp-overlay0);
+  }
+
+  .ctx-error-text {
     color: var(--ctp-red);
-    padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
-    white-space: nowrap;
+  }
+
+  .ctx-error-hint {
+    color: var(--ctp-overlay1);
+    font-size: 0.7rem;
+  }
+
+  .ctx-error-hint code {
+    background: var(--ctp-surface0);
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.1875rem;
+    font-family: var(--term-font-family, monospace);
+    color: var(--ctp-green);
   }
 
   .ctx-body {
@@ -240,20 +276,20 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius);
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface0);
+    border-radius: 0.25rem;
     padding: 0.375rem 0.5rem;
     margin-bottom: 0.25rem;
     cursor: pointer;
     text-align: left;
-    color: var(--text-primary);
+    color: var(--ctp-text);
   }
 
-  .project-btn:hover { border-color: var(--accent); }
+  .project-btn:hover { border-color: var(--ctp-blue); }
   .project-btn.active {
-    border-color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 10%, var(--bg-surface));
+    border-color: var(--ctp-blue);
+    background: color-mix(in srgb, var(--ctp-blue) 10%, var(--ctp-surface0));
   }
 
   .project-name {
@@ -263,7 +299,7 @@
 
   .project-desc {
     font-size: 10px;
-    color: var(--text-muted);
+    color: var(--ctp-overlay0);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -274,8 +310,8 @@
   }
 
   .entry {
-    background: var(--bg-surface);
-    border-radius: var(--border-radius);
+    background: var(--ctp-surface0);
+    border-radius: 0.25rem;
     padding: 6px 8px;
     margin-bottom: 4px;
   }
@@ -301,7 +337,7 @@
 
   .entry-date {
     font-size: 9px;
-    color: var(--text-muted);
+    color: var(--ctp-overlay0);
     margin-left: auto;
   }
 
@@ -309,33 +345,33 @@
     font-size: 11px;
     white-space: pre-wrap;
     word-break: break-word;
-    color: var(--text-secondary);
+    color: var(--ctp-subtext0);
     max-height: 200px;
     overflow-y: auto;
     margin: 0;
   }
 
   .empty {
-    color: var(--text-muted);
+    color: var(--ctp-overlay0);
     font-size: 11px;
     font-style: italic;
   }
 
   .clear-btn {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    border-radius: var(--border-radius);
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface0);
+    color: var(--ctp-subtext0);
+    border-radius: 0.25rem;
     padding: 4px 10px;
     font-size: 11px;
     cursor: pointer;
     margin-top: 4px;
   }
 
-  .clear-btn:hover { color: var(--text-primary); }
+  .clear-btn:hover { color: var(--ctp-text); }
 
   .loading {
-    color: var(--text-muted);
+    color: var(--ctp-overlay0);
     font-size: 12px;
     text-align: center;
     padding: 16px;

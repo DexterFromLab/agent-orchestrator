@@ -5,10 +5,8 @@
   import {
     getAgentSession,
     createAgentSession,
-    removeAgentSession,
     getChildSessions,
     getTotalCost,
-    type AgentSession,
   } from '../../stores/agents.svelte';
   import { focusPane } from '../../stores/layout.svelte';
   import { isSidecarAlive, setSidecarAlive } from '../../agent-dispatcher';
@@ -16,7 +14,6 @@
   import AgentTree from './AgentTree.svelte';
   import { getHighlighter, highlightCode, escapeHtml } from '../../utils/highlight';
   import type {
-    AgentMessage,
     TextContent,
     ThinkingContent,
     ToolCallContent,
@@ -93,7 +90,8 @@
   // NOTE: Do NOT stop agents in onDestroy — it fires on layout changes/remounts,
   // not just explicit close. Stop-on-close is handled by workspace teardown.
 
-  let followUpPrompt = $state('');
+  let promptRef = $state<HTMLTextAreaElement | undefined>();
+  let isRunning = $derived(session?.status === 'running' || session?.status === 'starting');
 
   async function startQuery(text: string, resume = false) {
     if (!text.trim()) return;
@@ -126,7 +124,9 @@
       claude_config_dir: profile?.config_dir,
     });
     inputPrompt = '';
-    followUpPrompt = '';
+    if (promptRef) {
+      promptRef.style.height = 'auto';
+    }
   }
 
   async function expandSkillPrompt(text: string): Promise<string> {
@@ -143,11 +143,22 @@
     }
   }
 
-  async function handleSubmit(e: Event) {
-    e.preventDefault();
+  async function handleUnifiedSubmit() {
+    if (!inputPrompt.trim() || isRunning) return;
     const expanded = await expandSkillPrompt(inputPrompt);
     showSkillMenu = false;
-    startQuery(expanded);
+    // If session exists with sdkSessionId, this is a follow-up (resume)
+    const isResume = !!(session?.sdkSessionId && session.messages.length > 0);
+    startQuery(expanded, isResume);
+  }
+
+  function handleNewSession() {
+    onExit?.();
+  }
+
+  function autoResizeTextarea(el: HTMLTextAreaElement) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 150) + 'px';
   }
 
   function handleSkillSelect(skill: ClaudeSkill) {
@@ -218,97 +229,47 @@
 </script>
 
 <div class="agent-pane">
-  {#if !session || session.messages.length === 0}
-    <div class="prompt-area">
-      <form onsubmit={handleSubmit} class="prompt-form">
-        <div class="prompt-wrapper">
-          <textarea
-            bind:value={inputPrompt}
-            placeholder="Ask Claude something... (type / for skills)"
-            class="prompt-input"
-            rows="3"
-            oninput={() => {
-              showSkillMenu = inputPrompt.startsWith('/') && filteredSkills.length > 0;
-              skillMenuIndex = 0;
-            }}
-            onkeydown={async (e) => {
-              if (showSkillMenu && filteredSkills.length > 0) {
-                if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  skillMenuIndex = Math.min(skillMenuIndex + 1, filteredSkills.length - 1);
-                  return;
-                }
-                if (e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  skillMenuIndex = Math.max(skillMenuIndex - 1, 0);
-                  return;
-                }
-                if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
-                  e.preventDefault();
-                  handleSkillSelect(filteredSkills[skillMenuIndex]);
-                  return;
-                }
-                if (e.key === 'Escape') {
-                  showSkillMenu = false;
-                  return;
-                }
-              }
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                const expanded = await expandSkillPrompt(inputPrompt);
-                showSkillMenu = false;
-                startQuery(expanded);
-              }
-            }}
-          ></textarea>
-          {#if showSkillMenu && filteredSkills.length > 0}
-            <div class="skill-menu">
-              {#each filteredSkills as skill, i (skill.name)}
-                <button
-                  class="skill-item"
-                  class:active={i === skillMenuIndex}
-                  onmousedown={(e) => { e.preventDefault(); handleSkillSelect(skill); }}
-                >
-                  <span class="skill-name">/{skill.name}</span>
-                  <span class="skill-desc">{skill.description}</span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-        <button type="submit" class="send-btn" disabled={!inputPrompt.trim()}>Send</button>
-      </form>
+  {#if parentSession}
+    <div class="parent-link">
+      <span class="parent-badge">SUB</span>
+      <button class="parent-btn" onclick={() => focusPane(parentSession!.id)}>
+        ← {parentSession.prompt ? parentSession.prompt.slice(0, 40) : 'Parent agent'}
+      </button>
     </div>
-  {:else}
-    {#if parentSession}
-      <div class="parent-link">
-        <span class="parent-badge">SUB</span>
-        <button class="parent-btn" onclick={() => focusPane(parentSession!.id)}>
-          ← {parentSession.prompt ? parentSession.prompt.slice(0, 40) : 'Parent agent'}
+  {/if}
+  {#if childSessions.length > 0}
+    <div class="children-bar">
+      <span class="children-label">{childSessions.length} subagent{childSessions.length > 1 ? 's' : ''}</span>
+      {#each childSessions as child (child.id)}
+        <button class="child-chip" class:running={child.status === 'running'} class:done={child.status === 'done'} class:error={child.status === 'error'} onclick={() => focusPane(child.id)}>
+          {child.prompt.slice(0, 20)}{child.prompt.length > 20 ? '...' : ''}
         </button>
-      </div>
+      {/each}
+    </div>
+  {/if}
+  {#if hasToolCalls}
+    <div class="tree-toggle">
+      <button class="tree-btn" onclick={() => showTree = !showTree}>
+        {showTree ? '▼' : '▶'} Agent Tree
+      </button>
+    </div>
+    {#if showTree && session}
+      <AgentTree {session} onNodeClick={handleTreeNodeClick} />
     {/if}
-    {#if childSessions.length > 0}
-      <div class="children-bar">
-        <span class="children-label">{childSessions.length} subagent{childSessions.length > 1 ? 's' : ''}</span>
-        {#each childSessions as child (child.id)}
-          <button class="child-chip" class:running={child.status === 'running'} class:done={child.status === 'done'} class:error={child.status === 'error'} onclick={() => focusPane(child.id)}>
-            {child.prompt.slice(0, 20)}{child.prompt.length > 20 ? '...' : ''}
-          </button>
-        {/each}
+  {/if}
+
+  <div class="messages" bind:this={scrollContainer} onscroll={handleScroll}>
+    {#if !session || session.messages.length === 0}
+      <div class="welcome-state">
+        <div class="welcome-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </div>
+        <span class="welcome-text">Ask Claude anything</span>
+        <span class="welcome-hint">Type / for skills • Shift+Enter for newline</span>
       </div>
-    {/if}
-    {#if hasToolCalls}
-      <div class="tree-toggle">
-        <button class="tree-btn" onclick={() => showTree = !showTree}>
-          {showTree ? '▼' : '▶'} Agent Tree
-        </button>
-      </div>
-      {#if showTree && session}
-        <AgentTree {session} onNodeClick={handleTreeNodeClick} />
-      {/if}
-    {/if}
-    <div class="messages" bind:this={scrollContainer} onscroll={handleScroll}>
+    {:else}
       {#each session.messages as msg (msg.id)}
         <div class="message msg-{msg.type}" id="msg-{msg.id}">
           {#if msg.type === 'init'}
@@ -353,15 +314,18 @@
           {/if}
         </div>
       {/each}
-    </div>
+    {/if}
+  </div>
 
-    <div class="footer">
+  <!-- Status bar -->
+  {#if session}
+    <div class="status-strip">
       {#if session.status === 'running' || session.status === 'starting'}
         <div class="running-indicator">
           <span class="pulse"></span>
           <span>Running...</span>
           {#if !autoScroll}
-            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollToBottom(); }}>Scroll to bottom</button>
+            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollToBottom(); }}>↓ Bottom</button>
           {/if}
           <button class="stop-btn" onclick={handleStop}>Stop</button>
         </div>
@@ -371,28 +335,12 @@
           {#if totalCost && totalCost.costUsd > session.costUsd}
             <span class="total-cost">(total: ${totalCost.costUsd.toFixed(4)})</span>
           {/if}
-          <span class="tokens">{session.inputTokens + session.outputTokens} tokens</span>
+          <span class="tokens">{session.inputTokens + session.outputTokens} tok</span>
           <span class="duration">{(session.durationMs / 1000).toFixed(1)}s</span>
           {#if !autoScroll}
-            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollToBottom(); }}>Scroll to bottom</button>
+            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollToBottom(); }}>↓ Bottom</button>
           {/if}
         </div>
-        {#if session.sdkSessionId}
-          <div class="follow-up">
-            <input
-              type="text"
-              class="follow-up-input"
-              bind:value={followUpPrompt}
-              placeholder="Follow up..."
-              onkeydown={(e) => {
-                if (e.key === 'Enter' && followUpPrompt.trim()) {
-                  startQuery(followUpPrompt, true);
-                }
-              }}
-            />
-            <button class="follow-up-btn" onclick={() => startQuery(followUpPrompt, true)} disabled={!followUpPrompt.trim()}>Send</button>
-          </div>
-        {/if}
       {:else if session.status === 'error'}
         <div class="error-bar">
           <span>Error: {session.error ?? 'Unknown'}</span>
@@ -402,25 +350,98 @@
             </button>
           {/if}
         </div>
-        {#if session.sdkSessionId}
-          <div class="follow-up">
-            <input
-              type="text"
-              class="follow-up-input"
-              bind:value={followUpPrompt}
-              placeholder="Retry or follow up..."
-              onkeydown={(e) => {
-                if (e.key === 'Enter' && followUpPrompt.trim()) {
-                  startQuery(followUpPrompt, true);
-                }
-              }}
-            />
-            <button class="follow-up-btn" onclick={() => startQuery(followUpPrompt, true)} disabled={!followUpPrompt.trim()}>Send</button>
-          </div>
-        {/if}
       {/if}
     </div>
   {/if}
+
+  <!-- Session controls (new / continue) -->
+  {#if session && (session.status === 'done' || session.status === 'error') && session.sdkSessionId}
+    <div class="session-controls">
+      <button class="session-btn session-btn-new" onclick={handleNewSession}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        New Session
+      </button>
+      <button class="session-btn session-btn-continue" onclick={() => promptRef?.focus()}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        Continue
+      </button>
+    </div>
+  {/if}
+
+  <!-- Unified prompt input (VSCode style) -->
+  <div class="prompt-container" class:disabled={isRunning}>
+    <div class="prompt-wrapper">
+      {#if showSkillMenu && filteredSkills.length > 0}
+        <div class="skill-menu">
+          {#each filteredSkills as skill, i (skill.name)}
+            <button
+              class="skill-item"
+              class:active={i === skillMenuIndex}
+              onmousedown={(e) => { e.preventDefault(); handleSkillSelect(skill); }}
+            >
+              <span class="skill-name">/{skill.name}</span>
+              <span class="skill-desc">{skill.description}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+      <textarea
+        bind:this={promptRef}
+        bind:value={inputPrompt}
+        placeholder={isRunning ? 'Agent is running...' : 'Ask Claude something... (/ for skills)'}
+        class="prompt-input"
+        rows="1"
+        disabled={isRunning}
+        oninput={(e) => {
+          showSkillMenu = inputPrompt.startsWith('/') && filteredSkills.length > 0;
+          skillMenuIndex = 0;
+          autoResizeTextarea(e.currentTarget as HTMLTextAreaElement);
+        }}
+        onkeydown={async (e) => {
+          if (showSkillMenu && filteredSkills.length > 0) {
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              skillMenuIndex = Math.min(skillMenuIndex + 1, filteredSkills.length - 1);
+              return;
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              skillMenuIndex = Math.max(skillMenuIndex - 1, 0);
+              return;
+            }
+            if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+              e.preventDefault();
+              handleSkillSelect(filteredSkills[skillMenuIndex]);
+              return;
+            }
+            if (e.key === 'Escape') {
+              showSkillMenu = false;
+              return;
+            }
+          }
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleUnifiedSubmit();
+          }
+        }}
+      ></textarea>
+      <button
+        class="submit-icon-btn"
+        onclick={handleUnifiedSubmit}
+        disabled={!inputPrompt.trim() || isRunning}
+        aria-label="Send message"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z" />
+        </svg>
+      </button>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -428,29 +449,29 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 13px;
+    background: var(--ctp-base);
+    color: var(--ctp-text);
+    font-size: 0.8125rem;
   }
 
   .parent-link {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    border-bottom: 1px solid var(--border);
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+    border-bottom: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
 
   .parent-badge {
     background: var(--ctp-mauve);
     color: var(--ctp-crust);
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-size: 9px;
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.1875rem;
+    font-size: 0.5625rem;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.03em;
   }
 
   .parent-btn {
@@ -458,49 +479,49 @@
     border: none;
     color: var(--ctp-mauve);
     cursor: pointer;
-    font-size: 11px;
+    font-size: 0.6875rem;
     padding: 0;
     font-family: inherit;
   }
 
-  .parent-btn:hover { color: var(--text-primary); text-decoration: underline; }
+  .parent-btn:hover { color: var(--ctp-text); text-decoration: underline; }
 
   .children-bar {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 12px;
-    border-bottom: 1px solid var(--border);
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-bottom: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
     flex-wrap: wrap;
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
 
   .children-label {
-    color: var(--text-muted);
-    font-size: 10px;
-    margin-right: 4px;
+    color: var(--ctp-overlay0);
+    font-size: 0.625rem;
+    margin-right: 0.25rem;
   }
 
   .child-chip {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-size: 10px;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    color: var(--ctp-subtext0);
+    padding: 0.0625rem 0.375rem;
+    border-radius: 0.1875rem;
+    font-size: 0.625rem;
     cursor: pointer;
     font-family: inherit;
   }
 
-  .child-chip:hover { color: var(--text-primary); border-color: var(--accent); }
+  .child-chip:hover { color: var(--ctp-text); border-color: var(--accent); }
   .child-chip.running { border-color: var(--ctp-blue); color: var(--ctp-blue); }
   .child-chip.done { border-color: var(--ctp-green); color: var(--ctp-green); }
   .child-chip.error { border-color: var(--ctp-red); color: var(--ctp-red); }
 
   .tree-toggle {
-    padding: 4px 12px;
-    border-bottom: 1px solid var(--border);
+    padding: 0.25rem 0.75rem;
+    border-bottom: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
   }
 
@@ -508,67 +529,49 @@
     background: none;
     border: none;
     color: var(--ctp-mauve);
-    font-size: 11px;
+    font-size: 0.6875rem;
     cursor: pointer;
-    font-family: var(--font-mono);
-    padding: 2px 4px;
+    font-family: var(--term-font-family, monospace);
+    padding: 0.125rem 0.25rem;
   }
 
-  .tree-btn:hover { color: var(--text-primary); }
+  .tree-btn:hover { color: var(--ctp-text); }
 
-  .prompt-area {
+  /* Welcome state */
+  .welcome-state {
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: center;
     height: 100%;
-    padding: 1rem;
-  }
-
-  .prompt-form {
-    display: flex;
-    flex-direction: column;
     gap: 0.5rem;
-    width: 100%;
+    color: var(--ctp-overlay1);
   }
 
-  .prompt-input {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius);
-    color: var(--text-primary);
-    font-family: inherit;
-    font-size: 13px;
-    padding: 10px;
-    resize: vertical;
+  .welcome-icon {
+    color: var(--ctp-overlay0);
+    opacity: 0.6;
   }
 
-  .prompt-input:focus {
-    outline: none;
-    border-color: var(--accent);
+  .welcome-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ctp-subtext1);
   }
 
-  .send-btn {
-    align-self: flex-end;
-    background: var(--accent);
-    color: var(--ctp-crust);
-    border: none;
-    border-radius: var(--border-radius);
-    padding: 6px 16px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
+  .welcome-hint {
+    font-size: 0.6875rem;
+    color: var(--ctp-overlay0);
   }
-
-  .send-btn:hover { opacity: 0.9; }
-  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 12px;
+    padding: 0.5rem 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0.25rem;
+    min-height: 0;
   }
 
   .message { padding: 4px 0; }
@@ -577,15 +580,15 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--text-muted);
+    color: var(--ctp-overlay0);
     font-size: 11px;
   }
 
   .msg-init .model {
-    background: var(--bg-surface);
+    background: var(--ctp-surface0);
     padding: 1px 6px;
     border-radius: 3px;
-    font-family: var(--font-mono);
+    font-family: var(--term-font-family, monospace);
   }
 
   .msg-text {
@@ -619,18 +622,18 @@
   }
 
   .msg-text.markdown-body :global(code) {
-    background: var(--bg-surface);
+    background: var(--ctp-surface0);
     padding: 1px 5px;
     border-radius: 3px;
-    font-family: var(--font-mono);
+    font-family: var(--term-font-family, monospace);
     font-size: 0.9em;
     color: var(--ctp-green);
   }
 
   .msg-text.markdown-body :global(pre) {
-    background: var(--bg-surface);
+    background: var(--ctp-surface0);
     padding: 10px 12px;
-    border-radius: var(--border-radius);
+    border-radius: 0.25rem;
     overflow-x: auto;
     font-size: 12px;
     line-height: 1.5;
@@ -640,13 +643,13 @@
   .msg-text.markdown-body :global(pre code) {
     background: none;
     padding: 0;
-    color: var(--text-primary);
+    color: var(--ctp-text);
   }
 
   .msg-text.markdown-body :global(.shiki) {
-    background: var(--bg-surface) !important;
+    background: var(--ctp-surface0) !important;
     padding: 10px 12px;
-    border-radius: var(--border-radius);
+    border-radius: 0.25rem;
     overflow-x: auto;
     font-size: 12px;
     line-height: 1.5;
@@ -662,7 +665,7 @@
     border-left: 3px solid var(--ctp-mauve);
     margin: 0.4em 0;
     padding: 2px 10px;
-    color: var(--text-secondary);
+    color: var(--ctp-subtext0);
   }
 
   .msg-text.markdown-body :global(ul), .msg-text.markdown-body :global(ol) {
@@ -691,13 +694,13 @@
   }
 
   .msg-text.markdown-body :global(th), .msg-text.markdown-body :global(td) {
-    border: 1px solid var(--border);
+    border: 1px solid var(--ctp-surface0);
     padding: 4px 8px;
     text-align: left;
   }
 
   .msg-text.markdown-body :global(th) {
-    background: var(--bg-surface);
+    background: var(--ctp-surface0);
     font-weight: 600;
   }
 
@@ -739,9 +742,9 @@
   }
 
   .tool-id {
-    font-family: var(--font-mono);
+    font-family: var(--term-font-family, monospace);
     font-size: 10px;
-    color: var(--text-muted);
+    color: var(--ctp-overlay0);
   }
 
   .tool-input, .tool-output {
@@ -750,10 +753,10 @@
     font-size: 11px;
     max-height: 300px;
     overflow-y: auto;
-    background: var(--bg-surface);
+    background: var(--ctp-surface0);
     padding: 6px 8px;
     border-radius: 3px;
-    color: var(--text-secondary);
+    color: var(--ctp-subtext0);
   }
 
   .msg-tool-result {
@@ -768,11 +771,11 @@
     display: flex;
     gap: 12px;
     padding: 4px 8px;
-    background: var(--bg-surface);
+    background: var(--ctp-surface0);
     border-radius: 3px;
     font-size: 11px;
     color: var(--ctp-yellow);
-    font-family: var(--font-mono);
+    font-family: var(--term-font-family, monospace);
   }
 
   .msg-error {
@@ -784,22 +787,23 @@
   }
 
   .msg-status {
-    color: var(--text-muted);
+    color: var(--ctp-overlay0);
     font-size: 11px;
     font-style: italic;
   }
 
-  .footer {
-    border-top: 1px solid var(--border);
-    padding: 6px 12px;
+  /* Status strip */
+  .status-strip {
+    padding: 0.25rem 0.75rem;
+    border-top: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
   }
 
   .running-indicator {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
+    gap: 0.5rem;
+    font-size: 0.75rem;
     color: var(--ctp-blue);
   }
 
@@ -821,34 +825,34 @@
     background: var(--ctp-red);
     color: var(--ctp-crust);
     border: none;
-    border-radius: 3px;
-    padding: 2px 10px;
-    font-size: 11px;
+    border-radius: 0.1875rem;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.6875rem;
     cursor: pointer;
   }
 
   .stop-btn:hover { opacity: 0.9; }
 
   .scroll-btn {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    border-radius: 3px;
-    padding: 2px 8px;
-    font-size: 10px;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    color: var(--ctp-subtext0);
+    border-radius: 0.1875rem;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.625rem;
     cursor: pointer;
   }
 
-  .scroll-btn:hover { color: var(--text-primary); }
+  .scroll-btn:hover { color: var(--ctp-text); }
 
   .restart-btn {
     margin-left: auto;
     background: var(--ctp-peach);
     color: var(--ctp-crust);
     border: none;
-    border-radius: 3px;
-    padding: 2px 10px;
-    font-size: 11px;
+    border-radius: 0.1875rem;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.6875rem;
     cursor: pointer;
   }
 
@@ -857,95 +861,177 @@
 
   .done-bar, .error-bar {
     display: flex;
-    gap: 12px;
-    font-size: 11px;
-    font-family: var(--font-mono);
+    gap: 0.75rem;
+    font-size: 0.6875rem;
+    font-family: var(--term-font-family, monospace);
     align-items: center;
   }
 
   .done-bar { color: var(--ctp-green); }
-  .total-cost { color: var(--ctp-yellow); font-size: 10px; }
+  .total-cost { color: var(--ctp-yellow); font-size: 0.625rem; }
   .error-bar { color: var(--ctp-red); }
 
-  .follow-up {
+  /* Session controls */
+  .session-controls {
     display: flex;
-    gap: 6px;
-    padding: 4px 0 0;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
-  .follow-up-input {
-    flex: 1;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text-primary);
-    font-size: 12px;
-    padding: 4px 8px;
-    font-family: inherit;
-  }
-
-  .follow-up-input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-
-  .follow-up-btn {
-    background: var(--accent);
-    color: var(--ctp-crust);
-    border: none;
-    border-radius: 3px;
-    padding: 4px 12px;
-    font-size: 11px;
-    font-weight: 600;
+  .session-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
     cursor: pointer;
+    font-family: inherit;
+    transition: background 0.12s ease, color 0.12s ease;
   }
 
-  .follow-up-btn:hover { opacity: 0.9; }
-  .follow-up-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .session-btn-new {
+    background: transparent;
+    border: 1px solid var(--ctp-surface1);
+    color: var(--ctp-subtext0);
+  }
 
-  /* Skill autocomplete */
+  .session-btn-new:hover {
+    background: var(--ctp-surface0);
+    color: var(--ctp-text);
+    border-color: var(--ctp-surface2);
+  }
+
+  .session-btn-continue {
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    color: var(--ctp-blue);
+  }
+
+  .session-btn-continue:hover {
+    background: var(--ctp-surface1);
+    color: var(--ctp-sapphire);
+  }
+
+  /* VSCode-style prompt container */
+  .prompt-container {
+    padding: 0.5rem 0.75rem;
+    flex-shrink: 0;
+    border-top: 1px solid var(--ctp-surface0);
+  }
+
+  .prompt-container.disabled {
+    opacity: 0.6;
+  }
+
   .prompt-wrapper {
     position: relative;
-    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    background: var(--ctp-mantle);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.5rem;
+    transition: border-color 0.15s ease;
   }
 
+  .prompt-wrapper:focus-within {
+    border-color: var(--ctp-blue);
+  }
+
+  .prompt-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--ctp-text);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.625rem;
+    resize: none;
+    min-height: 1.25rem;
+    max-height: 9.375rem;
+    line-height: 1.4;
+    overflow-y: auto;
+  }
+
+  .prompt-input:focus {
+    outline: none;
+  }
+
+  .prompt-input::placeholder {
+    color: var(--ctp-overlay0);
+  }
+
+  .prompt-input:disabled {
+    cursor: not-allowed;
+  }
+
+  .submit-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: 0.25rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: var(--ctp-blue);
+    color: var(--ctp-crust);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s ease, opacity 0.12s ease;
+  }
+
+  .submit-icon-btn:hover:not(:disabled) {
+    background: var(--ctp-sapphire);
+  }
+
+  .submit-icon-btn:disabled {
+    background: var(--ctp-surface1);
+    color: var(--ctp-overlay0);
+    cursor: not-allowed;
+  }
+
+  /* Skill autocomplete */
   .skill-menu {
     position: absolute;
     bottom: 100%;
     left: 0;
     right: 0;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius);
-    max-height: 200px;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.375rem;
+    max-height: 12.5rem;
     overflow-y: auto;
     z-index: 10;
-    margin-bottom: 4px;
+    margin-bottom: 0.25rem;
   }
 
   .skill-item {
     display: flex;
-    gap: 8px;
+    gap: 0.5rem;
     align-items: baseline;
-    padding: 6px 10px;
+    padding: 0.375rem 0.625rem;
     width: 100%;
     text-align: left;
     background: none;
     border: none;
-    color: var(--text-primary);
-    font-size: 12px;
+    color: var(--ctp-text);
+    font-size: 0.75rem;
     cursor: pointer;
     font-family: inherit;
   }
 
   .skill-item:hover, .skill-item.active {
-    background: var(--accent);
+    background: var(--ctp-blue);
     color: var(--ctp-crust);
   }
 
   .skill-name {
     font-weight: 600;
-    font-family: var(--font-mono);
+    font-family: var(--term-font-family, monospace);
     color: var(--ctp-green);
     flex-shrink: 0;
   }
@@ -955,8 +1041,8 @@
   }
 
   .skill-desc {
-    color: var(--text-muted);
-    font-size: 11px;
+    color: var(--ctp-overlay1);
+    font-size: 0.6875rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

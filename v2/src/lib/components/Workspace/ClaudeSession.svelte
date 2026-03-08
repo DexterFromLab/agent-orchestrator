@@ -30,6 +30,14 @@
   let loading = $state(true);
   let hasRestoredHistory = $state(false);
 
+  function handleNewSession() {
+    sessionId = crypto.randomUUID();
+    hasRestoredHistory = false;
+    lastState = null;
+    registerSessionProject(sessionId, project.id);
+    onsessionid?.(sessionId);
+  }
+
   // Load previous session state when project changes
   $effect(() => {
     const pid = project.id;
@@ -108,6 +116,7 @@
       {sessionId}
       cwd={project.cwd}
       profile={project.profile || undefined}
+      onExit={handleNewSession}
     />
   {/if}
 </div>

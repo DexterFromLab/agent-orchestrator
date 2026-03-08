@@ -101,30 +101,43 @@
     background: var(--ctp-mantle);
     border-bottom: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
   .ptab {
-    padding: 0.25rem 0.75rem;
-    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3125em 0.875em;
     border: none;
+    border-top: 2px solid transparent;
     border-bottom: 2px solid transparent;
+    background: transparent;
     color: var(--ctp-overlay1);
-    font-size: 0.7rem;
+    font-size: 0.725rem;
     font-weight: 500;
-    cursor: pointer;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    transition: color 0.1s, border-color 0.1s;
+    cursor: pointer;
+    transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
   }
 
   .ptab:hover {
-    color: var(--ctp-text);
+    color: var(--ctp-subtext1);
+    background: var(--ctp-surface0);
+  }
+
+  .ptab:focus-visible {
+    outline: 1px solid var(--ctp-blue);
+    outline-offset: -1px;
   }
 
   .ptab.active {
+    background: var(--ctp-base);
     color: var(--ctp-text);
-    border-bottom-color: var(--accent);
     font-weight: 600;
+    border-bottom-color: var(--accent);
+    margin-bottom: -1px;
   }
 
   .project-content-area {
