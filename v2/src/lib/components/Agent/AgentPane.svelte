@@ -29,10 +29,11 @@
     sessionId: string;
     prompt?: string;
     cwd?: string;
+    profile?: string;
     onExit?: () => void;
   }
 
-  let { sessionId, prompt: initialPrompt = '', cwd: initialCwd, onExit }: Props = $props();
+  let { sessionId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, onExit }: Props = $props();
 
   let session = $derived(getAgentSession(sessionId));
   let inputPrompt = $state(initialPrompt);
@@ -45,13 +46,8 @@
   let childSessions = $derived(session ? getChildSessions(session.id) : []);
   let totalCost = $derived(session && childSessions.length > 0 ? getTotalCost(session.id) : null);
 
-  // Working directory
-  let cwdInput = $state(initialCwd ?? '');
-  let showCwdPicker = $state(false);
-
-  // Profile selector
+  // Profile list (for resolving profileName to config_dir)
   let profiles = $state<ClaudeProfile[]>([]);
-  let selectedProfile = $state('');
 
   // Skill autocomplete
   let skills = $state<ClaudeSkill[]>([]);
@@ -119,11 +115,11 @@
       updateAgentStatus(sessionId, 'starting');
     }
 
-    const profile = profiles.find(p => p.name === selectedProfile);
+    const profile = profileName ? profiles.find(p => p.name === profileName) : undefined;
     await queryAgent({
       session_id: sessionId,
       prompt: text,
-      cwd: cwdInput || undefined,
+      cwd: initialCwd || undefined,
       max_turns: 50,
       resume_session_id: resumeId,
       setting_sources: ['user', 'project'],
@@ -224,37 +220,6 @@
 <div class="agent-pane">
   {#if !session || session.messages.length === 0}
     <div class="prompt-area">
-      <div class="session-toolbar">
-        <div class="toolbar-row">
-          <label class="toolbar-label">
-            <span class="toolbar-icon">DIR</span>
-            <input
-              type="text"
-              class="toolbar-input"
-              bind:value={cwdInput}
-              placeholder="Working directory (default: ~)"
-              onfocus={() => showCwdPicker = true}
-              onblur={() => setTimeout(() => showCwdPicker = false, 150)}
-            />
-          </label>
-          {#if profiles.length > 1}
-            <label class="toolbar-label">
-              <span class="toolbar-icon">ACC</span>
-              <select class="toolbar-select" bind:value={selectedProfile}>
-                <option value="">Default account</option>
-                {#each profiles as profile (profile.name)}
-                  <option value={profile.name}>
-                    {profile.display_name || profile.name}
-                    {#if profile.subscription_type}
-                      ({profile.subscription_type})
-                    {/if}
-                  </option>
-                {/each}
-              </select>
-            </label>
-          {/if}
-        </div>
-      </div>
       <form onsubmit={handleSubmit} class="prompt-form">
         <div class="prompt-wrapper">
           <textarea
@@ -937,69 +902,6 @@
 
   .follow-up-btn:hover { opacity: 0.9; }
   .follow-up-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* Session toolbar */
-  .session-toolbar {
-    width: 100%;
-    margin-bottom: 0.5rem;
-  }
-
-  .toolbar-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .toolbar-label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex: 1;
-    min-width: 180px;
-  }
-
-  .toolbar-icon {
-    font-size: 9px;
-    font-weight: 700;
-    color: var(--ctp-crust);
-    background: var(--ctp-overlay1);
-    padding: 2px 5px;
-    border-radius: 3px;
-    letter-spacing: 0.5px;
-    flex-shrink: 0;
-  }
-
-  .toolbar-input {
-    flex: 1;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text-primary);
-    font-size: 11px;
-    padding: 3px 6px;
-    font-family: var(--font-mono);
-  }
-
-  .toolbar-input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-
-  .toolbar-select {
-    flex: 1;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text-primary);
-    font-size: 11px;
-    padding: 3px 4px;
-    font-family: inherit;
-  }
-
-  .toolbar-select:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
 
   /* Skill autocomplete */
   .prompt-wrapper {

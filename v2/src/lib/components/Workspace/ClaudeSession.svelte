@@ -107,6 +107,7 @@
     <AgentPane
       {sessionId}
       cwd={project.cwd}
+      profile={project.profile || undefined}
     />
   {/if}
 </div>
