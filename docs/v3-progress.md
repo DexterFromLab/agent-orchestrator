@@ -432,5 +432,17 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Fixed wdio v9 BiDi: added `wdio:enforceWebDriverClassic: true` — wdio v9 injects webSocketUrl:true which tauri-driver rejects
 - [x] Removed `browserName: 'wry'` from capabilities (not needed in wdio, only Selenium)
 - [x] Fixed binary path: Cargo workspace target is v2/target/debug/, not v2/src-tauri/target/debug/
-- [x] Fixed tauri-plugin-log panic: telemetry::init() registers tracing-subscriber before plugin-log → changed `?` to `let _ =` in lib.rs
-- [x] All 6 E2E smoke tests pass (6s runtime after build)
+- [x] Fixed tauri-plugin-log panic: telemetry::init() registers tracing-subscriber before plugin-log → removed tauri-plugin-log entirely (redundant with telemetry::init())
+- [x] Removed tauri-plugin-log from Cargo.toml dependency
+
+#### E2E Coverage Expansion (25 tests, single spec file)
+- [x] Consolidated 4 spec files into single bterminal.test.ts — Tauri creates one app session per spec file; after first spec completes, app closes and subsequent specs get "invalid session id"
+- [x] Added Workspace & Projects tests (8): project grid, project boxes, header with name, 3 project tabs, active highlight, tab switching, status bar counts
+- [x] Added Settings Panel tests (6): settings tab, sections, theme dropdown, dropdown open+options, group list, close button
+- [x] Added Keyboard Shortcuts tests (5): Ctrl+K command palette, Ctrl+, settings, Ctrl+B sidebar, Escape close, palette group list
+- [x] Fixed WebDriver clicks on Svelte 5 components: `element.click()` doesn't reliably trigger onclick inside complex components via WebKit2GTK/tauri-driver — use `browser.execute()` for JS-level clicks
+- [x] Fixed CSS text-transform: `.ptab` getText() returns uppercase — use `.toLowerCase()` for comparison
+- [x] Fixed element scoping: `browser.$('.ptab')` returns ALL tabs across project boxes — scope via `box.$('.ptab')`
+- [x] Fixed keyboard focus: `browser.execute(() => document.body.focus())` before sending shortcuts
+- [x] Removed old individual spec files (smoke.test.ts, keyboard.test.ts, settings.test.ts, workspace.test.ts)
+- [x] All 25 E2E tests pass (9s runtime after build)

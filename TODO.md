@@ -3,13 +3,14 @@
 ## Active
 
 ### v2/v3 Remaining
-- [ ] **E2E testing — expand coverage** -- 6 smoke tests passing (WebdriverIO v9.24 + tauri-driver). Add tests for agent sessions, terminal interaction, settings persistence.
+- [ ] **E2E testing — expand coverage** -- 25 tests passing (WebdriverIO v9.24 + tauri-driver, single spec file). Add tests for agent sessions, terminal interaction, settings persistence.
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 
 ## Completed
 
+- [x] **E2E testing — consolidated & expanded** -- Consolidated 4 spec files into single bterminal.test.ts (Tauri single-session requirement). 25 tests across 4 describe blocks: Smoke(6), Workspace(8), Settings(6), Keyboard(5). Fixed WebDriver clicks on Svelte components via browser.execute(), removed tauri-plugin-log (redundant with telemetry::init()). | Done: 2026-03-08
 - [x] **px→rem conversion** -- All ~100 px layout violations converted to rem across 10 components (AgentPane, ToastContainer, CommandPalette, SettingsTab, TeamAgentsPanel, AgentCard, StatusBar, AgentTree, TerminalPane, AgentPreviewPane). Rule 18 fully enforced. | Done: 2026-03-08
 - [x] **Workspace teardown race fix** -- Added pendingPersistCount counter + waitForPendingPersistence() fence in agent-dispatcher.ts. switchGroup() awaits persistence before clearing state. Last open HIGH audit finding resolved. | Done: 2026-03-08
 - [x] **OTEL telemetry** -- Full-scope OpenTelemetry: telemetry.rs (TelemetryGuard, tracing + OTLP layers), telemetry-bridge.ts (frontend→Rust), #[tracing::instrument] on 10 commands, agent dispatcher lifecycle logging, Docker Tempo+Grafana stack (port 9715). BTERMINAL_OTLP_ENDPOINT env var controls export. | Done: 2026-03-08
@@ -19,4 +20,3 @@
 - [x] **ContextPane project-scoped redesign** -- Auto-registers project in ctx DB on mount. Removed project selector. | Done: 2026-03-08
 - [x] **ctx init fix + UI init button** -- Fixed ctx CLI, added Initialize Database button in ContextPane. | Done: 2026-03-08
 - [x] **Premium markdown typography** -- MarkdownPane CSS overhaul with Inter font, prose spacing, gradient HR. | Done: 2026-03-08
-- [x] **Collapsible terminal panel** -- Terminal section collapses to status bar. Default collapsed. | Done: 2026-03-08

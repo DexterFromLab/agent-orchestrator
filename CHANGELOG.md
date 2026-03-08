@@ -12,7 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - E2E wdio.conf.js: added `wdio:enforceWebDriverClassic: true` to disable BiDi negotiation (wdio v9 injects `webSocketUrl:true` which tauri-driver rejects), removed unnecessary `browserName: 'wry'`, fixed binary path to Cargo workspace target dir (`v2/target/debug/` not `v2/src-tauri/target/debug/`)
-- `tauri-plugin-log` init panic: changed `?` to `let _ =` in lib.rs setup hook — telemetry::init() registers tracing-subscriber first, plugin-log silently skips instead of panicking (lib.rs)
+- E2E consolidated to single spec file: Tauri creates one app session per spec file; multiple files caused "invalid session id" on 2nd+ file (wdio.conf.js, bterminal.test.ts)
+- E2E WebDriver clicks on Svelte 5 components: `element.click()` doesn't reliably trigger onclick handlers inside complex components via WebKit2GTK/tauri-driver; replaced with `browser.execute()` JS-level clicks for .ptab, .dropdown-trigger, .panel-close (bterminal.test.ts)
+- Removed `tauri-plugin-log` entirely — `telemetry::init()` already registers tracing-subscriber which bridges the `log` crate; adding plugin-log after panics with "attempted to set a logger after the logging system was already initialized" (lib.rs, Cargo.toml)
+
+### Changed
+- E2E tests expanded from 6 smoke tests to 25 tests across 4 describe blocks: Smoke (6), Workspace & Projects (8), Settings Panel (6), Keyboard Shortcuts (5) — all in single bterminal.test.ts file (bterminal.test.ts)
+
+### Removed
+- `tauri-plugin-log` dependency from Cargo.toml — redundant with telemetry::init() tracing-subscriber setup
+- Individual E2E spec files (smoke.test.ts, keyboard.test.ts, settings.test.ts, workspace.test.ts) — consolidated into bterminal.test.ts
 - Workspace teardown race: `switchGroup()` now awaits `waitForPendingPersistence()` before clearing agent state, preventing data loss when agents complete during group switch (agent-dispatcher.ts, workspace.svelte.ts)
 - SettingsTab switchGroup click handler made async with await to properly handle the async switchGroup() flow (SettingsTab.svelte)
 - Re-entrant sidecar exit handler race condition: added `restarting` guard flag preventing double-restart on rapid disconnect/reconnect (agent-dispatcher.ts)
