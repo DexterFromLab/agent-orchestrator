@@ -344,20 +344,19 @@ describe('BTerminal — Terminal Tabs', () => {
   });
 
   it('should add a shell tab', async () => {
-    // Click add tab button
+    // Click add tab button via JS (Svelte onclick)
     await browser.execute(() => {
-      const btn = document.querySelector('.tab-add');
+      const btn = document.querySelector('.tab-bar .tab-add');
       if (btn) (btn as HTMLElement).click();
     });
     await browser.pause(500);
 
-    const tabs = await browser.$$('.tab');
-    expect(tabs.length).toBeGreaterThanOrEqual(1);
-
-    // Tab should have a title containing "Shell"
-    const title = await browser.$('.tab-title');
-    const text = await title.getText();
-    expect(text.toLowerCase()).toContain('shell');
+    // Verify tab title via JS to avoid stale element issues
+    const title = await browser.execute(() => {
+      const el = document.querySelector('.tab-bar .tab-title');
+      return el ? el.textContent : '';
+    });
+    expect((title as string).toLowerCase()).toContain('shell');
   });
 
   it('should show active tab styling', async () => {
@@ -366,26 +365,30 @@ describe('BTerminal — Terminal Tabs', () => {
   });
 
   it('should add a second shell tab and switch between them', async () => {
-    // Add second tab
+    // Add second tab via JS
     await browser.execute(() => {
-      const btn = document.querySelector('.tab-add');
+      const btn = document.querySelector('.tab-bar .tab-add');
       if (btn) (btn as HTMLElement).click();
     });
     await browser.pause(500);
 
-    const tabs = await browser.$$('.tab');
-    expect(tabs.length).toBeGreaterThanOrEqual(2);
+    const tabCount = await browser.execute(() => {
+      return document.querySelectorAll('.tab-bar .tab').length;
+    });
+    expect(tabCount as number).toBeGreaterThanOrEqual(2);
 
-    // Click first tab
+    // Click first tab and verify it becomes active with Shell title
     await browser.execute(() => {
-      const tabs = document.querySelectorAll('.tab');
+      const tabs = document.querySelectorAll('.tab-bar .tab');
       if (tabs[0]) (tabs[0] as HTMLElement).click();
     });
     await browser.pause(300);
 
-    const activeTab = await browser.$('.tab.active');
-    const text = await activeTab.getText();
-    expect(text).toContain('Shell');
+    const activeTitle = await browser.execute(() => {
+      const active = document.querySelector('.tab-bar .tab.active .tab-title');
+      return active ? active.textContent : '';
+    });
+    expect(activeTitle as string).toContain('Shell');
   });
 
   it('should close a tab', async () => {
