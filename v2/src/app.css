@@ -23,23 +23,6 @@ html, body {
 #app {
   height: 100%;
   width: 100%;
-  display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
-  grid-template-rows: 1fr auto;
-}
-
-/* Ultrawide: show right panel */
-@media (min-width: 3440px) {
-  #app {
-    grid-template-columns: var(--sidebar-width) 1fr var(--right-panel-width);
-  }
-}
-
-/* Narrow: collapse sidebar to icons */
-@media (max-width: 1200px) {
-  #app {
-    grid-template-columns: 48px 1fr;
-  }
 }
 
 ::-webkit-scrollbar {

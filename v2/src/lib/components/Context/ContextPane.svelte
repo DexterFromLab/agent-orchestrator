@@ -174,16 +174,17 @@
     height: 100%;
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 0.8rem;
   }
 
   .ctx-header {
-    padding: 8px 12px;
+    padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 0.75rem;
     flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .ctx-header h3 {
@@ -194,13 +195,14 @@
 
   .search-input {
     flex: 1;
+    min-width: 10em;
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--border-radius);
     color: var(--text-primary);
     font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 4px 8px;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
   }
 
   .search-input:focus {
@@ -210,27 +212,28 @@
 
   .ctx-error {
     color: var(--ctp-red);
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
   }
 
   .ctx-body {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 12px;
+    padding: 0.5rem 0.75rem;
   }
 
   .project-list {
-    margin-bottom: 12px;
+    margin-bottom: 0.75rem;
   }
 
   h4 {
-    font-size: 11px;
+    font-size: 0.7rem;
     font-weight: 600;
     color: var(--ctp-mauve);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.375rem;
   }
 
   .project-btn {
@@ -240,8 +243,8 @@
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--border-radius);
-    padding: 6px 8px;
-    margin-bottom: 4px;
+    padding: 0.375rem 0.5rem;
+    margin-bottom: 0.25rem;
     cursor: pointer;
     text-align: left;
     color: var(--text-primary);

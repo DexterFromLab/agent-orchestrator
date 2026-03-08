@@ -29,6 +29,8 @@
   let loaded = $state(false);
 
   let activeTab = $derived(getActiveTab());
+  let panelContentEl: HTMLElement | undefined = $state();
+  let panelWidth = $state<string | undefined>(undefined);
 
   // Panel titles
   const panelTitles: Record<string, string> = {
@@ -37,6 +39,34 @@
     context: 'Context',
     settings: 'Settings',
   };
+
+  // Measure the panel content's natural width by finding the widest
+  // nowrap element or element with min-width, then sizing the drawer to fit.
+  $effect(() => {
+    const el = panelContentEl;
+    void activeTab;
+    if (!el) { panelWidth = undefined; return; }
+    const frame = requestAnimationFrame(() => {
+      // Find all elements that define intrinsic width (nowrap text, inputs, etc.)
+      let maxW = 0;
+      const candidates = el.querySelectorAll('[style*="white-space"], h3, h4, input, .settings-list, .settings-tab, .docs-tab, .context-tab');
+      for (const c of candidates) {
+        maxW = Math.max(maxW, c.scrollWidth);
+      }
+      // Also check the direct child's min-width
+      const child = el.firstElementChild as HTMLElement;
+      if (child) {
+        const cs = getComputedStyle(child);
+        const mw = parseFloat(cs.minWidth);
+        if (!isNaN(mw)) maxW = Math.max(maxW, mw);
+      }
+      if (maxW > 0) {
+        // Add padding for panel-content's own padding
+        panelWidth = `${maxW + 24}px`;
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  });
 
   function toggleDrawer() {
     drawerOpen = !drawerOpen;
@@ -144,7 +174,7 @@
       <GlobalTabBar expanded={drawerOpen} ontoggle={toggleDrawer} />
 
       {#if drawerOpen}
-        <aside class="sidebar-panel">
+        <aside class="sidebar-panel" style:width={panelWidth}>
           <div class="panel-header">
             <h2>{panelTitles[activeTab] ?? ''}</h2>
             <button class="panel-close" onclick={() => drawerOpen = false} title="Close sidebar (Ctrl+B)">
@@ -153,7 +183,7 @@
               </svg>
             </button>
           </div>
-          <div class="panel-content">
+          <div class="panel-content" bind:this={panelContentEl}>
             {#if activeTab === 'sessions'}
               <ProjectGrid />
             {:else if activeTab === 'docs'}
@@ -203,14 +233,12 @@
   }
 
   .sidebar-panel {
-    width: max-content;
     min-width: 16em;
     max-width: 50%;
     display: flex;
     flex-direction: column;
     background: var(--ctp-base);
     border-right: 1px solid var(--ctp-surface1);
-    overflow-y: auto;
     flex-shrink: 0;
   }
 
