@@ -42,7 +42,8 @@
 - Skill discovery: claude_list_skills() reads ~/.claude/skills/ (dirs with SKILL.md or .md files). claude_read_skill() reads content. AgentPane `/` prefix triggers autocomplete menu. Skill content injected as prompt via expandSkillPrompt().
 - claude-bridge.ts adapter wraps profile/skill Tauri commands (ClaudeProfile, ClaudeSkill interfaces).
 - Sidecar build: `npm run build:sidecar` bundles SDK into agent-runner.mjs via esbuild (no --external, SDK included in bundle).
-- Maximum 4 active xterm.js instances to avoid WebKit2GTK memory issues.
+- Agent preview terminal: `AgentPreviewPane.svelte` is a read-only xterm.js terminal (disableStdin:true) that subscribes to an agent session's messages via `$derived(getAgentSession(sessionId))` and renders tool calls/results in real-time. Bash commands shown as cyan `❯ cmd`, file ops as yellow `[Read] path`, results as plain text (80-line truncation), errors in red. Spawned via 👁 button in TerminalTabs (appears when agentSessionId prop is set). TerminalTab type: `'agent-preview'` with `agentSessionId` field. Deduplicates — won't create two previews for the same session. ProjectBox passes mainSessionId to TerminalTabs.
+- Maximum 4 active xterm.js instances to avoid WebKit2GTK memory issues. Agent preview uses disableStdin and no PTY so is lighter, but still counts.
 - Store files using Svelte 5 runes (`$state`, `$derived`) MUST have `.svelte.ts` extension (not `.ts`). Import with `.svelte` suffix. Plain `.ts` compiles but fails at runtime with "rune_outside_svelte".
 - Session persistence uses rusqlite (bundled) with WAL mode. Data dir: `dirs::data_dir()/bterminal/sessions.db`.
 - Layout store persists to SQLite on every addPane/removePane/setPreset/setPaneGroup change (fire-and-forget). Restores on app startup via `restoreFromDb()`.

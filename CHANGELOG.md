@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Agent preview terminal (`AgentPreviewPane.svelte`): read-only xterm.js terminal that subscribes to agent session messages in real-time; renders Bash commands as cyan `❯ command`, file operations as yellow `[Read/Write/Edit] path`, tool results (80-line truncation), text summaries, errors in red, session start/complete with cost; uses `disableStdin: true`, Canvas addon, theme hot-swap; spawned via 👁 button in TerminalTabs tab bar (appears when agent session is active); deduplicates — only one preview per session
+- `TerminalTab.type` extended with `'agent-preview'` variant and `agentSessionId?: string` field in workspace store
+- `ProjectBox` passes `mainSessionId` to `TerminalTabs` for agent preview tab creation
 - SettingsTab project settings card redesign: each project rendered as a polished card with icon picker (Svelte state-driven emoji grid popup), inline-editable name input, CWD with left-ellipsis (`direction: rtl`), account/profile dropdown (via `listProfiles()` from claude-bridge.ts), custom toggle switch (green track/thumb), and subtle remove footer with trash icon
 - Account/profile dropdown per project in SettingsTab: uses `listProfiles()` to fetch Claude profiles, displays display_name + email in dropdown, blue badge styling; falls back to static label when single profile
 - ProjectHeader profile badge: account name styled as blue pill with translucent background (`color-mix(in srgb, var(--ctp-blue) 10%, transparent)`), font-weight 600, expanded max-width to 8rem

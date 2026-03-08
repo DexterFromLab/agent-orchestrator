@@ -46,6 +46,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/stores/layout.svelte.ts` | v2 layout store (panes, presets, groups, persistence, Svelte 5 runes) |
 | `v2/src/lib/stores/agents.svelte.ts` | Agent session store (messages, cost, parent/child hierarchy) |
 | `v2/src/lib/components/Terminal/TerminalPane.svelte` | xterm.js terminal pane |
+| `v2/src/lib/components/Terminal/AgentPreviewPane.svelte` | Read-only xterm.js showing agent activity (Bash commands, tool results, errors) |
 | `v2/src/lib/components/Agent/AgentPane.svelte` | Agent session pane (prompt, messages, cost, profile selector, skill autocomplete) |
 | `v2/src/lib/adapters/pty-bridge.ts` | PTY IPC wrapper (Tauri invoke/listen) |
 | `v2/src/lib/adapters/agent-bridge.ts` | Agent IPC wrapper (Tauri invoke/listen) |
