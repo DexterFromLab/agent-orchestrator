@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AgentPane VSCode-style prompt: unified input always at bottom with auto-resizing textarea, send icon button (arrow SVG) inside rounded container, welcome state with chat icon when no session
 - AgentPane session controls: New Session and Continue buttons shown after session completes, enabling explicit session management
 - ClaudeSession `handleNewSession()`: resets sessionId for fresh agent sessions, wired via `onExit` prop to AgentPane
-- ContextPane improved error UX: centered icon + error message + hint to run `ctx init` in terminal (replaces plain text error)
+- ContextPane "Initialize Database" button: when ctx database doesn't exist, shows a prominent button to create `~/.claude-context/context.db` with full schema (sessions, contexts, shared, summaries + FTS5 + sync triggers) directly from the UI; replaces old "run ctx init" hint text; auto-loads data after successful init
 - Project-level tab bar in ProjectBox: Claude | Files | Context tabs switch the content area between ClaudeSession, ProjectFiles, and ContextPane
 - ProjectFiles.svelte: project-scoped markdown file viewer (file picker sidebar + MarkdownPane), accepts cwd/projectName props
 - ProjectHeader info bar: CWD path (ellipsized from start via `direction: rtl`) + profile name displayed as read-only info alongside project icon/name
@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stub `pick_directory` Tauri command (replaced by `tauri-plugin-dialog` frontend API)
 
 ### Fixed
+- `ctx init` fails when `~/.claude-context/` directory doesn't exist: `get_db()` called `sqlite3.connect()` without creating the parent directory; added `DB_PATH.parent.mkdir(parents=True, exist_ok=True)` before connect
 - Terminal tabs cannot be closed and all named "Shell 1": `$state<Map<string, TerminalTab[]>>` in workspace store didn't trigger reactive updates for `$derived` consumers when `Map.set()` was called; changed `projectTerminals` from `Map` to `Record<string, TerminalTab[]>` (plain object property access is Svelte 5's strongest reactivity path)
 - SettingsTab icon picker not opening: replaced broken DOM `classList.toggle('visible')` approach with Svelte `$state` (`iconPickerOpenFor` keyed by project ID); icon picker now reliably opens/closes and dismisses on click-outside or Escape
 - SettingsTab CWD path truncated from right: added `direction: rtl; text-align: left; unicode-bidi: plaintext` on CWD input so path shows the end (project directory) instead of the beginning when truncated

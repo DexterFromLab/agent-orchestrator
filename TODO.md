@@ -11,6 +11,7 @@
 
 ## Completed
 
+- [x] **ctx init fix + UI init button** -- Fixed ctx CLI script (missing parent directory creation). Added ctx_init_db Tauri command + "Initialize Database" button in ContextPane that creates ~/.claude-context/context.db with full schema (tables + FTS5 + triggers) when DB doesn't exist. | Done: 2026-03-08
 - [x] **Premium markdown typography** -- MarkdownPane CSS overhaul: hardcoded Inter font (not --ui-font-family which resolves to monospace), text-rendering optimizeLegibility, antialiased, font-feature-settings (Inter cv01-cv04, ss01). Tailwind-prose-inspired spacing (1.15-1.75em margins), gradient HR (fade to transparent edges), fade-in link underlines (text-decoration-color transition), italic blockquotes with translucent bg, inset box-shadow on code blocks, h5/h6 uppercase styles. Body color softened to --ctp-subtext1. All colors via --ctp-* vars for 17-theme compatibility. | Done: 2026-03-08
 - [x] **Collapsible terminal panel** -- Terminal section on Claude tab collapses to a status bar (chevron + "Terminal" label + tab count badge). Click to expand/collapse. Default collapsed. Hidden on Files/Context tabs. | Done: 2026-03-08
 - [x] **Sidebar simplification + markdown fixes** -- Sidebar stripped to Settings-only (Sessions/Docs/Context removed — project-specific). MarkdownPane file switching fixed ($effect watches filePath changes). MarkdownPane restyled: sans-serif font, --ctp-* vars, styled blockquotes/tables/links. Terminal area hidden on Files/Context tabs. | Done: 2026-03-08
