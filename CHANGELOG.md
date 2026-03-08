@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TerminalTabs.svelte CSS converted from px to rem: tab bar, tabs, close/add buttons, empty state
 
 ### Removed
+- Dead ctx code: `ContextTab.svelte` wrapper component, `CtxProject` struct (Rust), `list_projects()` method, `ctx_list_projects` Tauri command, `ctxListProjects()` bridge function, `CtxProject` TypeScript interface — all unused after ContextPane project-scoped redesign
+- Unused Python imports in `ctx` CLI: `os`, `datetime`/`timezone` modules
 - AgentPane session toolbar (DIR/ACC inputs) — CWD and profile are now props, not interactive inputs
 - Nerd Font codepoints for project icons — replaced with emoji (`📁` default) for cross-platform compatibility
 - Nerd Font `font-family` declarations from ProjectHeader and TerminalTabs

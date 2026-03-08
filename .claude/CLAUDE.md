@@ -5,7 +5,7 @@
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
 - v2 Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles, skill discovery.
-- v3 Mission Control (All Phases 1-10 Complete): project groups, workspace store, 12 Workspace components, session continuity, workspace teardown, dead v2 component cleanup. 138 vitest + 36 cargo tests.
+- v3 Mission Control (All Phases 1-10 Complete): project groups, workspace store, 12 Workspace components, session continuity, workspace teardown, dead v2 component cleanup. 138 vitest + 34 cargo tests.
 - v3 docs: `docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 

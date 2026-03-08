@@ -11,6 +11,7 @@
 
 ## Completed
 
+- [x] **ctx dead code cleanup** -- Removed ContextTab.svelte (dead wrapper), CtxProject struct, list_projects() method, ctx_list_projects command, ctxListProjects() bridge function. Simplified register_project() guard. Added FTS5 limitation docs. 4 insertions, 81 deletions across 6 files. | Done: 2026-03-08
 - [x] **ContextPane project-scoped redesign** -- ContextPane now takes projectName + projectCwd props from ProjectBox. Auto-registers project in ctx DB on mount (INSERT OR IGNORE). Removed project selector — context shown directly for current project. Added ctx_register_project Tauri command. | Done: 2026-03-08
 - [x] **ctx init fix + UI init button** -- Fixed ctx CLI script (missing parent directory creation). Added ctx_init_db Tauri command + "Initialize Database" button in ContextPane that creates ~/.claude-context/context.db with full schema (tables + FTS5 + triggers) when DB doesn't exist. | Done: 2026-03-08
 - [x] **Premium markdown typography** -- MarkdownPane CSS overhaul: hardcoded Inter font (not --ui-font-family which resolves to monospace), text-rendering optimizeLegibility, antialiased, font-feature-settings (Inter cv01-cv04, ss01). Tailwind-prose-inspired spacing (1.15-1.75em margins), gradient HR (fade to transparent edges), fade-in link underlines (text-decoration-color transition), italic blockquotes with translucent bg, inset box-shadow on code blocks, h5/h6 uppercase styles. Body color softened to --ctp-subtext1. All colors via --ctp-* vars for 17-theme compatibility. | Done: 2026-03-08
