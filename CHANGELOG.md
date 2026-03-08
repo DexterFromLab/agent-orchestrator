@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `tauri-plugin-log` entirely — `telemetry::init()` already registers tracing-subscriber which bridges the `log` crate; adding plugin-log after panics with "attempted to set a logger after the logging system was already initialized" (lib.rs, Cargo.toml)
 
 ### Changed
-- E2E tests expanded from 6 smoke tests to 25 tests across 4 describe blocks: Smoke (6), Workspace & Projects (8), Settings Panel (6), Keyboard Shortcuts (5) — all in single bterminal.test.ts file (bterminal.test.ts)
+- E2E tests expanded from 6 smoke tests to 48 tests across 8 describe blocks: Smoke (6), Workspace & Projects (8), Settings Panel (6), Keyboard Shortcuts (5), Command Palette (5), Terminal Tabs (7), Theme Switching (3), Settings Interaction (8) — all in single bterminal.test.ts file
+- wdio.conf.js: added SKIP_BUILD env var to skip cargo tauri build when debug binary already exists
 
 ### Removed
 - `tauri-plugin-log` dependency from Cargo.toml — redundant with telemetry::init() tracing-subscriber setup
