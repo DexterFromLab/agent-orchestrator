@@ -40,9 +40,9 @@
 
 <style>
   .agent-card {
-    padding: 6px 8px;
+    padding: 0.375rem 0.5rem;
     background: var(--ctp-surface0);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     cursor: pointer;
     transition: background 0.1s;
     border-left: 2px solid transparent;
@@ -55,8 +55,8 @@
   .card-header {
     display: flex;
     align-items: center;
-    gap: 4px;
-    margin-bottom: 3px;
+    gap: 0.25rem;
+    margin-bottom: 0.1875rem;
   }
 
   .status-dot {
@@ -90,7 +90,7 @@
   }
 
   .card-progress {
-    margin-top: 3px;
+    margin-top: 0.1875rem;
   }
 
   .turns {

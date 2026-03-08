@@ -163,7 +163,7 @@
 <style>
   .agent-tree {
     overflow: auto;
-    padding: 4px;
+    padding: 0.25rem;
     background: var(--bg-primary);
   }
 

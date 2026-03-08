@@ -25,22 +25,22 @@
 <style>
   .toast-container {
     position: fixed;
-    top: 12px;
-    right: 12px;
+    top: 0.75rem;
+    right: 0.75rem;
     z-index: 9999;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-width: 360px;
+    gap: 0.375rem;
+    max-width: 22.5rem;
   }
 
   .toast {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
     border-radius: var(--border-radius);
-    font-size: 12px;
+    font-size: 0.75rem;
     color: var(--text-primary);
     background: var(--bg-surface);
     border: 1px solid var(--border);
@@ -60,7 +60,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 0.625rem;
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -85,8 +85,8 @@
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 14px;
-    padding: 0 2px;
+    font-size: 0.875rem;
+    padding: 0 0.125rem;
     flex-shrink: 0;
   }
 

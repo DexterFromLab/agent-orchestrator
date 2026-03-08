@@ -84,11 +84,11 @@
   }
 
   .palette {
-    width: 460px;
-    max-height: 360px;
+    width: 28.75rem;
+    max-height: 22.5rem;
     background: var(--ctp-mantle);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 8px;
+    border-radius: 0.5rem;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     display: flex;
     flex-direction: column;
@@ -97,7 +97,7 @@
   }
 
   .palette-input {
-    padding: 12px 16px;
+    padding: 0.75rem 1rem;
     background: transparent;
     border: none;
     border-bottom: 1px solid var(--ctp-surface0);
@@ -113,7 +113,7 @@
   .palette-results {
     list-style: none;
     margin: 0;
-    padding: 4px;
+    padding: 0.25rem;
     overflow-y: auto;
   }
 
@@ -122,13 +122,13 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 8px 12px;
+    padding: 0.5rem 0.75rem;
     background: transparent;
     border: none;
     color: var(--ctp-text);
     font-size: 0.85rem;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 0.25rem;
     transition: background 0.1s;
   }
 
@@ -151,7 +151,7 @@
   }
 
   .no-results {
-    padding: 12px;
+    padding: 0.75rem;
     color: var(--ctp-overlay0);
     font-size: 0.85rem;
     text-align: center;

@@ -48,11 +48,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 24px;
-    padding: 0 10px;
+    height: 1.5rem;
+    padding: 0 0.625rem;
     background: var(--ctp-mantle);
     border-top: 1px solid var(--ctp-surface0);
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--ctp-overlay1);
     font-family: 'JetBrains Mono', monospace;
     user-select: none;
@@ -62,19 +62,19 @@
   .left, .right {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
   }
 
   .sep {
     width: 1px;
-    height: 10px;
+    height: 0.625rem;
     background: var(--ctp-surface1);
   }
 
   .item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 0.25rem;
   }
 
   .group-name {

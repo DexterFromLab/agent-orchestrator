@@ -574,20 +574,20 @@
     min-height: 0;
   }
 
-  .message { padding: 4px 0; }
+  .message { padding: 0.25rem 0; }
 
   .msg-init {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     color: var(--ctp-overlay0);
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
 
   .msg-init .model {
     background: var(--ctp-surface0);
-    padding: 1px 6px;
-    border-radius: 3px;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 0.1875rem;
     font-family: var(--term-font-family, monospace);
   }
 
@@ -623,8 +623,8 @@
 
   .msg-text.markdown-body :global(code) {
     background: var(--ctp-surface0);
-    padding: 1px 5px;
-    border-radius: 3px;
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.1875rem;
     font-family: var(--term-font-family, monospace);
     font-size: 0.9em;
     color: var(--ctp-green);
@@ -632,10 +632,10 @@
 
   .msg-text.markdown-body :global(pre) {
     background: var(--ctp-surface0);
-    padding: 10px 12px;
+    padding: 0.625rem 0.75rem;
     border-radius: 0.25rem;
     overflow-x: auto;
-    font-size: 12px;
+    font-size: 0.75rem;
     line-height: 1.5;
     margin: 0.5em 0;
   }
@@ -648,10 +648,10 @@
 
   .msg-text.markdown-body :global(.shiki) {
     background: var(--ctp-surface0) !important;
-    padding: 10px 12px;
+    padding: 0.625rem 0.75rem;
     border-radius: 0.25rem;
     overflow-x: auto;
-    font-size: 12px;
+    font-size: 0.75rem;
     line-height: 1.5;
     margin: 0.5em 0;
   }
@@ -664,12 +664,12 @@
   .msg-text.markdown-body :global(blockquote) {
     border-left: 3px solid var(--ctp-mauve);
     margin: 0.4em 0;
-    padding: 2px 10px;
+    padding: 0.125rem 0.625rem;
     color: var(--ctp-subtext0);
   }
 
   .msg-text.markdown-body :global(ul), .msg-text.markdown-body :global(ol) {
-    padding-left: 20px;
+    padding-left: 1.25rem;
     margin: 0.3em 0;
   }
 
@@ -690,12 +690,12 @@
     border-collapse: collapse;
     width: 100%;
     margin: 0.4em 0;
-    font-size: 12px;
+    font-size: 0.75rem;
   }
 
   .msg-text.markdown-body :global(th), .msg-text.markdown-body :global(td) {
     border: 1px solid var(--ctp-surface0);
-    padding: 4px 8px;
+    padding: 0.25rem 0.5rem;
     text-align: left;
   }
 
@@ -706,7 +706,7 @@
 
   .msg-thinking {
     color: var(--ctp-overlay1);
-    font-size: 12px;
+    font-size: 0.75rem;
   }
 
   .msg-thinking summary {
@@ -715,17 +715,17 @@
   }
 
   .msg-thinking pre {
-    margin: 4px 0 0 12px;
+    margin: 0.25rem 0 0 0.75rem;
     white-space: pre-wrap;
-    font-size: 11px;
-    max-height: 200px;
+    font-size: 0.6875rem;
+    max-height: 12.5rem;
     overflow-y: auto;
   }
 
   .msg-tool-call, .msg-tool-result {
     border-left: 2px solid var(--ctp-blue);
-    padding-left: 8px;
-    font-size: 12px;
+    padding-left: 0.5rem;
+    font-size: 0.75rem;
   }
 
   .msg-tool-call summary, .msg-tool-result summary {
@@ -733,7 +733,7 @@
     color: var(--ctp-blue);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
   }
 
   .tool-name {
@@ -743,19 +743,19 @@
 
   .tool-id {
     font-family: var(--term-font-family, monospace);
-    font-size: 10px;
+    font-size: 0.625rem;
     color: var(--ctp-overlay0);
   }
 
   .tool-input, .tool-output {
-    margin: 4px 0 0 0;
+    margin: 0.25rem 0 0 0;
     white-space: pre-wrap;
-    font-size: 11px;
-    max-height: 300px;
+    font-size: 0.6875rem;
+    max-height: 18.75rem;
     overflow-y: auto;
     background: var(--ctp-surface0);
-    padding: 6px 8px;
-    border-radius: 3px;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.1875rem;
     color: var(--ctp-subtext0);
   }
 
@@ -769,11 +769,11 @@
 
   .msg-cost {
     display: flex;
-    gap: 12px;
-    padding: 4px 8px;
+    gap: 0.75rem;
+    padding: 0.25rem 0.5rem;
     background: var(--ctp-surface0);
-    border-radius: 3px;
-    font-size: 11px;
+    border-radius: 0.1875rem;
+    font-size: 0.6875rem;
     color: var(--ctp-yellow);
     font-family: var(--term-font-family, monospace);
   }
@@ -781,14 +781,14 @@
   .msg-error {
     color: var(--ctp-red);
     background: color-mix(in srgb, var(--ctp-red) 10%, transparent);
-    padding: 6px 8px;
-    border-radius: 3px;
-    font-size: 12px;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.1875rem;
+    font-size: 0.75rem;
   }
 
   .msg-status {
     color: var(--ctp-overlay0);
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-style: italic;
   }
 

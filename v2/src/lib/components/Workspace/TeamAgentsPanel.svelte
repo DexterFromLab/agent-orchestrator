@@ -40,15 +40,15 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    width: 220px;
+    width: 13.75rem;
     flex-shrink: 0;
   }
 
   .panel-header {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 5px 8px;
+    gap: 0.25rem;
+    padding: 0.3125rem 0.5rem;
     background: transparent;
     border: none;
     color: var(--ctp-subtext0);
@@ -74,8 +74,8 @@
   .agent-count {
     margin-left: auto;
     background: var(--ctp-surface0);
-    padding: 0 5px;
-    border-radius: 8px;
+    padding: 0 0.3125rem;
+    border-radius: 0.5rem;
     font-size: 0.65rem;
     color: var(--ctp-overlay1);
   }
@@ -83,8 +83,8 @@
   .agent-list {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    padding: 4px;
+    gap: 0.1875rem;
+    padding: 0.25rem;
     overflow-y: auto;
     flex: 1;
   }
