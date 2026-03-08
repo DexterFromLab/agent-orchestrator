@@ -12,12 +12,17 @@
     "tauri:dev": "cargo tauri dev",
     "tauri:build": "cargo tauri build",
     "test": "vitest run",
+    "test:e2e": "wdio run tests/e2e/wdio.conf.js",
     "build:sidecar": "esbuild sidecar/agent-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/agent-runner.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@tsconfig/svelte": "^5.0.6",
     "@types/node": "^24.10.1",
+    "@wdio/cli": "^9.24.0",
+    "@wdio/local-runner": "^9.24.0",
+    "@wdio/mocha-framework": "^9.24.0",
+    "@wdio/spec-reporter": "^9.24.0",
     "svelte": "^5.45.2",
     "svelte-check": "^4.3.4",
     "typescript": "~5.9.3",
