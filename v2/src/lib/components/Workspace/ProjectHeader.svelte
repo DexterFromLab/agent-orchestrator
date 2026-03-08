@@ -130,10 +130,14 @@
 
   .info-profile {
     font-size: 0.65rem;
-    color: var(--ctp-overlay0);
+    color: var(--ctp-blue);
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 6rem;
+    max-width: 8rem;
+    background: color-mix(in srgb, var(--ctp-blue) 10%, transparent);
+    padding: 0.0625rem 0.375rem;
+    border-radius: 0.1875rem;
   }
 </style>

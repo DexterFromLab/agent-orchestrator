@@ -16,6 +16,7 @@
   import { getSetting, setSetting } from '../../adapters/settings-bridge';
   import { getCurrentTheme, setTheme } from '../../stores/theme.svelte';
   import { THEME_LIST, getPalette, type ThemeId } from '../../styles/themes';
+  import { listProfiles, type ClaudeProfile } from '../../adapters/claude-bridge';
   import { invoke } from '@tauri-apps/api/core';
 
   const PROJECT_ICONS = [
@@ -23,6 +24,9 @@
     '🔬', '📊', '🎨', '🔒', '💬', '📦', '⚡', '🧪',
     '🏗️', '📝', '🎯', '💡', '🔥', '🛠️', '🧩', '🗄️',
   ];
+
+  // Claude profiles for account selector
+  let profiles = $state<ClaudeProfile[]>([]);
 
   let activeGroupId = $derived(getActiveGroupId());
   let activeGroup = $derived(getActiveGroup());
@@ -46,6 +50,10 @@
   let themeDropdownOpen = $state(false);
   let uiFontDropdownOpen = $state(false);
   let termFontDropdownOpen = $state(false);
+
+  // Per-project icon picker & profile dropdown (keyed by project id)
+  let iconPickerOpenFor = $state<string | null>(null);
+  let profileDropdownOpenFor = $state<string | null>(null);
 
   const UI_FONTS = [
     { value: '', label: 'System Default' },
@@ -110,6 +118,12 @@
     termFont = tfont ?? '';
     termFontSize = tsize ?? '';
     selectedTheme = getCurrentTheme();
+
+    try {
+      profiles = await listProfiles();
+    } catch {
+      profiles = [];
+    }
   });
 
   function applyCssProp(prop: string, value: string) {
@@ -173,6 +187,12 @@
       uiFontDropdownOpen = false;
       termFontDropdownOpen = false;
     }
+    if (!target.closest('.icon-field')) {
+      iconPickerOpenFor = null;
+    }
+    if (!target.closest('.profile-field')) {
+      profileDropdownOpenFor = null;
+    }
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -180,7 +200,14 @@
       themeDropdownOpen = false;
       uiFontDropdownOpen = false;
       termFontDropdownOpen = false;
+      iconPickerOpenFor = null;
+      profileDropdownOpenFor = null;
     }
+  }
+
+  function getProfileLabel(profileName: string): string {
+    const p = profiles.find(pr => pr.name === profileName);
+    return p?.display_name || p?.name || profileName || 'default';
   }
 
   async function browseDirectory(): Promise<string | null> {
@@ -440,76 +467,135 @@
     <section class="settings-section">
       <h2>Projects in "{activeGroup.name}"</h2>
 
-      {#each activeGroup.projects as project}
-        <div class="project-settings-row">
-          <label class="project-field project-field-grow">
-            <span class="field-label">Name</span>
-            <input
-              value={project.name}
-              onchange={e => updateProject(activeGroupId, project.id, { name: (e.target as HTMLInputElement).value })}
-            />
-          </label>
-          <label class="project-field project-field-grow">
-            <span class="field-label">CWD</span>
-            <div class="input-with-browse">
-              <input
-                value={project.cwd}
-                onchange={e => updateProject(activeGroupId, project.id, { cwd: (e.target as HTMLInputElement).value })}
-              />
-              <button class="browse-btn" title="Browse..." onclick={async () => { const d = await browseDirectory(); if (d) updateProject(activeGroupId, project.id, { cwd: d }); }}>
+      <div class="project-cards">
+        {#each activeGroup.projects as project}
+          <div class="project-card">
+            <div class="card-top-row">
+              <div class="icon-field">
+                <button
+                  class="icon-trigger"
+                  onclick={() => { iconPickerOpenFor = iconPickerOpenFor === project.id ? null : project.id; }}
+                  title="Choose icon"
+                >{project.icon || '📁'}</button>
+                {#if iconPickerOpenFor === project.id}
+                  <div class="icon-picker">
+                    {#each PROJECT_ICONS as emoji}
+                      <button
+                        class="icon-option"
+                        class:active={project.icon === emoji}
+                        onclick={() => {
+                          updateProject(activeGroupId, project.id, { icon: emoji });
+                          iconPickerOpenFor = null;
+                        }}
+                      >{emoji}</button>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+              <div class="card-name-area">
+                <input
+                  class="card-name-input"
+                  value={project.name}
+                  placeholder="Project name"
+                  onchange={e => updateProject(activeGroupId, project.id, { name: (e.target as HTMLInputElement).value })}
+                />
+              </div>
+              <label class="card-toggle" title={project.enabled ? 'Enabled' : 'Disabled'}>
+                <input
+                  type="checkbox"
+                  checked={project.enabled}
+                  onchange={e => updateProject(activeGroupId, project.id, { enabled: (e.target as HTMLInputElement).checked })}
+                />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+
+            <div class="card-field">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z"/></svg>
+                Path
+              </span>
+              <div class="input-with-browse">
+                <input
+                  class="cwd-input"
+                  value={project.cwd}
+                  placeholder="/path/to/project"
+                  title={project.cwd}
+                  onchange={e => updateProject(activeGroupId, project.id, { cwd: (e.target as HTMLInputElement).value })}
+                />
+                <button class="browse-btn" title="Browse..." onclick={async () => { const d = await browseDirectory(); if (d) updateProject(activeGroupId, project.id, { cwd: d }); }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="card-field profile-field">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Account
+              </span>
+              {#if profiles.length > 1}
+                <div class="custom-dropdown">
+                  <button
+                    class="dropdown-trigger profile-trigger"
+                    onclick={() => { profileDropdownOpenFor = profileDropdownOpenFor === project.id ? null : project.id; }}
+                    aria-haspopup="listbox"
+                    aria-expanded={profileDropdownOpenFor === project.id}
+                  >
+                    <span class="profile-badge">{getProfileLabel(project.profile)}</span>
+                    <span class="dropdown-arrow">{profileDropdownOpenFor === project.id ? '\u25B4' : '\u25BE'}</span>
+                  </button>
+                  {#if profileDropdownOpenFor === project.id}
+                    <div class="dropdown-menu profile-menu" role="listbox">
+                      {#each profiles as prof}
+                        <button
+                          class="dropdown-option"
+                          class:active={project.profile === prof.name}
+                          role="option"
+                          aria-selected={project.profile === prof.name}
+                          onclick={() => {
+                            updateProject(activeGroupId, project.id, { profile: prof.name });
+                            profileDropdownOpenFor = null;
+                          }}
+                        >
+                          <span class="profile-option-name">{prof.display_name || prof.name}</span>
+                          {#if prof.email}
+                            <span class="profile-option-email">{prof.email}</span>
+                          {/if}
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {:else}
+                <span class="profile-single">{getProfileLabel(project.profile)}</span>
+              {/if}
+            </div>
+
+            <div class="card-footer">
+              <button class="btn-remove" onclick={() => removeProject(activeGroupId, project.id)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                Remove
+              </button>
+            </div>
+          </div>
+        {/each}
+      </div>
+
+      {#if activeGroup.projects.length < 5}
+        <div class="add-project-form">
+          <div class="add-form-row">
+            <input class="add-name" bind:value={newName} placeholder="Project name" />
+            <div class="input-with-browse add-form-path">
+              <input bind:value={newCwd} placeholder="/path/to/project" />
+              <button class="browse-btn" title="Browse..." onclick={async () => { const d = await browseDirectory(); if (d) newCwd = d; }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
             </div>
-          </label>
-          <div class="project-field icon-field">
-            <span class="field-label">Icon</span>
-            <button
-              class="icon-trigger"
-              onclick={(e) => {
-                const btn = e.currentTarget as HTMLElement;
-                const popup = btn.nextElementSibling as HTMLElement;
-                popup.classList.toggle('visible');
-              }}
-            >{project.icon || '📁'}</button>
-            <div class="icon-picker">
-              {#each PROJECT_ICONS as emoji}
-                <button
-                  class="icon-option"
-                  class:active={project.icon === emoji}
-                  onclick={(e) => {
-                    updateProject(activeGroupId, project.id, { icon: emoji });
-                    ((e.currentTarget as HTMLElement).closest('.icon-picker') as HTMLElement).classList.remove('visible');
-                  }}
-                >{emoji}</button>
-              {/each}
-            </div>
-          </div>
-          <label class="project-field">
-            <span class="field-label">Enabled</span>
-            <input
-              type="checkbox"
-              checked={project.enabled}
-              onchange={e => updateProject(activeGroupId, project.id, { enabled: (e.target as HTMLInputElement).checked })}
-            />
-          </label>
-          <button class="btn-danger" onclick={() => removeProject(activeGroupId, project.id)}>
-            Remove
-          </button>
-        </div>
-      {/each}
-
-      {#if activeGroup.projects.length < 5}
-        <div class="add-form">
-          <input bind:value={newName} placeholder="Project name" />
-          <div class="input-with-browse add-form-path">
-            <input bind:value={newCwd} placeholder="/path/to/project" />
-            <button class="browse-btn" title="Browse..." onclick={async () => { const d = await browseDirectory(); if (d) newCwd = d; }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <button class="btn-primary" onclick={handleAddProject} disabled={!newName.trim() || !newCwd.trim()}>
+              + Add
             </button>
           </div>
-          <button class="btn-primary" onclick={handleAddProject} disabled={!newName.trim() || !newCwd.trim()}>
-            Add Project
-          </button>
         </div>
       {:else}
         <p class="limit-notice">Maximum 5 projects per group reached.</p>
@@ -530,25 +616,25 @@
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--ctp-text);
-    margin: 0 0 10px;
-    padding-bottom: 6px;
+    margin: 0 0 0.625rem;
+    padding-bottom: 0.375rem;
     border-bottom: 1px solid var(--ctp-surface0);
   }
 
   .settings-section {
-    margin-bottom: 20px;
+    margin-bottom: 1.25rem;
   }
 
   .settings-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0.625rem;
   }
 
   .setting-field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0.25rem;
   }
 
   .setting-label {
@@ -560,17 +646,17 @@
 
   .setting-field > input,
   .setting-field .input-with-browse input {
-    padding: 6px 10px;
+    padding: 0.375rem 0.625rem;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     color: var(--ctp-text);
     font-size: 0.8rem;
   }
 
   .setting-row {
     display: flex;
-    gap: 8px;
+    gap: 0.5rem;
     align-items: stretch;
   }
 
@@ -587,12 +673,12 @@
   .dropdown-trigger {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     width: 100%;
-    padding: 6px 10px;
+    padding: 0.375rem 0.625rem;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     color: var(--ctp-text);
     font-size: 0.8rem;
     cursor: pointer;
@@ -620,22 +706,22 @@
 
   .dropdown-menu {
     position: absolute;
-    top: calc(100% + 4px);
+    top: calc(100% + 0.25rem);
     left: 0;
     min-width: 100%;
     width: max-content;
-    max-height: 360px;
+    max-height: 22.5rem;
     overflow-y: auto;
     background: var(--ctp-mantle);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 4px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    border-radius: 0.25rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.4);
     z-index: 100;
-    padding: 4px 0;
+    padding: 0.25rem 0;
   }
 
   .dropdown-group-label {
-    padding: 6px 10px 2px;
+    padding: 0.375rem 0.625rem 0.125rem;
     font-size: 0.65rem;
     font-weight: 700;
     color: var(--ctp-overlay0);
@@ -646,9 +732,9 @@
   .dropdown-option {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     width: 100%;
-    padding: 5px 10px;
+    padding: 0.3125rem 0.625rem;
     background: transparent;
     border: none;
     color: var(--ctp-subtext1);
@@ -712,7 +798,7 @@
     justify-content: center;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     color: var(--ctp-text);
     font-size: 0.9rem;
     cursor: pointer;
@@ -729,10 +815,10 @@
 
   .size-input {
     width: 40px;
-    padding: 4px 2px;
+    padding: 0.25rem 0.125rem;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     color: var(--ctp-text);
     font-size: 0.8rem;
     text-align: center;
@@ -750,21 +836,21 @@
     margin-right: 2px;
   }
 
-  /* Groups & Projects */
+  /* Groups */
   .group-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-bottom: 12px;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
   }
 
   .group-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
     background: var(--ctp-surface0);
-    border-radius: 4px;
+    border-radius: 0.25rem;
   }
 
   .group-row.active {
@@ -787,86 +873,257 @@
     font-size: 0.75rem;
   }
 
-  .project-settings-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    padding: 8px 10px;
-    background: var(--ctp-surface0);
-    border-radius: 4px;
-    margin-bottom: 4px;
-    flex-wrap: wrap;
-    min-width: 0;
-  }
-
-  .project-field {
+  /* Project Cards */
+  .project-cards {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+    gap: 0.5rem;
   }
 
-  .project-field-grow {
-    flex: 1;
-  }
-
-  .field-label {
-    font-size: 0.7rem;
-    color: var(--ctp-overlay0);
-    text-transform: uppercase;
-  }
-
-  .project-field input:not([type="checkbox"]) {
-    padding: 4px 8px;
-    background: var(--ctp-base);
+  .project-card {
+    background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 3px;
-    color: var(--ctp-text);
-    font-size: 0.8rem;
-    min-width: 0;
-    width: 100%;
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: border-color 0.15s;
   }
 
-  .icon-field {
+  .project-card:hover {
+    border-color: var(--ctp-surface2);
+  }
+
+  .card-top-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .card-name-area {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .card-name-input {
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .card-name-input:hover {
+    background: var(--ctp-base);
+    border-color: var(--ctp-surface1);
+  }
+
+  .card-name-input:focus {
+    background: var(--ctp-base);
+    border-color: var(--ctp-blue);
+    outline: none;
+  }
+
+  /* Toggle switch */
+  .card-toggle {
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .card-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-track {
+    display: block;
+    width: 2rem;
+    height: 1.125rem;
+    background: var(--ctp-surface2);
+    border-radius: 0.5625rem;
+    transition: background 0.2s;
     position: relative;
   }
 
+  .card-toggle input:checked + .toggle-track {
+    background: var(--ctp-green);
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 0.875rem;
+    height: 0.875rem;
+    background: var(--ctp-text);
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+
+  .card-toggle input:checked + .toggle-track .toggle-thumb {
+    transform: translateX(0.875rem);
+  }
+
+  /* Card fields */
+  .card-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .card-field-label {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.65rem;
+    color: var(--ctp-overlay0);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .card-field-label svg {
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
+
+  .card-field .input-with-browse input {
+    padding: 0.3125rem 0.5rem;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-size: 0.78rem;
+    font-family: var(--term-font-family, monospace);
+  }
+
+  /* CWD input: left-ellipsis */
+  .cwd-input {
+    direction: rtl;
+    text-align: left;
+    unicode-bidi: plaintext;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  /* Profile field */
+  .profile-trigger {
+    padding: 0.25rem 0.5rem;
+    background: var(--ctp-base);
+    font-size: 0.78rem;
+  }
+
+  .profile-badge {
+    font-weight: 600;
+    color: var(--ctp-blue);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .profile-single {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ctp-blue);
+    padding: 0.25rem 0.5rem;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+  }
+
+  .profile-menu {
+    min-width: 12rem;
+  }
+
+  .profile-option-name {
+    font-weight: 500;
+    color: var(--ctp-text);
+  }
+
+  .profile-option-email {
+    font-size: 0.7rem;
+    color: var(--ctp-overlay0);
+    margin-left: auto;
+  }
+
+  /* Card footer */
+  .card-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--ctp-surface1);
+    margin-top: 0.125rem;
+  }
+
+  .btn-remove {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    color: var(--ctp-overlay0);
+    border: none;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .btn-remove:hover {
+    color: var(--ctp-red);
+    background: color-mix(in srgb, var(--ctp-red) 8%, transparent);
+  }
+
+  /* Icon field & picker */
+  .icon-field {
+    position: relative;
+    flex-shrink: 0;
+  }
+
   .icon-trigger {
-    width: 2rem;
-    height: 2rem;
+    width: 2.25rem;
+    height: 2.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--ctp-base);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 3px;
-    font-size: 1rem;
+    border-radius: 0.375rem;
+    font-size: 1.1rem;
     cursor: pointer;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
 
   .icon-trigger:hover {
     border-color: var(--ctp-overlay0);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ctp-blue) 15%, transparent);
   }
 
   .icon-picker {
-    display: none;
+    display: grid;
     position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 20;
+    top: calc(100% + 0.375rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
     background: var(--ctp-mantle);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 0.375rem;
-    padding: 0.375rem;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
     grid-template-columns: repeat(8, 1fr);
     gap: 2px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35);
     width: max-content;
-  }
-
-  .icon-picker.visible {
-    display: grid;
   }
 
   .icon-option {
@@ -877,14 +1134,15 @@
     justify-content: center;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 3px;
+    border-radius: 0.25rem;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: background 0.1s;
+    transition: background 0.1s, transform 0.1s;
   }
 
   .icon-option:hover {
     background: var(--ctp-surface0);
+    transform: scale(1.15);
   }
 
   .icon-option.active {
@@ -892,19 +1150,46 @@
     border-color: var(--ctp-blue);
   }
 
+  /* Add project form */
+  .add-project-form {
+    margin-top: 0.625rem;
+    padding: 0.5rem 0.625rem;
+    background: var(--ctp-mantle);
+    border: 1px dashed var(--ctp-surface1);
+    border-radius: 0.5rem;
+  }
+
+  .add-form-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .add-name {
+    width: 8rem;
+    flex-shrink: 0;
+    padding: 0.3125rem 0.625rem;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-size: 0.8rem;
+  }
+
   .add-form {
     display: flex;
-    gap: 8px;
+    gap: 0.5rem;
     align-items: center;
-    margin-top: 8px;
+    margin-top: 0.5rem;
     min-width: 0;
   }
 
   .add-form input {
-    padding: 5px 10px;
+    padding: 0.3125rem 0.625rem;
     background: var(--ctp-base);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 3px;
+    border-radius: 0.25rem;
     color: var(--ctp-text);
     font-size: 0.8rem;
     flex: 1;
@@ -912,27 +1197,33 @@
   }
 
   .btn-primary {
-    padding: 5px 14px;
+    padding: 0.3125rem 0.875rem;
     background: var(--ctp-blue);
     color: var(--ctp-base);
     border: none;
-    border-radius: 3px;
-    font-size: 0.8rem;
+    border-radius: 0.25rem;
+    font-size: 0.78rem;
+    font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
+    transition: opacity 0.15s;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
   }
 
   .btn-primary:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 
   .btn-danger {
-    padding: 4px 10px;
+    padding: 0.25rem 0.625rem;
     background: transparent;
     color: var(--ctp-red);
     border: 1px solid var(--ctp-red);
-    border-radius: 3px;
+    border-radius: 0.25rem;
     font-size: 0.75rem;
     cursor: pointer;
     white-space: nowrap;
@@ -942,11 +1233,12 @@
     color: var(--ctp-overlay0);
     font-size: 0.8rem;
     font-style: italic;
+    margin-top: 0.5rem;
   }
 
   .input-with-browse {
     display: flex;
-    gap: 4px;
+    gap: 0.25rem;
     align-items: stretch;
   }
 
@@ -960,6 +1252,15 @@
     min-width: 0;
   }
 
+  .add-form-path input {
+    padding: 0.3125rem 0.625rem;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-size: 0.8rem;
+  }
+
   .browse-btn {
     display: flex;
     align-items: center;
@@ -967,7 +1268,7 @@
     padding: 0 0.5rem;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     color: var(--ctp-subtext0);
     cursor: pointer;
     flex-shrink: 0;
