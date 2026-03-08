@@ -303,3 +303,14 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Added JS `$effect` in App.svelte: measures content width via `requestAnimationFrame` + `querySelectorAll` for nowrap elements, headings, inputs, tab-specific selectors; `panelWidth` state drives inline `style:width`
 - [x] Verified all 4 tabs scale to content: Sessions ~473px, Settings ~322px, Context ~580px, Docs varies by content
 - [x] Investigation path: CSS intrinsic sizing (max-content, fit-content) failed due to column-flex circular dependency → JS measurement approach → discovered inline style set but rendered width wrong → Playwright inspection revealed parent `.main-row` only 260px → traced to `#app` grid layout
+
+### Session: 2026-03-08 — Native Directory Picker
+
+#### tauri-plugin-dialog Integration
+- [x] Added `tauri-plugin-dialog` Rust crate + `@tauri-apps/plugin-dialog` npm package
+- [x] Registered plugin in lib.rs (`tauri_plugin_dialog::init()`)
+- [x] Removed stub `pick_directory` Tauri command (always returned None)
+- [x] Added `browseDirectory()` helper in SettingsTab.svelte using `open({ directory: true })`
+- [x] Added folder browse button (folder SVG icon) to: Default CWD, existing project CWD, Add Project path
+- [x] Styled `.input-with-browse` layout (flex row, themed browse button)
+- [x] Fixed nested input theme: `.setting-field .input-with-browse input` selector for dark background

@@ -11,6 +11,7 @@
 
 ## Completed
 
+- [x] **Native directory picker** -- Added tauri-plugin-dialog for native OS folder picker on CWD fields (Default CWD, project CWD, Add Project path). Removed stub pick_directory command. | Done: 2026-03-08
 - [x] **Fix sidebar drawer content-driven width** -- Root cause: leftover v2 grid layout on #app in app.css (`grid-template-columns: var(--sidebar-width) 1fr`) constrained .app-shell to 260px. Removed grid; JS $effect measurement now works correctly, all 4 tabs scale to content. | Done: 2026-03-08
 - [x] **CSS relative units rule** -- Added .claude/rules/18-relative-units.md enforcing rem/em for layout CSS. Converted GlobalTabBar.svelte + App.svelte sidebar styles from px to rem. | Done: 2026-03-08
 - [x] **VSCode-style sidebar redesign** -- Redesigned UI from top tab bar + right-side settings drawer to VSCode-style left sidebar: vertical icon rail (2.75rem, 4 SVG icons) + expandable drawer panel (content-driven width) + always-visible workspace. Settings is regular tab. Ctrl+B toggles sidebar. | Done: 2026-03-08

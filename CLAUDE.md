@@ -103,10 +103,10 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Multi-machine: bterminal-relay WebSocket server + RemoteManager WebSocket client
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup
 - File watcher (notify crate) for live markdown viewer
-- Rust deps (src-tauri): tauri, bterminal-core (path), rusqlite (bundled), dirs, notify, serde, tokio, tokio-tungstenite, futures-util, tauri-plugin-updater
+- Rust deps (src-tauri): tauri, bterminal-core (path), rusqlite (bundled), dirs, notify, serde, tokio, tokio-tungstenite, futures-util, tauri-plugin-updater, tauri-plugin-dialog
 - Rust deps (bterminal-core): portable-pty, uuid, serde, serde_json, log
 - Rust deps (bterminal-relay): bterminal-core, tokio, tokio-tungstenite, clap, env_logger, futures-util
-- npm deps: @anthropic-ai/claude-agent-sdk, @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, marked, shiki, vitest (dev)
+- npm deps: @anthropic-ai/claude-agent-sdk, @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, @tauri-apps/plugin-dialog, marked, shiki, vitest (dev)
 - Source: `v2/` directory
 
 ## Build / Run
