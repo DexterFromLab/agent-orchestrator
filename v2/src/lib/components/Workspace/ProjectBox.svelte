@@ -77,7 +77,7 @@
       </div>
     {:else if activeTab === 'context'}
       <div class="content-pane">
-        <ContextPane onExit={() => {}} />
+        <ContextPane projectName={project.name} projectCwd={project.cwd} />
       </div>
     {/if}
   </div>

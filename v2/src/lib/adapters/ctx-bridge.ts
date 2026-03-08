@@ -24,6 +24,10 @@ export async function ctxInitDb(): Promise<void> {
   return invoke('ctx_init_db');
 }
 
+export async function ctxRegisterProject(name: string, description: string, workDir?: string): Promise<void> {
+  return invoke('ctx_register_project', { name, description, workDir: workDir ?? null });
+}
+
 export async function ctxListProjects(): Promise<CtxProject[]> {
   return invoke('ctx_list_projects');
 }

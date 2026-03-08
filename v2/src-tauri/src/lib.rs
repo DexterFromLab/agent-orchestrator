@@ -188,6 +188,11 @@ fn ctx_init_db(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn ctx_register_project(state: State<'_, AppState>, name: String, description: String, work_dir: Option<String>) -> Result<(), String> {
+    state.ctx_db.register_project(&name, &description, work_dir.as_deref())
+}
+
+#[tauri::command]
 fn ctx_list_projects(state: State<'_, AppState>) -> Result<Vec<ctx::CtxProject>, String> {
     state.ctx_db.list_projects()
 }
@@ -545,6 +550,7 @@ pub fn run() {
             ssh_session_save,
             ssh_session_delete,
             ctx_init_db,
+            ctx_register_project,
             ctx_list_projects,
             ctx_get_context,
             ctx_get_shared,

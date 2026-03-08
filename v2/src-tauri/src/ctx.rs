@@ -141,6 +141,24 @@ impl CtxDb {
         Ok(())
     }
 
+    /// Register a project in the ctx database (creates if not exists).
+    pub fn register_project(&self, name: &str, description: &str, work_dir: Option<&str>) -> Result<(), String> {
+        let db_path = Self::db_path();
+        if !db_path.exists() {
+            return Err("ctx database not found".to_string());
+        }
+
+        let conn = Connection::open(&db_path)
+            .map_err(|e| format!("Failed to open database: {e}"))?;
+
+        conn.execute(
+            "INSERT OR IGNORE INTO sessions (name, description, work_dir) VALUES (?1, ?2, ?3)",
+            rusqlite::params![name, description, work_dir],
+        ).map_err(|e| format!("Failed to register project: {e}"))?;
+
+        Ok(())
+    }
+
     pub fn list_projects(&self) -> Result<Vec<CtxProject>, String> {
         let lock = self.conn.lock().unwrap();
         let conn = lock.as_ref().ok_or("ctx database not found")?;
