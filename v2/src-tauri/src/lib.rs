@@ -421,7 +421,15 @@ fn project_agent_state_load(
     state.session_db.load_project_agent_state(&project_id)
 }
 
-// Directory picker: uses tauri-plugin-dialog (frontend API: @tauri-apps/plugin-dialog)
+// Directory picker: custom rfd command with parent window for modal behavior on Linux
+#[tauri::command]
+async fn pick_directory(window: tauri::Window) -> Result<Option<String>, String> {
+    let dialog = rfd::AsyncFileDialog::new()
+        .set_title("Select Directory")
+        .set_parent(&window);
+    let folder = dialog.pick_folder().await;
+    Ok(folder.map(|f| f.path().to_string_lossy().into_owned()))
+}
 
 // --- CLI argument commands ---
 
@@ -501,6 +509,9 @@ async fn remote_pty_kill(state: State<'_, AppState>, machine_id: String, id: Str
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Force dark GTK theme for native dialogs (file chooser, etc.)
+    std::env::set_var("GTK_THEME", "Adwaita:dark");
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             pty_spawn,
@@ -555,6 +566,7 @@ pub fn run() {
             project_agent_state_save,
             project_agent_state_load,
             cli_get_group,
+            pick_directory,
         ])
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())

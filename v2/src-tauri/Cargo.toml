@@ -28,6 +28,7 @@ dirs = "5"
 notify = { version = "6", features = ["macos_fsevent"] }
 tauri-plugin-updater = "2.10.0"
 tauri-plugin-dialog = "2"
+rfd = { version = "0.16", default-features = false, features = ["gtk3"] }
 uuid = { version = "1", features = ["v4"] }
 tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
 tokio = { version = "1", features = ["full"] }

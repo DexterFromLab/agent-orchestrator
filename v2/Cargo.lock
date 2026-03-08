@@ -297,6 +297,7 @@ dependencies = [
  "futures-util",
  "log",
  "notify",
+ "rfd",
  "rusqlite",
  "serde",
  "serde_json",

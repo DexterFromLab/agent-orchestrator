@@ -16,7 +16,7 @@
   import { getSetting, setSetting } from '../../adapters/settings-bridge';
   import { getCurrentTheme, setTheme } from '../../stores/theme.svelte';
   import { THEME_LIST, getPalette, type ThemeId } from '../../styles/themes';
-  import { open as openDialog } from '@tauri-apps/plugin-dialog';
+  import { invoke } from '@tauri-apps/api/core';
 
   let activeGroupId = $derived(getActiveGroupId());
   let activeGroup = $derived(getActiveGroup());
@@ -178,8 +178,8 @@
   }
 
   async function browseDirectory(): Promise<string | null> {
-    const selected = await openDialog({ directory: true, multiple: false });
-    return typeof selected === 'string' ? selected : null;
+    const selected = await invoke<string | null>('pick_directory');
+    return selected ?? null;
   }
 
   // New project form
