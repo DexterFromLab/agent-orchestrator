@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
 ### Fixed
+- Sidecar env var stripping now whitelists `CLAUDE_CODE_EXPERIMENTAL_*` vars (both Rust sidecar.rs and JS agent-runner.ts) — previously all `CLAUDE*` vars were stripped, blocking feature flags like agent teams from reaching the SDK (sidecar.rs, agent-runner.ts)
 - E2E terminal tab tests: scoped selectors to `.tab-bar .tab-title` (was `.tab-title` which matched project tabs), used `browser.execute()` for DOM text reads to avoid stale element issues (bterminal.test.ts)
 - E2E wdio.conf.js: added `wdio:enforceWebDriverClassic: true` to disable BiDi negotiation (wdio v9 injects `webSocketUrl:true` which tauri-driver rejects), removed unnecessary `browserName: 'wry'`, fixed binary path to Cargo workspace target dir (`v2/target/debug/` not `v2/src-tauri/target/debug/`)
 - E2E consolidated to single spec file: Tauri creates one app session per spec file; multiple files caused "invalid session id" on 2nd+ file (wdio.conf.js, bterminal.test.ts)

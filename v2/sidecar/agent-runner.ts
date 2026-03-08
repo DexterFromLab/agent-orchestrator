@@ -83,10 +83,13 @@ async function handleQuery(msg: QueryMessage) {
 
   const controller = new AbortController();
 
-  // Strip CLAUDE* env vars to prevent nesting detection by the spawned CLI
+  // Strip CLAUDE* and ANTHROPIC_* env vars to prevent nesting detection by the spawned CLI.
+  // Whitelist CLAUDE_CODE_EXPERIMENTAL_* so feature flags (e.g. agent teams) pass through.
   const cleanEnv: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (!key.startsWith('CLAUDE') && !key.startsWith('ANTHROPIC_')) {
+    if (key.startsWith('CLAUDE_CODE_EXPERIMENTAL_')) {
+      cleanEnv[key] = value;
+    } else if (!key.startsWith('CLAUDE') && !key.startsWith('ANTHROPIC_')) {
       cleanEnv[key] = value;
     }
   }
