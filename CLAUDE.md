@@ -71,7 +71,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Context/ContextPane.svelte` | ctx database viewer (projects, entries, search) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (group name, project count, agent count, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
-| `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, CommandPalette, DocsTab, ContextTab, SettingsTab |
+| `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, CommandPalette, DocsTab, ContextTab, SettingsTab |
 | `v2/src/lib/types/groups.ts` | TypeScript interfaces (ProjectConfig, GroupConfig, GroupsFile) |
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |

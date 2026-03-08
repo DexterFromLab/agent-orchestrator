@@ -8,18 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Project-level tab bar in ProjectBox: Claude | Files | Context tabs switch the content area between ClaudeSession, ProjectFiles, and ContextPane
+- ProjectFiles.svelte: project-scoped markdown file viewer (file picker sidebar + MarkdownPane), accepts cwd/projectName props
+- ProjectHeader info bar: CWD path (ellipsized from start via `direction: rtl`) + profile name displayed as read-only info alongside project icon/name
 - Emoji icon picker in SettingsTab: 24 project-relevant emoji in 8-column grid popup, replaces plain text icon input
 - Native directory picker for CWD fields: custom `pick_directory` Tauri command using `rfd` crate with `set_parent(&window)` for modal behavior on Linux; browse buttons added to Default CWD, existing project CWD, and Add Project path inputs in SettingsTab
 - `rfd = { version = "0.16", default-features = false, features = ["gtk3"] }` direct dependency for modal file dialogs (zero extra compile — already built transitively via tauri-plugin-dialog)
 - CSS relative units rule (`.claude/rules/18-relative-units.md`): enforces rem/em for layout CSS, px only for icons/borders/shadows
 
 ### Changed
-- ProjectBox layout: switched from flex to CSS grid (`grid-template-rows: auto 1fr auto`) — header (auto) | Claude session (fills remaining) | terminal (16rem fixed)
+- ProjectBox layout: CSS grid with 4 rows (`auto auto 1fr auto`) — header | tab bar | content | terminal; content area switches by tab
+- AgentPane: removed DIR/ACC toolbar entirely — CWD and profile now passed as props from parent (set in Settings, shown in ProjectHeader); clean chat window with prompt + send button only
 - AgentPane prompt area: anchored to bottom (`justify-content: flex-end`) instead of vertical center, removed `max-width: 600px` constraint — uses full panel width
+- ClaudeSession passes `project.profile` to AgentPane for automatic profile resolution
 - ProjectGrid.svelte CSS converted from px to rem: gap 0.25rem, padding 0.25rem, min-width 30rem
 - TerminalTabs.svelte CSS converted from px to rem: tab bar, tabs, close/add buttons, empty state
 
 ### Removed
+- AgentPane session toolbar (DIR/ACC inputs) — CWD and profile are now props, not interactive inputs
 - Nerd Font codepoints for project icons — replaced with emoji (`📁` default) for cross-platform compatibility
 - Nerd Font `font-family` declarations from ProjectHeader and TerminalTabs
 - Stub `pick_directory` Tauri command (replaced by `tauri-plugin-dialog` frontend API)

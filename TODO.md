@@ -11,6 +11,7 @@
 
 ## Completed
 
+- [x] **Project box tabs + clean AgentPane** -- Project-level tab bar (Claude|Files|Context), ProjectFiles component, CWD+profile in header as info-only, AgentPane toolbar removed. | Done: 2026-03-08
 - [x] **Project workspace layout redesign** -- CSS grid layout for ProjectBox (header|session|terminal), bottom-anchored AgentPane prompt, emoji icons replacing Nerd Font, px→rem conversions across 4 components. | Done: 2026-03-08
 - [x] **Native directory picker** -- Added tauri-plugin-dialog for native OS folder picker on CWD fields (Default CWD, project CWD, Add Project path). Removed stub pick_directory command. | Done: 2026-03-08
 - [x] **Fix sidebar drawer content-driven width** -- Root cause: leftover v2 grid layout on #app in app.css (`grid-template-columns: var(--sidebar-width) 1fr`) constrained .app-shell to 260px. Removed grid; JS $effect measurement now works correctly, all 4 tabs scale to content. | Done: 2026-03-08

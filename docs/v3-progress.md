@@ -347,3 +347,33 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] ProjectGrid.svelte: gap 4px → 0.25rem, padding 4px → 0.25rem, min-width 480px → 30rem
 - [x] TerminalTabs.svelte: tab bar, tabs, close/add buttons all converted to rem
 - [x] ProjectBox.svelte: min-width 480px → 30rem
+
+### Session: 2026-03-08 — Project-Level Tabs + Clean AgentPane
+
+#### ProjectHeader Info Bar
+- [x] Added CWD path display (ellipsized from START via `direction: rtl` + `text-overflow: ellipsis`)
+- [x] Added profile name as info-only text (right side of header)
+- [x] Home dir shortening: `/home/user/foo` → `~/foo`
+
+#### Project-Level Tab Bar
+- [x] Added tab bar in ProjectBox below header: Claude | Files | Context
+- [x] Content area switches between ClaudeSession, ProjectFiles, ContextPane based on selected tab
+- [x] CSS grid updated to 4 rows: `auto auto 1fr auto` (header | tabs | content | terminal)
+- [x] TeamAgentsPanel still renders alongside ClaudeSession in Claude tab
+
+#### ProjectFiles Component (NEW)
+- [x] Created `ProjectFiles.svelte` — project-scoped markdown file viewer
+- [x] Accepts `cwd` + `projectName` props (not workspace store)
+- [x] File picker sidebar (10rem) + MarkdownPane content area
+- [x] Auto-selects priority file or first file
+
+#### AgentPane Cleanup
+- [x] Removed entire session toolbar (DIR/ACC interactive inputs + all CSS)
+- [x] Added `profile` prop — resolved via `listProfiles()` to get config_dir
+- [x] CWD passed as prop from parent (project.cwd), no longer editable in pane
+- [x] Clean chat interface: prompt (bottom-anchored) + messages + send button
+- [x] ClaudeSession now passes `project.profile` to AgentPane
+
+#### Verification
+- All 138 vitest tests pass
+- Vite build succeeds
