@@ -6,3 +6,4 @@ v2/target/
 debug/
 plugins/
 projects/
+.playwright-mcp/
