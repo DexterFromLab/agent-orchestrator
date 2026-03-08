@@ -11,8 +11,9 @@
 
 ## Completed
 
+- [x] **Fix sidebar drawer content-driven width** -- Root cause: leftover v2 grid layout on #app in app.css (`grid-template-columns: var(--sidebar-width) 1fr`) constrained .app-shell to 260px. Removed grid; JS $effect measurement now works correctly, all 4 tabs scale to content. | Done: 2026-03-08
 - [x] **CSS relative units rule** -- Added .claude/rules/18-relative-units.md enforcing rem/em for layout CSS. Converted GlobalTabBar.svelte + App.svelte sidebar styles from px to rem. | Done: 2026-03-08
-- [x] **VSCode-style sidebar redesign** -- Redesigned UI from top tab bar + right-side settings drawer to VSCode-style left sidebar: vertical icon rail (2.75rem, 4 SVG icons) + expandable drawer panel (28em) + always-visible workspace. Settings is regular tab. Ctrl+B toggles sidebar. | Done: 2026-03-08
+- [x] **VSCode-style sidebar redesign** -- Redesigned UI from top tab bar + right-side settings drawer to VSCode-style left sidebar: vertical icon rail (2.75rem, 4 SVG icons) + expandable drawer panel (content-driven width) + always-visible workspace. Settings is regular tab. Ctrl+B toggles sidebar. | Done: 2026-03-08
 - [x] **Settings drawer conversion** -- Converted Settings from full-page tab to collapsible side drawer (superseded by sidebar redesign 2026-03-08). | Done: 2026-03-07
 - [x] **SettingsTab global settings redesign** -- Split font into UI font (sans-serif options) + Terminal font (monospace options), each with custom dropdown + size stepper. Single-column layout with Appearance/Defaults subsections. All custom themed dropdowns (no native select). New CSS vars: --term-font-family, --term-font-size. Setting keys: ui_font_family, ui_font_size, term_font_family, term_font_size. | Done: 2026-03-07
 - [x] **Global font controls** -- Font family select (9 monospace fonts) + font size +/- stepper (8-24px) in SettingsTab. Live preview via CSS vars, persisted to SQLite. initTheme() restores on startup. | Done: 2026-03-07

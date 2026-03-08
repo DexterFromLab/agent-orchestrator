@@ -295,3 +295,11 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 #### Additional px → rem Conversions
 - [x] SettingsTab.svelte: padding 12px 16px → 0.75rem 1rem
 - [x] DocsTab.svelte: file-picker 220px → 14em, picker-title padding → rem, file-btn padding → rem, empty/loading padding → rem
+- [x] ContextPane.svelte: font-size, padding, margin, gap converted from px to rem; added `white-space: nowrap` on `.ctx-header`/`.ctx-error` for intrinsic width measurement
+
+#### Fix: Sidebar Drawer Content-Driven Width
+- [x] Root cause found: `#app` in `app.css` had leftover v2 grid layout (`display: grid; grid-template-columns: var(--sidebar-width) 1fr`) constraining `.app-shell` to 260px first column
+- [x] Removed v2 grid + both media queries from `#app` — v3 `.app-shell` manages its own flexbox layout
+- [x] Added JS `$effect` in App.svelte: measures content width via `requestAnimationFrame` + `querySelectorAll` for nowrap elements, headings, inputs, tab-specific selectors; `panelWidth` state drives inline `style:width`
+- [x] Verified all 4 tabs scale to content: Sessions ~473px, Settings ~322px, Context ~580px, Docs varies by content
+- [x] Investigation path: CSS intrinsic sizing (max-content, fit-content) failed due to column-flex circular dependency → JS measurement approach → discovered inline style set but rendered width wrong → Playwright inspection revealed parent `.main-row` only 260px → traced to `#app` grid layout

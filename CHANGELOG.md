@@ -10,10 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - CSS relative units rule (`.claude/rules/18-relative-units.md`): enforces rem/em for layout CSS, px only for icons/borders/shadows
 
+### Fixed
+- Sidebar drawer not scaling to content width: removed leftover v2 grid layout on `#app` in `app.css` (`display: grid; grid-template-columns: var(--sidebar-width) 1fr` + media queries) that constrained `.app-shell` to 260px first column; v3 `.app-shell` manages its own flexbox layout internally
+- ContextPane.svelte CSS converted from px to rem: font-size, padding, margin, gap; added `white-space: nowrap` on `.ctx-header`/`.ctx-error` for intrinsic width measurement
+
 ### Changed
 - GlobalTabBar.svelte CSS converted from px to rem: rail width 2.75rem, button 2rem, gap 0.25rem, padding 0.5rem 0.375rem, border-radius 0.375rem; rail-btn color changed from --ctp-overlay1 to --ctp-subtext0 for better contrast
 - App.svelte sidebar header CSS converted from px to rem: padding 0.5rem 0.75rem, close button 1.375rem, border-radius 0.25rem
-- Sidebar panel changed from fixed width (28em) to content-driven sizing: `width: max-content` with `min-width: 16em` and `max-width: 50%`; each tab component defines its own `min-width: 22em`
+- App.svelte sidebar drawer: JS `$effect` measures content width via `requestAnimationFrame` + `querySelectorAll` for nowrap elements, headings, inputs, and tab-specific selectors; `panelWidth` state drives inline `style:width` on `aside.sidebar-panel`
+- Sidebar panel changed from fixed width (28em) to content-driven sizing with `min-width: 16em` and `max-width: 50%`; each tab component defines its own `min-width: 22em`
 - Sidebar panel and panel-content overflow changed from `hidden` to `overflow-y: auto` to allow content to drive parent width
 - SettingsTab.svelte padding converted from px to rem (0.75rem 1rem)
 - DocsTab.svelte converted from px to rem: file-picker 14em, picker-title/file-btn/empty padding in rem
