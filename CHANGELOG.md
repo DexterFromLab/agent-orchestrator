@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
 ### Fixed
+- Workspace teardown race: `switchGroup()` now awaits `waitForPendingPersistence()` before clearing agent state, preventing data loss when agents complete during group switch (agent-dispatcher.ts, workspace.svelte.ts)
+- SettingsTab switchGroup click handler made async with await to properly handle the async switchGroup() flow (SettingsTab.svelte)
 - Re-entrant sidecar exit handler race condition: added `restarting` guard flag preventing double-restart on rapid disconnect/reconnect (agent-dispatcher.ts)
 - Memory leak: `toolUseToChildPane` and `sessionProjectMap` maps now cleared in `stopAgentDispatcher()` (agent-dispatcher.ts)
 - Listener leak: 5 Tauri event listeners in machines store now tracked via `UnlistenFn[]` array with `destroyMachineListeners()` cleanup function (machines.svelte.ts)
@@ -32,7 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Agent bridge payload validated before cast to SidecarMessage (agent-bridge.ts)
 - Profile.toml and resource_dir failures now log::warn instead of silent empty fallback (lib.rs)
 
+### Changed
+- All ~100 px layout values converted to rem across 10 components per rule 18: AgentPane, ToastContainer, CommandPalette, SettingsTab, TeamAgentsPanel, AgentCard, StatusBar, AgentTree, TerminalPane, AgentPreviewPane (1rem = 16px base, icon/dot dimensions kept as px)
+
 ### Added
+- `waitForPendingPersistence()` export in agent-dispatcher.ts: counter-based fence that resolves when all in-flight `persistSessionForProject()` calls complete
 - OpenTelemetry instrumentation: `telemetry.rs` module with TelemetryGuard (Drop-based shutdown), tracing + optional OTLP/HTTP export to Tempo, controlled by `BTERMINAL_OTLP_ENDPOINT` env var (absent = console-only fallback)
 - `#[tracing::instrument]` on 10 key Tauri commands: pty_spawn, pty_kill, agent_query, agent_stop, agent_restart, remote_connect, remote_disconnect, remote_agent_query, remote_agent_stop, remote_pty_spawn
 - `frontend_log` Tauri command: routes frontend telemetry events (level + message + context JSON) to Rust tracing layer with `source="frontend"` field

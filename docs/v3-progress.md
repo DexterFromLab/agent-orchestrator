@@ -396,3 +396,22 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Created `v2/src/lib/adapters/telemetry-bridge.ts` — `tel.info/warn/error/debug/trace()` convenience API
 - [x] Wired agent dispatcher lifecycle events: agent_started, agent_stopped, agent_error, sidecar_crashed, cost metrics
 - [x] Created Docker compose stack: `docker/tempo/` — Tempo (4317/4318/3200) + Grafana (port 9715)
+
+### Session: 2026-03-08 — Teardown Race Fix + px→rem Conversion
+
+#### Workspace Teardown Race Fix
+- [x] Added `pendingPersistCount` counter + `waitForPendingPersistence()` export in agent-dispatcher.ts
+- [x] `persistSessionForProject()` increments/decrements counter in try/finally
+- [x] `switchGroup()` in workspace.svelte.ts now awaits `waitForPendingPersistence()` before clearing state
+- [x] SettingsTab.svelte switchGroup onclick handler made async with await
+- [x] Added test for `waitForPendingPersistence` in agent-dispatcher.test.ts
+- [x] Added mock for `waitForPendingPersistence` in workspace.test.ts
+- [x] Last open HIGH audit finding resolved (workspace teardown race)
+
+#### px→rem Conversion (Rule 18 Compliance)
+- [x] Converted ~100 px layout violations to rem across 10 components
+- [x] AgentPane.svelte (~35 violations: font-size, padding, gap, margin, max-height, border-radius)
+- [x] ToastContainer.svelte, CommandPalette.svelte, TeamAgentsPanel.svelte, AgentCard.svelte
+- [x] StatusBar.svelte, AgentTree.svelte, TerminalPane.svelte, AgentPreviewPane.svelte, SettingsTab.svelte
+- [x] Icon/decorative dot dimensions kept as px per rule 18
+- [x] 139 vitest + 34 cargo tests pass, vite build succeeds

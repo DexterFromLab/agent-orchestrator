@@ -7,11 +7,11 @@
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
-- [ ] **Convert remaining components to rem** -- Apply rule 18 (relative-units.md) to all remaining px-based layout CSS across v3 components.
-- [ ] **Workspace teardown race** -- clearAllAgentSessions in workspace.svelte.ts:69 races with in-flight persistence (1 remaining HIGH audit finding).
 
 ## Completed
 
+- [x] **px→rem conversion** -- All ~100 px layout violations converted to rem across 10 components (AgentPane, ToastContainer, CommandPalette, SettingsTab, TeamAgentsPanel, AgentCard, StatusBar, AgentTree, TerminalPane, AgentPreviewPane). Rule 18 fully enforced. | Done: 2026-03-08
+- [x] **Workspace teardown race fix** -- Added pendingPersistCount counter + waitForPendingPersistence() fence in agent-dispatcher.ts. switchGroup() awaits persistence before clearing state. Last open HIGH audit finding resolved. | Done: 2026-03-08
 - [x] **OTEL telemetry** -- Full-scope OpenTelemetry: telemetry.rs (TelemetryGuard, tracing + OTLP layers), telemetry-bridge.ts (frontend→Rust), #[tracing::instrument] on 10 commands, agent dispatcher lifecycle logging, Docker Tempo+Grafana stack (port 9715). BTERMINAL_OTLP_ENDPOINT env var controls export. | Done: 2026-03-08
 - [x] **Medium/Low audit fixes** -- All 6 MEDIUM + 8 LOW findings fixed: runtime type guards in sdk-messages.ts, ANTHROPIC_* env stripping, timestamp mismatch, async lock, error propagation, input validation, mutex poisoning, log warnings, payload validation. 172/172 tests pass. | Done: 2026-03-08
 - [x] **Security & correctness audit fixes** -- 5 CRITICAL + 4 HIGH findings fixed: path traversal, race conditions, memory leaks, listener leaks, transaction safety. 3 false positives dismissed. | Done: 2026-03-08
@@ -20,5 +20,3 @@
 - [x] **ctx init fix + UI init button** -- Fixed ctx CLI, added Initialize Database button in ContextPane. | Done: 2026-03-08
 - [x] **Premium markdown typography** -- MarkdownPane CSS overhaul with Inter font, prose spacing, gradient HR. | Done: 2026-03-08
 - [x] **Collapsible terminal panel** -- Terminal section collapses to status bar. Default collapsed. | Done: 2026-03-08
-- [x] **Sidebar simplification + markdown fixes** -- Sidebar stripped to Settings-only. MarkdownPane file switching fixed. | Done: 2026-03-08
-- [x] **Agent preview terminal** -- AgentPreviewPane.svelte: read-only xterm.js terminal for agent activity. | Done: 2026-03-08
