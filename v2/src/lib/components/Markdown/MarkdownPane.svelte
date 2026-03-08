@@ -15,6 +15,8 @@
   let renderedHtml = $state('');
   let error = $state('');
   let unlisten: (() => void) | undefined;
+  let currentWatchPath = $state<string | null>(null);
+  let highlighterReady = $state(false);
 
   const renderer = new Renderer();
   renderer.code = function({ text, lang }: { text: string; lang?: string }) {
@@ -34,11 +36,27 @@
     }
   }
 
+  // React to filePath changes — re-watch the new file
+  $effect(() => {
+    if (!highlighterReady) return;
+    const path = filePath;
+    if (path === currentWatchPath) return;
+
+    // Unwatch previous file
+    if (currentWatchPath) {
+      unwatchFile(paneId).catch(() => {});
+    }
+
+    currentWatchPath = path;
+    watchFile(paneId, path)
+      .then(content => renderMarkdown(content))
+      .catch(e => { error = `Failed to open file: ${e}`; });
+  });
+
   onMount(async () => {
     try {
       await getHighlighter();
-      const content = await watchFile(paneId, filePath);
-      renderMarkdown(content);
+      highlighterReady = true;
 
       unlisten = await onFileChanged((payload: FileChangedPayload) => {
         if (payload.pane_id === paneId) {
@@ -46,7 +64,7 @@
         }
       });
     } catch (e) {
-      error = `Failed to open file: ${e}`;
+      error = `Failed to initialize: ${e}`;
     }
   });
 
@@ -72,78 +90,98 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--bg-primary);
-    color: var(--text-primary);
+    background: var(--ctp-base);
+    color: var(--ctp-text);
   }
 
   .markdown-body {
     flex: 1;
     overflow-y: auto;
-    padding: 16px 20px;
-    font-size: 14px;
-    line-height: 1.6;
+    padding: 1.25rem 1.5rem;
+    font-family: var(--ui-font-family, sans-serif);
+    font-size: 0.875rem;
+    line-height: 1.7;
   }
 
   .markdown-body :global(h1) {
     font-size: 1.6em;
     font-weight: 700;
-    margin: 0.8em 0 0.4em;
+    margin: 1em 0 0.5em;
     color: var(--ctp-lavender);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--ctp-surface1);
     padding-bottom: 0.3em;
   }
 
   .markdown-body :global(h2) {
     font-size: 1.3em;
     font-weight: 600;
-    margin: 0.7em 0 0.3em;
+    margin: 0.9em 0 0.4em;
     color: var(--ctp-blue);
   }
 
   .markdown-body :global(h3) {
     font-size: 1.1em;
     font-weight: 600;
-    margin: 0.6em 0 0.3em;
+    margin: 0.8em 0 0.3em;
     color: var(--ctp-sapphire);
   }
 
+  .markdown-body :global(h4) {
+    font-size: 1em;
+    font-weight: 600;
+    margin: 0.6em 0 0.3em;
+    color: var(--ctp-teal);
+  }
+
   .markdown-body :global(p) {
-    margin: 0.5em 0;
+    margin: 0.6em 0;
+  }
+
+  .markdown-body :global(strong) {
+    color: var(--ctp-text);
+    font-weight: 600;
+  }
+
+  .markdown-body :global(em) {
+    color: var(--ctp-subtext1);
   }
 
   .markdown-body :global(code) {
-    background: var(--bg-surface);
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-family: var(--font-mono);
-    font-size: 0.9em;
+    background: var(--ctp-surface0);
+    padding: 0.125em 0.375em;
+    border-radius: 0.25em;
+    font-family: var(--term-font-family, 'JetBrains Mono', monospace);
+    font-size: 0.85em;
     color: var(--ctp-green);
   }
 
   .markdown-body :global(pre) {
-    background: var(--bg-surface);
-    padding: 12px 14px;
-    border-radius: var(--border-radius);
+    background: var(--ctp-mantle);
+    padding: 0.875rem 1rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--ctp-surface0);
     overflow-x: auto;
-    font-size: 12px;
-    line-height: 1.5;
-    margin: 0.6em 0;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    margin: 0.75em 0;
   }
 
   .markdown-body :global(pre code) {
     background: none;
     padding: 0;
-    color: var(--text-primary);
+    color: var(--ctp-text);
+    font-size: inherit;
   }
 
   .markdown-body :global(.shiki) {
-    background: var(--bg-surface) !important;
-    padding: 12px 14px;
-    border-radius: var(--border-radius);
+    background: var(--ctp-mantle) !important;
+    padding: 0.875rem 1rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--ctp-surface0);
     overflow-x: auto;
-    font-size: 12px;
-    line-height: 1.5;
-    margin: 0.6em 0;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    margin: 0.75em 0;
   }
 
   .markdown-body :global(.shiki code) {
@@ -153,70 +191,83 @@
 
   .markdown-body :global(blockquote) {
     border-left: 3px solid var(--ctp-mauve);
-    margin: 0.5em 0;
-    padding: 4px 12px;
-    color: var(--text-secondary);
+    margin: 0.75em 0;
+    padding: 0.375rem 1rem;
+    color: var(--ctp-subtext0);
+    background: color-mix(in srgb, var(--ctp-surface0) 30%, transparent);
+    border-radius: 0 0.25rem 0.25rem 0;
   }
 
   .markdown-body :global(ul), .markdown-body :global(ol) {
-    padding-left: 24px;
-    margin: 0.4em 0;
+    padding-left: 1.5rem;
+    margin: 0.5em 0;
   }
 
   .markdown-body :global(li) {
-    margin: 0.2em 0;
+    margin: 0.25em 0;
+  }
+
+  .markdown-body :global(li::marker) {
+    color: var(--ctp-overlay1);
   }
 
   .markdown-body :global(a) {
     color: var(--ctp-blue);
     text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s;
   }
 
   .markdown-body :global(a:hover) {
-    text-decoration: underline;
+    border-bottom-color: var(--ctp-blue);
   }
 
   .markdown-body :global(table) {
     border-collapse: collapse;
     width: 100%;
-    margin: 0.5em 0;
-    font-size: 13px;
+    margin: 0.75em 0;
+    font-size: 0.825rem;
   }
 
   .markdown-body :global(th), .markdown-body :global(td) {
-    border: 1px solid var(--border);
-    padding: 6px 10px;
+    border: 1px solid var(--ctp-surface1);
+    padding: 0.4rem 0.75rem;
     text-align: left;
   }
 
   .markdown-body :global(th) {
-    background: var(--bg-surface);
+    background: var(--ctp-surface0);
     font-weight: 600;
+    color: var(--ctp-subtext1);
+  }
+
+  .markdown-body :global(tr:hover td) {
+    background: color-mix(in srgb, var(--ctp-surface0) 40%, transparent);
   }
 
   .markdown-body :global(hr) {
     border: none;
-    border-top: 1px solid var(--border);
-    margin: 1em 0;
+    border-top: 1px solid var(--ctp-surface1);
+    margin: 1.5em 0;
   }
 
   .markdown-body :global(img) {
     max-width: 100%;
-    border-radius: var(--border-radius);
+    border-radius: 0.375rem;
   }
 
   .file-path {
-    border-top: 1px solid var(--border);
-    padding: 4px 12px;
-    font-size: 10px;
-    font-family: var(--font-mono);
-    color: var(--text-muted);
+    border-top: 1px solid var(--ctp-surface0);
+    padding: 0.25rem 0.75rem;
+    font-size: 0.65rem;
+    font-family: var(--term-font-family, monospace);
+    color: var(--ctp-overlay0);
     flex-shrink: 0;
   }
 
   .error {
     color: var(--ctp-red);
-    padding: 16px;
-    font-size: 13px;
+    padding: 1rem;
+    font-size: 0.85rem;
   }
 </style>

@@ -8,8 +8,6 @@
   // Workspace components
   import GlobalTabBar from './lib/components/Workspace/GlobalTabBar.svelte';
   import ProjectGrid from './lib/components/Workspace/ProjectGrid.svelte';
-  import DocsTab from './lib/components/Workspace/DocsTab.svelte';
-  import ContextTab from './lib/components/Workspace/ContextTab.svelte';
   import SettingsTab from './lib/components/Workspace/SettingsTab.svelte';
   import CommandPalette from './lib/components/Workspace/CommandPalette.svelte';
 
@@ -32,28 +30,17 @@
   let panelContentEl: HTMLElement | undefined = $state();
   let panelWidth = $state<string | undefined>(undefined);
 
-  // Panel titles
-  const panelTitles: Record<string, string> = {
-    sessions: 'Sessions',
-    docs: 'Documentation',
-    context: 'Context',
-    settings: 'Settings',
-  };
-
-  // Measure the panel content's natural width by finding the widest
-  // nowrap element or element with min-width, then sizing the drawer to fit.
+  // Measure the panel content's natural width
   $effect(() => {
     const el = panelContentEl;
     void activeTab;
     if (!el) { panelWidth = undefined; return; }
     const frame = requestAnimationFrame(() => {
-      // Find all elements that define intrinsic width (nowrap text, inputs, etc.)
       let maxW = 0;
-      const candidates = el.querySelectorAll('[style*="white-space"], h3, h4, input, .settings-list, .settings-tab, .docs-tab, .context-tab');
+      const candidates = el.querySelectorAll('[style*="white-space"], h3, h4, input, .settings-list, .settings-tab');
       for (const c of candidates) {
         maxW = Math.max(maxW, c.scrollWidth);
       }
-      // Also check the direct child's min-width
       const child = el.firstElementChild as HTMLElement;
       if (child) {
         const cs = getComputedStyle(child);
@@ -61,7 +48,6 @@
         if (!isNaN(mw)) maxW = Math.max(maxW, mw);
       }
       if (maxW > 0) {
-        // Add padding for panel-content's own padding
         panelWidth = `${maxW + 24}px`;
       }
     });
@@ -85,23 +71,6 @@
       if (e.ctrlKey && !e.shiftKey && e.key === 'k') {
         e.preventDefault();
         paletteOpen = !paletteOpen;
-        return;
-      }
-
-      // Alt+1..4 — switch sidebar tab (and open drawer)
-      if (e.altKey && !e.ctrlKey && e.key >= '1' && e.key <= '4') {
-        e.preventDefault();
-        const tabs = ['sessions', 'docs', 'context', 'settings'] as const;
-        const idx = parseInt(e.key) - 1;
-        if (idx < tabs.length) {
-          const tab = tabs[idx];
-          if (getActiveTab() === tab && drawerOpen) {
-            drawerOpen = false;
-          } else {
-            setActiveTab(tab);
-            drawerOpen = true;
-          }
-        }
         return;
       }
 
@@ -176,7 +145,7 @@
       {#if drawerOpen}
         <aside class="sidebar-panel" style:width={panelWidth}>
           <div class="panel-header">
-            <h2>{panelTitles[activeTab] ?? ''}</h2>
+            <h2>Settings</h2>
             <button class="panel-close" onclick={() => drawerOpen = false} title="Close sidebar (Ctrl+B)">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -184,15 +153,7 @@
             </button>
           </div>
           <div class="panel-content" bind:this={panelContentEl}>
-            {#if activeTab === 'sessions'}
-              <ProjectGrid />
-            {:else if activeTab === 'docs'}
-              <DocsTab />
-            {:else if activeTab === 'context'}
-              <ContextTab />
-            {:else if activeTab === 'settings'}
-              <SettingsTab />
-            {/if}
+            <SettingsTab />
           </div>
         </aside>
       {/if}

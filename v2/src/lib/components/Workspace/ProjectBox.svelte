@@ -73,15 +73,17 @@
     {/if}
   </div>
 
-  <div class="project-terminal-area">
-    <TerminalTabs {project} agentSessionId={mainSessionId} />
-  </div>
+  {#if activeTab === 'claude'}
+    <div class="project-terminal-area">
+      <TerminalTabs {project} agentSessionId={mainSessionId} />
+    </div>
+  {/if}
 </div>
 
 <style>
   .project-box {
     display: grid;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-rows: auto auto 1fr;
     min-width: 30rem;
     scroll-snap-align: start;
     background: var(--ctp-base);
