@@ -377,3 +377,22 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 #### Verification
 - All 138 vitest tests pass
 - Vite build succeeds
+
+### Session: 2026-03-08 — Security Audit Fixes + OTEL Telemetry
+
+#### Security Audit Fixes
+- [x] Fixed all CRITICAL (5) + HIGH (4) findings — path traversal, race conditions, memory leaks, listener leaks, transaction safety
+- [x] Fixed all MEDIUM (6) findings — runtime type guards, ANTHROPIC_* env stripping, timestamp mismatch, async lock, error propagation
+- [x] Fixed all LOW (8) findings — input validation, mutex poisoning, log warnings, payload validation
+- [x] 3 false positives dismissed with rationale
+- [x] 172/172 tests pass (138 vitest + 34 cargo)
+
+#### OTEL Telemetry Implementation
+- [x] Added 6 Rust deps: tracing, tracing-subscriber, opentelemetry 0.28, opentelemetry_sdk 0.28, opentelemetry-otlp 0.28, tracing-opentelemetry 0.29
+- [x] Created `v2/src-tauri/src/telemetry.rs` — TelemetryGuard, layer composition, OTLP export via BTERMINAL_OTLP_ENDPOINT env var
+- [x] Integrated into lib.rs: TelemetryGuard in AppState, init before Tauri builder
+- [x] Instrumented 10 Tauri commands with `#[tracing::instrument]`: pty_spawn, pty_kill, agent_query/stop/restart, remote_connect/disconnect/agent_query/agent_stop/pty_spawn
+- [x] Added `frontend_log` Tauri command for frontend→Rust tracing bridge
+- [x] Created `v2/src/lib/adapters/telemetry-bridge.ts` — `tel.info/warn/error/debug/trace()` convenience API
+- [x] Wired agent dispatcher lifecycle events: agent_started, agent_stopped, agent_error, sidecar_crashed, cost metrics
+- [x] Created Docker compose stack: `docker/tempo/` — Tempo (4317/4318/3200) + Grafana (port 9715)

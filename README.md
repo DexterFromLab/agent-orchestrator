@@ -140,6 +140,21 @@ Add remote machines in BTerminal Settings > Remote Machines (label, URL, token).
 
 See [docs/multi-machine.md](docs/multi-machine.md) for full architecture details.
 
+## Telemetry (v2)
+
+BTerminal supports OpenTelemetry tracing with optional export to Tempo + Grafana.
+
+```bash
+# Start the tracing stack
+cd docker/tempo && docker compose up -d
+# Grafana at http://localhost:9715
+
+# Run BTerminal with OTLP export enabled
+BTERMINAL_OTLP_ENDPOINT=http://localhost:4318 npm run tauri dev
+```
+
+Without `BTERMINAL_OTLP_ENDPOINT`, telemetry falls back to console-only tracing (no network calls). Key Tauri commands (PTY, agent, remote) are instrumented with `#[tracing::instrument]`. Frontend events (agent lifecycle, errors, cost) route to Rust tracing via IPC bridge.
+
 ## Documentation
 
 | Document | Description |

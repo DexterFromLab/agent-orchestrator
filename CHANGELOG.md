@@ -20,8 +20,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `remove_machine` now aborts `WsConnection` tasks before removal, preventing resource leak (remote.rs)
 - `save_agent_messages` wrapped in `unchecked_transaction()` for atomic DELETE+INSERT, preventing partial writes on crash (session.rs)
 - Non-null assertion `msg.event!` replaced with safe check `if (msg.event)` in agent bridge event handler (agent-bridge.ts)
+- Runtime type guards (`str()`, `num()`) replace bare `as` casts on untrusted SDK wire format in sdk-messages.ts
+- ANTHROPIC_* environment variables now stripped alongside CLAUDE* in sidecar agent-runner.ts
+- Frontend persistence timestamps use `Math.floor(Date.now() / 1000)` matching Rust seconds convention (agent-dispatcher.ts)
+- Remote disconnect handler converted from `try_lock()` to async `.lock().await` (remote.rs)
+- `save_layout` pane_ids serialization error now propagated instead of silent fallback (session.rs)
+- ctx.rs Mutex::lock() returns Err instead of panicking on poisoned lock (5 occurrences)
+- ctx CLI: `int()` limit argument validated with try/except (ctx)
+- ctx CLI: FTS5 MATCH query wrapped in try/except for syntax errors (ctx)
+- File watcher: explicit error for root-level path instead of silent fallback (watcher.rs)
+- Agent bridge payload validated before cast to SidecarMessage (agent-bridge.ts)
+- Profile.toml and resource_dir failures now log::warn instead of silent empty fallback (lib.rs)
 
 ### Added
+- OpenTelemetry instrumentation: `telemetry.rs` module with TelemetryGuard (Drop-based shutdown), tracing + optional OTLP/HTTP export to Tempo, controlled by `BTERMINAL_OTLP_ENDPOINT` env var (absent = console-only fallback)
+- `#[tracing::instrument]` on 10 key Tauri commands: pty_spawn, pty_kill, agent_query, agent_stop, agent_restart, remote_connect, remote_disconnect, remote_agent_query, remote_agent_stop, remote_pty_spawn
+- `frontend_log` Tauri command: routes frontend telemetry events (level + message + context JSON) to Rust tracing layer with `source="frontend"` field
+- `telemetry-bridge.ts` adapter: `tel.info/warn/error/debug/trace()` convenience wrappers for frontend → Rust tracing bridge via IPC
+- Agent dispatcher telemetry: structured events for agent_started, agent_stopped, agent_error, sidecar_crashed, and agent_cost (with full metrics: costUsd, tokens, turns, duration)
+- Docker Tempo + Grafana stack (`docker/tempo/`): Tempo (OTLP gRPC 4317, HTTP 4318, query 3200) + Grafana (port 9715) with auto-provisioned Tempo datasource
+- 6 new Rust dependencies: tracing 0.1, tracing-subscriber 0.3, opentelemetry 0.28, opentelemetry_sdk 0.28, opentelemetry-otlp 0.28, tracing-opentelemetry 0.29
 - `ctx_register_project` Tauri command and `ctxRegisterProject()` bridge function: registers a project in the ctx database via `INSERT OR IGNORE` into sessions table; opens DB read-write briefly then closes
 - Agent preview terminal (`AgentPreviewPane.svelte`): read-only xterm.js terminal that subscribes to agent session messages in real-time; renders Bash commands as cyan `❯ command`, file operations as yellow `[Read/Write/Edit] path`, tool results (80-line truncation), text summaries, errors in red, session start/complete with cost; uses `disableStdin: true`, Canvas addon, theme hot-swap; spawned via 👁 button in TerminalTabs tab bar (appears when agent session is active); deduplicates — only one preview per session
 - `TerminalTab.type` extended with `'agent-preview'` variant and `agentSessionId?: string` field in workspace store

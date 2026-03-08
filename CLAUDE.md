@@ -42,6 +42,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions + agent_messages + project_agent_state) |
 | `v2/src-tauri/src/watcher.rs` | FileWatcherManager (notify crate, file change events) |
 | `v2/src-tauri/src/ctx.rs` | CtxDb (read-only access to ~/.claude-context/context.db) |
+| `v2/src-tauri/src/telemetry.rs` | OTEL telemetry (TelemetryGuard, tracing + OTLP export, BTERMINAL_OTLP_ENDPOINT) |
 | `v2/src/lib/stores/workspace.svelte.ts` | v3 workspace store (project groups, tabs, focus, replaces layout store) |
 | `v2/src/lib/stores/layout.svelte.ts` | v2 layout store (panes, presets, groups, persistence, Svelte 5 runes) |
 | `v2/src/lib/stores/agents.svelte.ts` | Agent session store (messages, cost, parent/child hierarchy) |
@@ -59,6 +60,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/claude-bridge.ts` | Claude profiles + skills IPC wrapper |
 | `v2/src/lib/adapters/groups-bridge.ts` | Groups config IPC wrapper (load/save) |
 | `v2/src/lib/adapters/remote-bridge.ts` | Remote machine management IPC wrapper |
+| `v2/src/lib/adapters/telemetry-bridge.ts` | Frontend telemetry bridge (routes events to Rust tracing via IPC) |
+| `docker/tempo/` | Docker compose: Tempo + Grafana for trace visualization (port 9715) |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
 | `v2/src/lib/utils/agent-tree.ts` | Agent tree builder (hierarchy from messages) |
 | `v2/src/lib/utils/highlight.ts` | Shiki syntax highlighter (lazy singleton, 13 languages) |
@@ -104,7 +107,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Multi-machine: bterminal-relay WebSocket server + RemoteManager WebSocket client
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup
 - File watcher (notify crate) for live markdown viewer
-- Rust deps (src-tauri): tauri, bterminal-core (path), rusqlite (bundled), dirs, notify, serde, tokio, tokio-tungstenite, futures-util, tauri-plugin-updater, tauri-plugin-dialog
+- OpenTelemetry: tracing + tracing-subscriber + opentelemetry 0.28 + tracing-opentelemetry 0.29, OTLP/HTTP to Tempo, BTERMINAL_OTLP_ENDPOINT env var
+- Rust deps (src-tauri): tauri, bterminal-core (path), rusqlite (bundled), dirs, notify, serde, tokio, tokio-tungstenite, futures-util, tracing, tracing-subscriber, opentelemetry, opentelemetry_sdk, opentelemetry-otlp, tracing-opentelemetry, tauri-plugin-updater, tauri-plugin-dialog
 - Rust deps (bterminal-core): portable-pty, uuid, serde, serde_json, log
 - Rust deps (bterminal-relay): bterminal-core, tokio, tokio-tungstenite, clap, env_logger, futures-util
 - npm deps: @anthropic-ai/claude-agent-sdk, @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, @tauri-apps/plugin-dialog, marked, shiki, vitest (dev)
@@ -130,6 +134,10 @@ cd v2/src-tauri && cargo test               # Cargo tests (backend)
 
 # v2 install from source (builds + installs to ~/.local/bin/bterminal-v2)
 ./install-v2.sh
+
+# Telemetry stack (Tempo + Grafana)
+cd docker/tempo && docker compose up -d  # Grafana at http://localhost:9715
+BTERMINAL_OTLP_ENDPOINT=http://localhost:4318 npm run tauri dev  # Enable OTLP export
 ```
 
 ## Conventions
