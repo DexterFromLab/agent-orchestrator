@@ -11,6 +11,7 @@
 
 ## Completed
 
+- [x] **Collapsible terminal panel** -- Terminal section on Claude tab collapses to a status bar (chevron + "Terminal" label + tab count badge). Click to expand/collapse. Default collapsed. Hidden on Files/Context tabs. | Done: 2026-03-08
 - [x] **Sidebar simplification + markdown fixes** -- Sidebar stripped to Settings-only (Sessions/Docs/Context removed — project-specific). MarkdownPane file switching fixed ($effect watches filePath changes). MarkdownPane restyled: sans-serif font, --ctp-* vars, styled blockquotes/tables/links. Terminal area hidden on Files/Context tabs. | Done: 2026-03-08
 - [x] **Agent preview terminal** -- AgentPreviewPane.svelte: read-only xterm.js terminal subscribing to agent session messages. Renders Bash commands (cyan), file ops (yellow), tool results, errors. 👁 button in TerminalTabs spawns preview tab. TerminalTab type extended with 'agent-preview' + agentSessionId field. | Done: 2026-03-08
 - [x] **Terminal tabs close fix** -- Svelte 5 `$state<Map>` reactivity bug: Map.set() didn't trigger $derived updates. Changed projectTerminals from Map to Record (plain object). Fixes: tabs can now be closed, sequential tab naming works. | Done: 2026-03-08
