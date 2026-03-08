@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stub `pick_directory` Tauri command (replaced by `tauri-plugin-dialog` frontend API)
 
 ### Fixed
+- Native directory picker not opening: added missing `"dialog:default"` permission to `v2/src-tauri/capabilities/default.json` — Tauri's IPC security layer silently blocked `invoke()` calls without this capability
 - Sidebar drawer not scaling to content width: removed leftover v2 grid layout on `#app` in `app.css` (`display: grid; grid-template-columns: var(--sidebar-width) 1fr` + media queries) that constrained `.app-shell` to 260px first column; v3 `.app-shell` manages its own flexbox layout internally
 - ContextPane.svelte CSS converted from px to rem: font-size, padding, margin, gap; added `white-space: nowrap` on `.ctx-header`/`.ctx-error` for intrinsic width measurement
 

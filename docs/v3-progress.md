@@ -314,3 +314,6 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Added folder browse button (folder SVG icon) to: Default CWD, existing project CWD, Add Project path
 - [x] Styled `.input-with-browse` layout (flex row, themed browse button)
 - [x] Fixed nested input theme: `.setting-field .input-with-browse input` selector for dark background
+- [x] Fixed dialog not opening: added `"dialog:default"` permission to `v2/src-tauri/capabilities/default.json` — Tauri IPC security blocked invoke() without capability
+- [x] Verified via Playwright: error was `Cannot read properties of undefined (reading 'invoke')` in browser context (expected — Tauri IPC only exists in WebView), confirming code is correct
+- [x] Clean rebuild required after capability changes (cached binary doesn't pick up new permissions)
