@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Theme integration rule (`.claude/rules/51-theme-integration.md`): mandates all colors via `--ctp-*` CSS custom properties, never hardcode hex/rgb/hsl values
+- AgentPane VSCode-style prompt: unified input always at bottom with auto-resizing textarea, send icon button (arrow SVG) inside rounded container, welcome state with chat icon when no session
+- AgentPane session controls: New Session and Continue buttons shown after session completes, enabling explicit session management
+- ClaudeSession `handleNewSession()`: resets sessionId for fresh agent sessions, wired via `onExit` prop to AgentPane
+- ContextPane improved error UX: centered icon + error message + hint to run `ctx init` in terminal (replaces plain text error)
 - Project-level tab bar in ProjectBox: Claude | Files | Context tabs switch the content area between ClaudeSession, ProjectFiles, and ContextPane
 - ProjectFiles.svelte: project-scoped markdown file viewer (file picker sidebar + MarkdownPane), accepts cwd/projectName props
 - ProjectHeader info bar: CWD path (ellipsized from start via `direction: rtl`) + profile name displayed as read-only info alongside project icon/name
@@ -17,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSS relative units rule (`.claude/rules/18-relative-units.md`): enforces rem/em for layout CSS, px only for icons/borders/shadows
 
 ### Changed
+- AgentPane prompt: replaced separate initial prompt + follow-up input with single unified prompt area; removed `followUpPrompt` state, `handleSubmit` function; follow-up handled via `isResume` detection in `handleUnifiedSubmit()`
+- AgentPane CSS: migrated all legacy CSS vars (`--bg-primary`, `--bg-surface`, `--text-primary`, `--text-secondary`, `--text-muted`, `--border`, `--accent`, `--font-mono`, `--border-radius`) to `--ctp-*` theme vars + rem units
+- ContextPane CSS: same legacy-to-theme var migration as AgentPane
+- ProjectBox tab CSS: polished with `margin-bottom: -1px` active tab trick (merges with content), `scrollbar-width: none`, `focus-visible` outline, hover with `var(--ctp-surface0)` background
 - ProjectBox layout: CSS grid with 4 rows (`auto auto 1fr auto`) — header | tab bar | content | terminal; content area switches by tab
 - AgentPane: removed DIR/ACC toolbar entirely — CWD and profile now passed as props from parent (set in Settings, shown in ProjectHeader); clean chat window with prompt + send button only
 - AgentPane prompt area: anchored to bottom (`justify-content: flex-end`) instead of vertical center, removed `max-width: 600px` constraint — uses full panel width
