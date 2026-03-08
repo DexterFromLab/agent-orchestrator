@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All ~100 px layout values converted to rem across 10 components per rule 18: AgentPane, ToastContainer, CommandPalette, SettingsTab, TeamAgentsPanel, AgentCard, StatusBar, AgentTree, TerminalPane, AgentPreviewPane (1rem = 16px base, icon/dot dimensions kept as px)
 
 ### Added
+- E2E testing infrastructure: WebdriverIO v9.24 + tauri-driver setup with `wdio.conf.js` (lifecycle hooks for tauri-driver spawn/kill, debug binary build), 6 smoke tests (`smoke.test.ts`), TypeScript config, `test:e2e` npm script, 4 new devDeps (@wdio/cli, @wdio/local-runner, @wdio/mocha-framework, @wdio/spec-reporter)
 - `waitForPendingPersistence()` export in agent-dispatcher.ts: counter-based fence that resolves when all in-flight `persistSessionForProject()` calls complete
 - OpenTelemetry instrumentation: `telemetry.rs` module with TelemetryGuard (Drop-based shutdown), tracing + optional OTLP/HTTP export to Tempo, controlled by `BTERMINAL_OTLP_ENDPOINT` env var (absent = console-only fallback)
 - `#[tracing::instrument]` on 10 key Tauri commands: pty_spawn, pty_kill, agent_query, agent_stop, agent_restart, remote_connect, remote_disconnect, remote_agent_query, remote_agent_stop, remote_pty_spawn

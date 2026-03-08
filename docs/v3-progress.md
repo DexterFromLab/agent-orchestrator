@@ -415,3 +415,15 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] StatusBar.svelte, AgentTree.svelte, TerminalPane.svelte, AgentPreviewPane.svelte, SettingsTab.svelte
 - [x] Icon/decorative dot dimensions kept as px per rule 18
 - [x] 139 vitest + 34 cargo tests pass, vite build succeeds
+
+### Session: 2026-03-08 — E2E Testing Infrastructure
+
+#### WebdriverIO + tauri-driver Setup
+- [x] Installed @wdio/cli, @wdio/local-runner, @wdio/mocha-framework, @wdio/spec-reporter (v9.24.0)
+- [x] Created wdio.conf.js with tauri-driver lifecycle hooks (onPrepare builds debug binary, beforeSession/afterSession spawns/kills tauri-driver)
+- [x] Created tsconfig.json for e2e test TypeScript compilation
+- [x] Created smoke.test.ts with 6 tests: app title, status bar, version text, sidebar rail, workspace area, sidebar toggle
+- [x] Added `test:e2e` npm script (`wdio run tests/e2e/wdio.conf.js`)
+- [x] Updated README.md with complete setup instructions and CI guide
+- [x] Key decision: WebdriverIO over Playwright (Playwright cannot control Tauri/WebKit2GTK apps)
+- [x] Prerequisites: tauri-driver (cargo install), webkit2gtk-driver (apt), display server or xvfb-run
