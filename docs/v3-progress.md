@@ -284,3 +284,14 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] GlobalTabBar.svelte: rail width 36px -> 2.75rem, button 28px -> 2rem, gap 2px -> 0.25rem, padding 6px 4px -> 0.5rem 0.375rem, border-radius 4px -> 0.375rem
 - [x] App.svelte: sidebar header padding 8px 12px -> 0.5rem 0.75rem, close button 22px -> 1.375rem, border-radius 4px -> 0.25rem
 - [x] Also changed GlobalTabBar rail-btn color from --ctp-overlay1 to --ctp-subtext0 for better contrast
+
+### Session: 2026-03-08 — Content-Driven Sidebar Width
+
+#### Sidebar Panel Sizing
+- [x] Changed `.sidebar-panel` from fixed `width: 28em` to `width: max-content` with `min-width: 16em` and `max-width: 50%`
+- [x] Changed `.sidebar-panel` and `.panel-content` from `overflow: hidden` to `overflow-y: auto` — hidden was blocking content from driving parent width
+- [x] Each tab component now defines its own `min-width: 22em` (SettingsTab, ContextTab, DocsTab)
+
+#### Additional px → rem Conversions
+- [x] SettingsTab.svelte: padding 12px 16px → 0.75rem 1rem
+- [x] DocsTab.svelte: file-picker 220px → 14em, picker-title padding → rem, file-btn padding → rem, empty/loading padding → rem

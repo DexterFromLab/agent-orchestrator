@@ -13,7 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - GlobalTabBar.svelte CSS converted from px to rem: rail width 2.75rem, button 2rem, gap 0.25rem, padding 0.5rem 0.375rem, border-radius 0.375rem; rail-btn color changed from --ctp-overlay1 to --ctp-subtext0 for better contrast
 - App.svelte sidebar header CSS converted from px to rem: padding 0.5rem 0.75rem, close button 1.375rem, border-radius 0.25rem
-- UI redesigned from top tab bar + right-side settings drawer to VSCode-style left sidebar: vertical icon rail (GlobalTabBar, 2.75rem, 4 SVG icons) + expandable drawer panel (28em, max 50%) + always-visible main workspace (ProjectGrid)
+- Sidebar panel changed from fixed width (28em) to content-driven sizing: `width: max-content` with `min-width: 16em` and `max-width: 50%`; each tab component defines its own `min-width: 22em`
+- Sidebar panel and panel-content overflow changed from `hidden` to `overflow-y: auto` to allow content to drive parent width
+- SettingsTab.svelte padding converted from px to rem (0.75rem 1rem)
+- DocsTab.svelte converted from px to rem: file-picker 14em, picker-title/file-btn/empty padding in rem
+- ContextTab.svelte, DocsTab.svelte, SettingsTab.svelte all now set `min-width: 22em` for content-driven drawer sizing
+- UI redesigned from top tab bar + right-side settings drawer to VSCode-style left sidebar: vertical icon rail (GlobalTabBar, 2.75rem, 4 SVG icons) + expandable drawer panel (content-driven width) + always-visible main workspace (ProjectGrid)
 - GlobalTabBar rewritten from horizontal text tabs + gear icon to vertical icon rail with SVG icons for Sessions, Docs, Context, Settings; Props: `expanded`/`ontoggle` (was `settingsOpen`/`ontoggleSettings`)
 - Settings is now a regular sidebar tab (not a special right-side drawer); `WorkspaceTab` type: `'sessions' | 'docs' | 'context' | 'settings'`
 - App.svelte layout: `.main-row` flex container with icon rail + optional sidebar panel + workspace; state renamed `settingsOpen` -> `drawerOpen`
