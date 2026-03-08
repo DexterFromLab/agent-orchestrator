@@ -30,6 +30,9 @@ let unlistenExit: (() => void) | null = null;
 // Map sessionId -> projectId for persistence routing
 const sessionProjectMap = new Map<string, string>();
 
+// In-flight persistence counter — prevents teardown from racing with async saves
+let pendingPersistCount = 0;
+
 export function registerSessionProject(sessionId: string, projectId: string): void {
   sessionProjectMap.set(sessionId, projectId);
 }
@@ -273,6 +276,13 @@ function spawnSubagentPane(parentSessionId: string, tc: ToolCallContent): void {
   }
 }
 
+/** Wait until all in-flight persistence operations complete */
+export async function waitForPendingPersistence(): Promise<void> {
+  while (pendingPersistCount > 0) {
+    await new Promise(r => setTimeout(r, 10));
+  }
+}
+
 /** Persist session state + messages to SQLite for the project that owns this session */
 async function persistSessionForProject(sessionId: string): Promise<void> {
   const projectId = sessionProjectMap.get(sessionId);
@@ -281,6 +291,7 @@ async function persistSessionForProject(sessionId: string): Promise<void> {
   const session = getAgentSession(sessionId);
   if (!session) return;
 
+  pendingPersistCount++;
   try {
     // Save agent state
     await saveProjectAgentState({
@@ -313,6 +324,8 @@ async function persistSessionForProject(sessionId: string): Promise<void> {
     }
   } catch (e) {
     console.warn('Failed to persist agent session:', e);
+  } finally {
+    pendingPersistCount--;
   }
 }
 

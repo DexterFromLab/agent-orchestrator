@@ -1,6 +1,7 @@
 import { loadGroups, saveGroups, getCliGroup } from '../adapters/groups-bridge';
 import type { GroupsFile, GroupConfig, ProjectConfig } from '../types/groups';
 import { clearAllAgentSessions } from '../stores/agents.svelte';
+import { waitForPendingPersistence } from '../agent-dispatcher';
 
 export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings';
 
@@ -68,6 +69,9 @@ export function setActiveProject(projectId: string | null): void {
 
 export async function switchGroup(groupId: string): Promise<void> {
   if (groupId === activeGroupId) return;
+
+  // Wait for any in-flight persistence before clearing state
+  await waitForPendingPersistence();
 
   // Teardown: clear terminal tabs and agent sessions for the old group
   projectTerminals = {};

@@ -191,6 +191,7 @@ import {
   stopAgentDispatcher,
   isSidecarAlive,
   setSidecarAlive,
+  waitForPendingPersistence,
 } from './agent-dispatcher';
 
 // Stop any previous dispatcher between tests so `unlistenMsg` is null and start works
@@ -599,6 +600,13 @@ describe('agent-dispatcher', () => {
       expect(mockAddPane).toHaveBeenCalledWith(expect.objectContaining({
         group: 'Agent sess-1',
       }));
+    });
+  });
+
+  describe('waitForPendingPersistence', () => {
+    it('resolves immediately when no persistence is in-flight', async () => {
+      vi.useRealTimers();
+      await expect(waitForPendingPersistence()).resolves.toBeUndefined();
     });
   });
 });

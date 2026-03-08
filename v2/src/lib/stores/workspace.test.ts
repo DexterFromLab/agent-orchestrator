@@ -30,6 +30,10 @@ vi.mock('../stores/agents.svelte', () => ({
   clearAllAgentSessions: vi.fn(),
 }));
 
+vi.mock('../agent-dispatcher', () => ({
+  waitForPendingPersistence: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../adapters/groups-bridge', () => ({
   loadGroups: vi.fn().mockImplementation(() => Promise.resolve(mockGroupsData())),
   saveGroups: vi.fn().mockResolvedValue(undefined),

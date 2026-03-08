@@ -444,7 +444,7 @@
     <div class="group-list">
       {#each groups as group}
         <div class="group-row" class:active={group.id === activeGroupId}>
-          <button class="group-name" onclick={() => switchGroup(group.id)}>
+          <button class="group-name" onclick={async () => await switchGroup(group.id)}>
             {group.name}
           </button>
           <span class="group-count">{group.projects.length} projects</span>
@@ -764,14 +764,14 @@
     display: inline-block;
     width: 14px;
     height: 14px;
-    border-radius: 3px;
+    border-radius: 0.1875rem;
     border: 1px solid;
     flex-shrink: 0;
   }
 
   .theme-colors {
     display: flex;
-    gap: 3px;
+    gap: 0.1875rem;
     flex-shrink: 0;
   }
 
@@ -786,13 +786,13 @@
   .size-control {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 0.125rem;
     flex-shrink: 0;
   }
 
   .size-btn {
-    width: 28px;
-    height: 28px;
+    width: 1.75rem;
+    height: 1.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -814,7 +814,7 @@
   }
 
   .size-input {
-    width: 40px;
+    width: 2.5rem;
     padding: 0.25rem 0.125rem;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
@@ -833,7 +833,7 @@
   .size-unit {
     font-size: 0.7rem;
     color: var(--ctp-overlay0);
-    margin-right: 2px;
+    margin-right: 0.125rem;
   }
 
   /* Groups */
@@ -959,8 +959,8 @@
 
   .toggle-thumb {
     position: absolute;
-    top: 2px;
-    left: 2px;
+    top: 0.125rem;
+    left: 0.125rem;
     width: 0.875rem;
     height: 0.875rem;
     background: var(--ctp-text);
