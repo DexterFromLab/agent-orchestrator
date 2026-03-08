@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
+
+### Fixed
+- Re-entrant sidecar exit handler race condition: added `restarting` guard flag preventing double-restart on rapid disconnect/reconnect (agent-dispatcher.ts)
+- Memory leak: `toolUseToChildPane` and `sessionProjectMap` maps now cleared in `stopAgentDispatcher()` (agent-dispatcher.ts)
+- Listener leak: 5 Tauri event listeners in machines store now tracked via `UnlistenFn[]` array with `destroyMachineListeners()` cleanup function (machines.svelte.ts)
+- Fragile abort detection: replaced `errMsg.includes('aborted')` with `controller.signal.aborted` for authoritative abort state check (agent-runner.ts)
+- Unhandled rejection: `handleMessage` made async with `.catch()` on `rl.on('line')` handler preventing sidecar crash on malformed input (agent-runner.ts)
+- Remote machine `add_machine`/`list_machines`/`remove_machine` converted from `try_lock()` (silent failure on contention) to async `.lock().await` (remote.rs)
+- `remove_machine` now aborts `WsConnection` tasks before removal, preventing resource leak (remote.rs)
+- `save_agent_messages` wrapped in `unchecked_transaction()` for atomic DELETE+INSERT, preventing partial writes on crash (session.rs)
+- Non-null assertion `msg.event!` replaced with safe check `if (msg.event)` in agent bridge event handler (agent-bridge.ts)
+
 ### Added
 - `ctx_register_project` Tauri command and `ctxRegisterProject()` bridge function: registers a project in the ctx database via `INSERT OR IGNORE` into sessions table; opens DB read-write briefly then closes
 - Agent preview terminal (`AgentPreviewPane.svelte`): read-only xterm.js terminal that subscribes to agent session messages in real-time; renders Bash commands as cyan `❯ command`, file operations as yellow `[Read/Write/Edit] path`, tool results (80-line truncation), text summaries, errors in red, session start/complete with cost; uses `disableStdin: true`, Canvas addon, theme hot-swap; spawned via 👁 button in TerminalTabs tab bar (appears when agent session is active); deduplicates — only one preview per session
