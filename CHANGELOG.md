@@ -8,14 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Emoji icon picker in SettingsTab: 24 project-relevant emoji in 8-column grid popup, replaces plain text icon input
 - Native directory picker for CWD fields: custom `pick_directory` Tauri command using `rfd` crate with `set_parent(&window)` for modal behavior on Linux; browse buttons added to Default CWD, existing project CWD, and Add Project path inputs in SettingsTab
 - `rfd = { version = "0.16", default-features = false, features = ["gtk3"] }` direct dependency for modal file dialogs (zero extra compile — already built transitively via tauri-plugin-dialog)
 - CSS relative units rule (`.claude/rules/18-relative-units.md`): enforces rem/em for layout CSS, px only for icons/borders/shadows
 
+### Changed
+- ProjectBox layout: switched from flex to CSS grid (`grid-template-rows: auto 1fr auto`) — header (auto) | Claude session (fills remaining) | terminal (16rem fixed)
+- AgentPane prompt area: anchored to bottom (`justify-content: flex-end`) instead of vertical center, removed `max-width: 600px` constraint — uses full panel width
+- ProjectGrid.svelte CSS converted from px to rem: gap 0.25rem, padding 0.25rem, min-width 30rem
+- TerminalTabs.svelte CSS converted from px to rem: tab bar, tabs, close/add buttons, empty state
+
 ### Removed
+- Nerd Font codepoints for project icons — replaced with emoji (`📁` default) for cross-platform compatibility
+- Nerd Font `font-family` declarations from ProjectHeader and TerminalTabs
 - Stub `pick_directory` Tauri command (replaced by `tauri-plugin-dialog` frontend API)
 
 ### Fixed
+- Project icons showing "?" — Nerd Font codepoint `\uf120` not rendering without font installed; switched to emoji
 - Native directory picker not opening: added missing `"dialog:default"` permission to `v2/src-tauri/capabilities/default.json` — Tauri's IPC security layer silently blocked `invoke()` calls without this capability
 - Native directory picker not modal on Linux: replaced `@tauri-apps/plugin-dialog` `open()` with custom `pick_directory` Tauri command using `rfd::AsyncFileDialog::set_parent(&window)` — the plugin skips `set_parent` on Linux via `cfg(any(windows, target_os = "macos"))` gate
 - Native directory picker not dark-themed: set `GTK_THEME=Adwaita:dark` via `std::env::set_var` at Tauri startup to force dark theme on native GTK dialogs

@@ -325,3 +325,25 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Fix: `std::env::set_var("GTK_THEME", "Adwaita:dark")` at start of `run()` in lib.rs — dark-themed dialog
 - [x] Added `rfd = { version = "0.16", default-features = false, features = ["gtk3"] }` as direct dep — MUST disable defaults to avoid gtk3+xdg-portal feature conflict
 - [x] Switched SettingsTab from `@tauri-apps/plugin-dialog` `open()` to `invoke<string | null>('pick_directory')`
+
+### Session: 2026-03-08 — Project Workspace Layout Redesign + Icon Fix
+
+#### Icon Fix
+- [x] Replaced Nerd Font codepoints (`\uf120`) with emoji (`📁` default) — Nerd Font not installed, showed "?"
+- [x] Added emoji picker grid (24 project-relevant emoji, 8-column popup) in SettingsTab instead of plain text input
+- [x] Removed `font-family: 'NerdFontsSymbols Nerd Font'` from ProjectHeader and TerminalTabs
+
+#### ProjectBox Layout Redesign
+- [x] Switched ProjectBox from flex to CSS grid (`grid-template-rows: auto 1fr auto`) — header | session | terminal zones
+- [x] Terminal area: explicit `height: 16rem` instead of collapsing to content
+- [x] Session area: `min-height: 0` for proper flex child overflow
+
+#### AgentPane Prompt Layout
+- [x] Prompt area anchored to bottom (`justify-content: flex-end`) instead of vertical center
+- [x] Removed `max-width: 600px` constraint on form and toolbar — uses full panel width
+- [x] Toolbar sits directly above textarea
+
+#### CSS px → rem Conversions
+- [x] ProjectGrid.svelte: gap 4px → 0.25rem, padding 4px → 0.25rem, min-width 480px → 30rem
+- [x] TerminalTabs.svelte: tab bar, tabs, close/add buttons all converted to rem
+- [x] ProjectBox.svelte: min-width 480px → 30rem
