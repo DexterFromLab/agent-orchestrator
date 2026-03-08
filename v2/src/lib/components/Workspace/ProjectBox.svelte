@@ -45,13 +45,13 @@
 
 <style>
   .project-box {
-    display: flex;
-    flex-direction: column;
-    min-width: 480px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-width: 30rem;
     scroll-snap-align: start;
     background: var(--ctp-base);
     border: 1px solid var(--ctp-surface0);
-    border-radius: 6px;
+    border-radius: 0.375rem;
     overflow: hidden;
     transition: border-color 0.15s;
   }
@@ -61,17 +61,15 @@
   }
 
   .project-session-area {
-    flex: 1;
-    min-height: 200px;
+    display: flex;
     overflow: hidden;
     position: relative;
-    display: flex;
+    min-height: 0;
   }
 
   .project-terminal-area {
-    flex-shrink: 0;
-    min-height: 120px;
+    height: 16rem;
+    min-height: 8rem;
     border-top: 1px solid var(--ctp-surface0);
   }
-
 </style>

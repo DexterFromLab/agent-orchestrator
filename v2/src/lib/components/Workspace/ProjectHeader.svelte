@@ -20,7 +20,7 @@
   style="--accent: var({accentVar})"
   {onclick}
 >
-  <span class="project-icon">{project.icon || '\uf120'}</span>
+  <span class="project-icon">{project.icon || '📁'}</span>
   <span class="project-name">{project.name}</span>
   <span class="project-id">({project.identifier})</span>
 </button>
@@ -29,9 +29,8 @@
   .project-header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    height: 28px;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
     background: var(--ctp-mantle);
     border: none;
     border-bottom: 2px solid transparent;
@@ -54,9 +53,9 @@
   }
 
   .project-icon {
-    font-family: 'NerdFontsSymbols Nerd Font', 'Symbols Nerd Font Mono', monospace;
-    font-size: 0.9rem;
-    color: var(--accent);
+    font-size: 0.85rem;
+    line-height: 1;
+    flex-shrink: 0;
   }
 
   .project-name {

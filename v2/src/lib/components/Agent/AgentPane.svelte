@@ -553,18 +553,17 @@
 
   .prompt-area {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    justify-content: flex-end;
     height: 100%;
-    padding: 24px;
+    padding: 1rem;
   }
 
   .prompt-form {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0.5rem;
     width: 100%;
-    max-width: 600px;
   }
 
   .prompt-input {
@@ -942,8 +941,7 @@
   /* Session toolbar */
   .session-toolbar {
     width: 100%;
-    max-width: 600px;
-    margin-bottom: 8px;
+    margin-bottom: 0.5rem;
   }
 
   .toolbar-row {

@@ -57,16 +57,16 @@
 <style>
   .project-grid {
     display: flex;
-    gap: 4px;
+    gap: 0.25rem;
     height: 100%;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    padding: 4px;
+    padding: 0.25rem;
   }
 
   .project-slot {
-    flex: 0 0 calc((100% - (var(--visible-count) - 1) * 4px) / var(--visible-count));
-    min-width: 480px;
+    flex: 0 0 calc((100% - (var(--visible-count) - 1) * 0.25rem) / var(--visible-count));
+    min-width: 30rem;
     display: flex;
   }
 

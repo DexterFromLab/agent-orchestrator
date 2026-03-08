@@ -18,6 +18,12 @@
   import { THEME_LIST, getPalette, type ThemeId } from '../../styles/themes';
   import { invoke } from '@tauri-apps/api/core';
 
+  const PROJECT_ICONS = [
+    '📁', '🚀', '🤖', '🌐', '🔧', '🎮', '📱', '💻',
+    '🔬', '📊', '🎨', '🔒', '💬', '📦', '⚡', '🧪',
+    '🏗️', '📝', '🎯', '💡', '🔥', '🛠️', '🧩', '🗄️',
+  ];
+
   let activeGroupId = $derived(getActiveGroupId());
   let activeGroup = $derived(getActiveGroup());
   let activeProjectId = $derived(getActiveProjectId());
@@ -194,7 +200,7 @@
       name: newName.trim(),
       identifier: deriveIdentifier(newName.trim()),
       description: '',
-      icon: '\uf120',
+      icon: '📁',
       cwd: newCwd.trim(),
       profile: 'default',
       enabled: true,
@@ -455,14 +461,29 @@
               </button>
             </div>
           </label>
-          <label class="project-field">
+          <div class="project-field icon-field">
             <span class="field-label">Icon</span>
-            <input
-              value={project.icon}
-              onchange={e => updateProject(activeGroupId, project.id, { icon: (e.target as HTMLInputElement).value })}
-              style="width: 60px"
-            />
-          </label>
+            <button
+              class="icon-trigger"
+              onclick={(e) => {
+                const btn = e.currentTarget as HTMLElement;
+                const popup = btn.nextElementSibling as HTMLElement;
+                popup.classList.toggle('visible');
+              }}
+            >{project.icon || '📁'}</button>
+            <div class="icon-picker">
+              {#each PROJECT_ICONS as emoji}
+                <button
+                  class="icon-option"
+                  class:active={project.icon === emoji}
+                  onclick={(e) => {
+                    updateProject(activeGroupId, project.id, { icon: emoji });
+                    ((e.currentTarget as HTMLElement).closest('.icon-picker') as HTMLElement).classList.remove('visible');
+                  }}
+                >{emoji}</button>
+              {/each}
+            </div>
+          </div>
           <label class="project-field">
             <span class="field-label">Enabled</span>
             <input
@@ -804,6 +825,71 @@
     font-size: 0.8rem;
     min-width: 0;
     width: 100%;
+  }
+
+  .icon-field {
+    position: relative;
+  }
+
+  .icon-trigger {
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 3px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .icon-trigger:hover {
+    border-color: var(--ctp-overlay0);
+  }
+
+  .icon-picker {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 20;
+    background: var(--ctp-mantle);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.375rem;
+    padding: 0.375rem;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    width: max-content;
+  }
+
+  .icon-picker.visible {
+    display: grid;
+  }
+
+  .icon-option {
+    width: 1.75rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .icon-option:hover {
+    background: var(--ctp-surface0);
+  }
+
+  .icon-option.active {
+    background: var(--ctp-surface1);
+    border-color: var(--ctp-blue);
   }
 
   .add-form {

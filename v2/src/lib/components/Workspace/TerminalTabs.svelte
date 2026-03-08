@@ -103,8 +103,7 @@
     display: flex;
     align-items: center;
     gap: 1px;
-    height: 26px;
-    padding: 0 4px;
+    padding: 0 0.25rem;
     background: var(--ctp-mantle);
     border-bottom: 1px solid var(--ctp-surface0);
     overflow-x: auto;
@@ -114,14 +113,14 @@
   .tab {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
     background: transparent;
     border: none;
     color: var(--ctp-overlay1);
     font-size: 0.72rem;
     cursor: pointer;
-    border-radius: 3px 3px 0 0;
+    border-radius: 0.1875rem 0.1875rem 0 0;
     white-space: nowrap;
     transition: color 0.1s, background 0.1s;
   }
@@ -137,13 +136,8 @@
     border-bottom: 1px solid var(--ctp-blue);
   }
 
-  .tab-icon {
-    font-family: 'NerdFontsSymbols Nerd Font', 'Symbols Nerd Font Mono', monospace;
-    font-size: 0.75rem;
-  }
-
   .tab-title {
-    max-width: 100px;
+    max-width: 6.25rem;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -154,7 +148,7 @@
     color: var(--ctp-overlay0);
     font-size: 0.8rem;
     cursor: pointer;
-    padding: 0 2px;
+    padding: 0 0.125rem;
     line-height: 1;
   }
 
@@ -168,8 +162,8 @@
     color: var(--ctp-overlay0);
     font-size: 0.85rem;
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 3px;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.1875rem;
   }
 
   .tab-add:hover {
@@ -201,13 +195,14 @@
   }
 
   .add-first {
-    padding: 6px 16px;
+    padding: 0.375rem 1rem;
     background: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     color: var(--ctp-subtext0);
     font-size: 0.8rem;
     cursor: pointer;
+    transition: background 0.15s, color 0.15s;
   }
 
   .add-first:hover {
