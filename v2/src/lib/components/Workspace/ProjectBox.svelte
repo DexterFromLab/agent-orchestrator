@@ -64,26 +64,22 @@
   </div>
 
   <div class="project-content-area">
-    {#if activeTab === 'claude'}
-      <div class="content-pane">
-        <ClaudeSession {project} onsessionid={(id) => mainSessionId = id} />
-        {#if mainSessionId}
-          <TeamAgentsPanel {mainSessionId} />
-        {/if}
-      </div>
-    {:else if activeTab === 'files'}
-      <div class="content-pane">
-        <ProjectFiles cwd={project.cwd} projectName={project.name} />
-      </div>
-    {:else if activeTab === 'context'}
-      <div class="content-pane">
-        <ContextPane projectName={project.name} projectCwd={project.cwd} />
-      </div>
-    {/if}
+    <!-- Use CSS display instead of {#if} to keep ClaudeSession alive across tab switches -->
+    <div class="content-pane" style:display={activeTab === 'claude' ? 'flex' : 'none'}>
+      <ClaudeSession {project} onsessionid={(id) => mainSessionId = id} />
+      {#if mainSessionId}
+        <TeamAgentsPanel {mainSessionId} />
+      {/if}
+    </div>
+    <div class="content-pane" style:display={activeTab === 'files' ? 'flex' : 'none'}>
+      <ProjectFiles cwd={project.cwd} projectName={project.name} />
+    </div>
+    <div class="content-pane" style:display={activeTab === 'context' ? 'flex' : 'none'}>
+      <ContextPane projectName={project.name} projectCwd={project.cwd} />
+    </div>
   </div>
 
-  {#if activeTab === 'claude'}
-    <div class="terminal-section">
+  <div class="terminal-section" style:display={activeTab === 'claude' ? 'flex' : 'none'}>
       <button class="terminal-toggle" onclick={toggleTerminal}>
         <span class="toggle-chevron" class:expanded={terminalExpanded}>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -101,8 +97,7 @@
           <TerminalTabs {project} agentSessionId={mainSessionId} />
         </div>
       {/if}
-    </div>
-  {/if}
+  </div>
 </div>
 
 <style>
