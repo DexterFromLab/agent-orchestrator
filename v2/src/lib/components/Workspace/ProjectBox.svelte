@@ -7,6 +7,7 @@
   import TeamAgentsPanel from './TeamAgentsPanel.svelte';
   import ProjectFiles from './ProjectFiles.svelte';
   import ContextPane from '../Context/ContextPane.svelte';
+  import { getTerminalTabs } from '../../stores/workspace.svelte';
 
   interface Props {
     project: ProjectConfig;
@@ -19,9 +20,17 @@
 
   let accentVar = $derived(PROJECT_ACCENTS[slotIndex % PROJECT_ACCENTS.length]);
   let mainSessionId = $state<string | null>(null);
+  let terminalExpanded = $state(false);
 
   type ProjectTab = 'claude' | 'files' | 'context';
   let activeTab = $state<ProjectTab>('claude');
+
+  let termTabs = $derived(getTerminalTabs(project.id));
+  let termTabCount = $derived(termTabs.length);
+
+  function toggleTerminal() {
+    terminalExpanded = !terminalExpanded;
+  }
 </script>
 
 <div
@@ -74,8 +83,24 @@
   </div>
 
   {#if activeTab === 'claude'}
-    <div class="project-terminal-area">
-      <TerminalTabs {project} agentSessionId={mainSessionId} />
+    <div class="terminal-section">
+      <button class="terminal-toggle" onclick={toggleTerminal}>
+        <span class="toggle-chevron" class:expanded={terminalExpanded}>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="toggle-label">Terminal</span>
+        {#if termTabCount > 0}
+          <span class="toggle-count">{termTabCount}</span>
+        {/if}
+      </button>
+
+      {#if terminalExpanded}
+        <div class="project-terminal-area">
+          <TerminalTabs {project} agentSessionId={mainSessionId} />
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -83,7 +108,7 @@
 <style>
   .project-box {
     display: grid;
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto auto 1fr auto;
     min-width: 30rem;
     scroll-snap-align: start;
     background: var(--ctp-base);
@@ -154,9 +179,61 @@
     overflow: hidden;
   }
 
+  .terminal-section {
+    border-top: 1px solid var(--ctp-surface0);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .terminal-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    background: var(--ctp-mantle);
+    border: none;
+    color: var(--ctp-overlay1);
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: color 0.12s, background 0.12s;
+    flex-shrink: 0;
+  }
+
+  .terminal-toggle:hover {
+    color: var(--ctp-text);
+    background: var(--ctp-surface0);
+  }
+
+  .toggle-chevron {
+    display: flex;
+    align-items: center;
+    transition: transform 0.15s ease;
+  }
+
+  .toggle-chevron.expanded {
+    transform: rotate(90deg);
+  }
+
+  .toggle-label {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .toggle-count {
+    font-size: 0.6rem;
+    color: var(--ctp-overlay0);
+    background: var(--ctp-surface0);
+    padding: 0 0.3rem;
+    border-radius: 0.5rem;
+    line-height: 1.4;
+    min-width: 1rem;
+    text-align: center;
+  }
+
   .project-terminal-area {
     height: 16rem;
     min-height: 8rem;
-    border-top: 1px solid var(--ctp-surface0);
   }
 </style>
