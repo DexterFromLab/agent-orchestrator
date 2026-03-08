@@ -74,7 +74,7 @@
   </div>
 
   <div class="project-terminal-area">
-    <TerminalTabs {project} />
+    <TerminalTabs {project} agentSessionId={mainSessionId} />
   </div>
 </div>
 

@@ -7,12 +7,14 @@
     type TerminalTab,
   } from '../../stores/workspace.svelte';
   import TerminalPane from '../Terminal/TerminalPane.svelte';
+  import AgentPreviewPane from '../Terminal/AgentPreviewPane.svelte';
 
   interface Props {
     project: ProjectConfig;
+    agentSessionId?: string | null;
   }
 
-  let { project }: Props = $props();
+  let { project, agentSessionId }: Props = $props();
 
   let tabs = $derived(getTerminalTabs(project.id));
   let activeTabId = $state<string | null>(null);
@@ -34,6 +36,26 @@
       id,
       title: `Shell ${num}`,
       type: 'shell',
+    });
+    activeTabId = id;
+  }
+
+  function addAgentPreviewTab() {
+    if (!agentSessionId) return;
+    // Don't create duplicate — check if one already exists for this session
+    const existing = tabs.find(
+      t => t.type === 'agent-preview' && t.agentSessionId === agentSessionId,
+    );
+    if (existing) {
+      activeTabId = existing.id;
+      return;
+    }
+    const id = crypto.randomUUID();
+    addTerminalTab(project.id, {
+      id,
+      title: 'Agent Preview',
+      type: 'agent-preview',
+      agentSessionId,
     });
     activeTabId = id;
   }
@@ -66,18 +88,29 @@
         >×</button>
       </div>
     {/each}
-    <button class="tab-add" onclick={addShellTab} title="New shell (Ctrl+N)">+</button>
+    <button class="tab-add" onclick={addShellTab} title="New shell">+</button>
+    {#if agentSessionId}
+      <button
+        class="tab-add tab-agent-preview"
+        onclick={addAgentPreviewTab}
+        title="Watch agent activity"
+      >👁</button>
+    {/if}
   </div>
 
   <div class="tab-content">
     {#each tabs as tab (tab.id)}
       <div class="tab-pane" class:visible={activeTabId === tab.id}>
         {#if activeTabId === tab.id}
-          <TerminalPane
-            cwd={project.cwd}
-            shell={tab.type === 'ssh' ? '/usr/bin/ssh' : undefined}
-            onExit={() => handleTabExit(tab.id)}
-          />
+          {#if tab.type === 'agent-preview' && tab.agentSessionId}
+            <AgentPreviewPane sessionId={tab.agentSessionId} />
+          {:else}
+            <TerminalPane
+              cwd={project.cwd}
+              shell={tab.type === 'ssh' ? '/usr/bin/ssh' : undefined}
+              onExit={() => handleTabExit(tab.id)}
+            />
+          {/if}
         {/if}
       </div>
     {/each}
@@ -169,6 +202,10 @@
   .tab-add:hover {
     color: var(--ctp-text);
     background: var(--ctp-surface0);
+  }
+
+  .tab-agent-preview {
+    font-size: 0.7rem;
   }
 
   .tab-content {

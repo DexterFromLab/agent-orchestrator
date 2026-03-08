@@ -7,9 +7,11 @@ export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings';
 export interface TerminalTab {
   id: string;
   title: string;
-  type: 'shell' | 'ssh' | 'agent-terminal';
+  type: 'shell' | 'ssh' | 'agent-terminal' | 'agent-preview';
   /** SSH session ID if type === 'ssh' */
   sshSessionId?: string;
+  /** Agent session ID if type === 'agent-preview' */
+  agentSessionId?: string;
 }
 
 // --- Core state ---
