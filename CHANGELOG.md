@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stub `pick_directory` Tauri command (replaced by `tauri-plugin-dialog` frontend API)
 
 ### Fixed
+- Terminal tabs cannot be closed and all named "Shell 1": `$state<Map<string, TerminalTab[]>>` in workspace store didn't trigger reactive updates for `$derived` consumers when `Map.set()` was called; changed `projectTerminals` from `Map` to `Record<string, TerminalTab[]>` (plain object property access is Svelte 5's strongest reactivity path)
 - SettingsTab icon picker not opening: replaced broken DOM `classList.toggle('visible')` approach with Svelte `$state` (`iconPickerOpenFor` keyed by project ID); icon picker now reliably opens/closes and dismisses on click-outside or Escape
 - SettingsTab CWD path truncated from right: added `direction: rtl; text-align: left; unicode-bidi: plaintext` on CWD input so path shows the end (project directory) instead of the beginning when truncated
 - Project icons showing "?" — Nerd Font codepoint `\uf120` not rendering without font installed; switched to emoji

@@ -11,6 +11,7 @@
 
 ## Completed
 
+- [x] **Terminal tabs close fix** -- Svelte 5 `$state<Map>` reactivity bug: Map.set() didn't trigger $derived updates. Changed projectTerminals from Map to Record (plain object). Fixes: tabs can now be closed, sequential tab naming works. | Done: 2026-03-08
 - [x] **Project settings card redesign** -- SettingsTab project section redesigned: card layout per project with Svelte-state icon picker, inline-editable name, CWD left-ellipsis (direction:rtl), account/profile dropdown (listProfiles), custom toggle switch, subtle remove footer. ProjectHeader profile badge styled as blue pill. All CSS in rem. | Done: 2026-03-08
 - [x] **VSCode-style prompt + session management** -- AgentPane redesigned with VSCode-style unified prompt (always at bottom, auto-resize textarea, send icon button), session controls (New Session/Continue), welcome state, all CSS migrated to --ctp-* theme vars. Theme integration rule 51. ContextPane error UX improved. | Done: 2026-03-08
 - [x] **Project box tabs + clean AgentPane** -- Project-level tab bar (Claude|Files|Context), ProjectFiles component, CWD+profile in header as info-only, AgentPane toolbar removed. | Done: 2026-03-08
