@@ -622,11 +622,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             if cfg!(debug_assertions) {
-                app.handle().plugin(
+                // Ignore error if logger already initialized (telemetry::init sets up tracing-subscriber)
+                let _ = app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .level(log::LevelFilter::Info)
                         .build(),
-                )?;
+                );
             }
 
             // Create TauriEventSink for core managers

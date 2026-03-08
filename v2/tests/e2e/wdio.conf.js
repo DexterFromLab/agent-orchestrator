@@ -6,7 +6,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '../..');
 
 // Debug binary path (built with `cargo tauri build --debug --no-bundle`)
-const tauriBinary = resolve(projectRoot, 'src-tauri/target/debug/bterminal');
+// Cargo workspace target dir is at v2/target/, not v2/src-tauri/target/
+const tauriBinary = resolve(projectRoot, 'target/debug/bterminal');
 
 let tauriDriver;
 
@@ -15,12 +16,18 @@ export const config = {
   runner: 'local',
   maxInstances: 1, // Tauri doesn't support parallel sessions
 
+  // ── Connection (external tauri-driver on port 4444) ──
+  hostname: 'localhost',
+  port: 4444,
+  path: '/',
+
   // ── Specs ──
   specs: [resolve(__dirname, 'specs/**/*.test.ts')],
 
   // ── Capabilities ──
   capabilities: [{
-    browserName: 'wry',
+    // Disable BiDi negotiation — tauri-driver doesn't support webSocketUrl
+    'wdio:enforceWebDriverClassic': true,
     'tauri:options': {
       application: tauriBinary,
     },
