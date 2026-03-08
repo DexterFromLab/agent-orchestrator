@@ -5,6 +5,7 @@ mod pty;
 mod remote;
 mod sidecar;
 mod session;
+mod telemetry;
 mod watcher;
 
 use ctx::CtxDb;
@@ -25,11 +26,13 @@ struct AppState {
     file_watcher: Arc<FileWatcherManager>,
     ctx_db: Arc<CtxDb>,
     remote_manager: Arc<RemoteManager>,
+    _telemetry: telemetry::TelemetryGuard,
 }
 
 // --- PTY commands ---
 
 #[tauri::command]
+#[tracing::instrument(skip(state), fields(shell = ?options.shell))]
 fn pty_spawn(
     state: State<'_, AppState>,
     options: PtyOptions,
@@ -53,6 +56,7 @@ fn pty_resize(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 fn pty_kill(state: State<'_, AppState>, id: String) -> Result<(), String> {
     state.pty_manager.kill(&id)
 }
@@ -60,6 +64,7 @@ fn pty_kill(state: State<'_, AppState>, id: String) -> Result<(), String> {
 // --- Agent/sidecar commands ---
 
 #[tauri::command]
+#[tracing::instrument(skip(state, options), fields(session_id = %options.session_id))]
 fn agent_query(
     state: State<'_, AppState>,
     options: AgentQueryOptions,
@@ -68,6 +73,7 @@ fn agent_query(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 fn agent_stop(state: State<'_, AppState>, session_id: String) -> Result<(), String> {
     state.sidecar_manager.stop_session(&session_id)
 }
@@ -78,6 +84,7 @@ fn agent_ready(state: State<'_, AppState>) -> bool {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 fn agent_restart(state: State<'_, AppState>) -> Result<(), String> {
     state.sidecar_manager.restart()
 }
@@ -470,6 +477,19 @@ fn cli_get_group() -> Option<String> {
     None
 }
 
+// --- Frontend telemetry bridge ---
+
+#[tauri::command]
+fn frontend_log(level: String, message: String, context: Option<serde_json::Value>) {
+    match level.as_str() {
+        "error" => tracing::error!(source = "frontend", ?context, "{message}"),
+        "warn" => tracing::warn!(source = "frontend", ?context, "{message}"),
+        "info" => tracing::info!(source = "frontend", ?context, "{message}"),
+        "debug" => tracing::debug!(source = "frontend", ?context, "{message}"),
+        _ => tracing::trace!(source = "frontend", ?context, "{message}"),
+    }
+}
+
 // --- Remote machine commands ---
 
 #[tauri::command]
@@ -488,26 +508,31 @@ async fn remote_remove(state: State<'_, AppState>, machine_id: String) -> Result
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(app, state))]
 async fn remote_connect(app: tauri::AppHandle, state: State<'_, AppState>, machine_id: String) -> Result<(), String> {
     state.remote_manager.connect(&app, &machine_id).await
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 async fn remote_disconnect(state: State<'_, AppState>, machine_id: String) -> Result<(), String> {
     state.remote_manager.disconnect(&machine_id).await
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state, options), fields(session_id = %options.session_id))]
 async fn remote_agent_query(state: State<'_, AppState>, machine_id: String, options: AgentQueryOptions) -> Result<(), String> {
     state.remote_manager.agent_query(&machine_id, &options).await
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 async fn remote_agent_stop(state: State<'_, AppState>, machine_id: String, session_id: String) -> Result<(), String> {
     state.remote_manager.agent_stop(&machine_id, &session_id).await
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state), fields(shell = ?options.shell))]
 async fn remote_pty_spawn(state: State<'_, AppState>, machine_id: String, options: PtyOptions) -> Result<String, String> {
     state.remote_manager.pty_spawn(&machine_id, &options).await
 }
@@ -531,6 +556,9 @@ async fn remote_pty_kill(state: State<'_, AppState>, machine_id: String, id: Str
 pub fn run() {
     // Force dark GTK theme for native dialogs (file chooser, etc.)
     std::env::set_var("GTK_THEME", "Adwaita:dark");
+
+    // Initialize tracing + optional OTLP export (before any tracing macros)
+    let telemetry_guard = telemetry::init();
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -588,6 +616,7 @@ pub fn run() {
             project_agent_state_load,
             cli_get_group,
             pick_directory,
+            frontend_log,
         ])
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
@@ -652,6 +681,7 @@ pub fn run() {
                 file_watcher,
                 ctx_db,
                 remote_manager,
+                _telemetry: telemetry_guard,
             });
 
             Ok(())

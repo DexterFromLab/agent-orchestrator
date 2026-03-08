@@ -22,6 +22,7 @@ import {
   saveAgentMessages,
   type AgentMessageRecord,
 } from './adapters/groups-bridge';
+import { tel } from './adapters/telemetry-bridge';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
@@ -66,6 +67,7 @@ export async function startAgentDispatcher(): Promise<void> {
     switch (msg.type) {
       case 'agent_started':
         updateAgentStatus(sessionId, 'running');
+        tel.info('agent_started', { sessionId });
         break;
 
       case 'agent_event':
@@ -74,11 +76,13 @@ export async function startAgentDispatcher(): Promise<void> {
 
       case 'agent_stopped':
         updateAgentStatus(sessionId, 'done');
+        tel.info('agent_stopped', { sessionId });
         notify('success', `Agent ${sessionId.slice(0, 8)} completed`);
         break;
 
       case 'agent_error':
         updateAgentStatus(sessionId, 'error', msg.message);
+        tel.error('agent_error', { sessionId, error: msg.message });
         notify('error', `Agent error: ${msg.message ?? 'Unknown'}`);
         break;
 
@@ -89,6 +93,7 @@ export async function startAgentDispatcher(): Promise<void> {
 
   unlistenExit = await onSidecarExited(async () => {
     sidecarAlive = false;
+    tel.error('sidecar_crashed', { restartAttempts });
 
     // Guard against re-entrant exit handler (double-restart race)
     if (restarting) return;
@@ -175,6 +180,15 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
           outputTokens: cost.outputTokens,
           numTurns: cost.numTurns,
           durationMs: cost.durationMs,
+        });
+        tel.info('agent_cost', {
+          sessionId,
+          costUsd: cost.totalCostUsd,
+          inputTokens: cost.inputTokens,
+          outputTokens: cost.outputTokens,
+          numTurns: cost.numTurns,
+          durationMs: cost.durationMs,
+          isError: cost.isError,
         });
         if (cost.isError) {
           updateAgentStatus(sessionId, 'error', cost.errors?.join('; '));
