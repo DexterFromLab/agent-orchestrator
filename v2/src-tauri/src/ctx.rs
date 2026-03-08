@@ -6,14 +6,6 @@ use serde::Serialize;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct CtxProject {
-    pub name: String,
-    pub description: String,
-    pub work_dir: Option<String>,
-    pub created_at: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub struct CtxEntry {
     pub project: String,
     pub key: String,
@@ -142,14 +134,11 @@ impl CtxDb {
     }
 
     /// Register a project in the ctx database (creates if not exists).
+    /// Opens a brief read-write connection; the main self.conn stays read-only.
     pub fn register_project(&self, name: &str, description: &str, work_dir: Option<&str>) -> Result<(), String> {
         let db_path = Self::db_path();
-        if !db_path.exists() {
-            return Err("ctx database not found".to_string());
-        }
-
         let conn = Connection::open(&db_path)
-            .map_err(|e| format!("Failed to open database: {e}"))?;
+            .map_err(|e| format!("ctx database not found: {e}"))?;
 
         conn.execute(
             "INSERT OR IGNORE INTO sessions (name, description, work_dir) VALUES (?1, ?2, ?3)",
@@ -157,30 +146,6 @@ impl CtxDb {
         ).map_err(|e| format!("Failed to register project: {e}"))?;
 
         Ok(())
-    }
-
-    pub fn list_projects(&self) -> Result<Vec<CtxProject>, String> {
-        let lock = self.conn.lock().unwrap();
-        let conn = lock.as_ref().ok_or("ctx database not found")?;
-
-        let mut stmt = conn
-            .prepare("SELECT name, description, work_dir, created_at FROM sessions ORDER BY name")
-            .map_err(|e| format!("ctx query failed: {e}"))?;
-
-        let projects = stmt
-            .query_map([], |row| {
-                Ok(CtxProject {
-                    name: row.get(0)?,
-                    description: row.get(1)?,
-                    work_dir: row.get(2)?,
-                    created_at: row.get(3)?,
-                })
-            })
-            .map_err(|e| format!("ctx query failed: {e}"))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| format!("ctx row read failed: {e}"))?;
-
-        Ok(projects)
     }
 
     pub fn get_context(&self, project: &str) -> Result<Vec<CtxEntry>, String> {
@@ -268,7 +233,7 @@ impl CtxDb {
                     project: row.get(0)?,
                     key: row.get(1)?,
                     value: row.get(2)?,
-                    updated_at: String::new(),
+                    updated_at: String::new(), // FTS5 virtual table doesn't store updated_at
                 })
             })
             .map_err(|e| format!("ctx search failed: {e}"))?
@@ -293,14 +258,6 @@ mod tests {
         // CtxDb::new() should never panic even if ~/.claude-context/context.db
         // doesn't exist — it just stores None for the connection.
         let _db = CtxDb::new();
-    }
-
-    #[test]
-    fn test_list_projects_missing_db_returns_error() {
-        let db = make_missing_db();
-        let result = db.list_projects();
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "ctx database not found");
     }
 
     #[test]

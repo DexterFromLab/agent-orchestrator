@@ -1,12 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
 
-export interface CtxProject {
-  name: string;
-  description: string;
-  work_dir: string | null;
-  created_at: string;
-}
-
 export interface CtxEntry {
   project: string;
   key: string;
@@ -26,10 +19,6 @@ export async function ctxInitDb(): Promise<void> {
 
 export async function ctxRegisterProject(name: string, description: string, workDir?: string): Promise<void> {
   return invoke('ctx_register_project', { name, description, workDir: workDir ?? null });
-}
-
-export async function ctxListProjects(): Promise<CtxProject[]> {
-  return invoke('ctx_list_projects');
 }
 
 export async function ctxGetContext(project: string): Promise<CtxEntry[]> {

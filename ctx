@@ -8,9 +8,7 @@ Usage: ctx <command> [args]
 
 import sqlite3
 import sys
-import os
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 DB_PATH = Path.home() / ".claude-context" / "context.db"

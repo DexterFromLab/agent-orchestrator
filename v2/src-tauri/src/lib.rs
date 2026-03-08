@@ -193,11 +193,6 @@ fn ctx_register_project(state: State<'_, AppState>, name: String, description: S
 }
 
 #[tauri::command]
-fn ctx_list_projects(state: State<'_, AppState>) -> Result<Vec<ctx::CtxProject>, String> {
-    state.ctx_db.list_projects()
-}
-
-#[tauri::command]
 fn ctx_get_context(state: State<'_, AppState>, project: String) -> Result<Vec<ctx::CtxEntry>, String> {
     state.ctx_db.get_context(&project)
 }
@@ -551,7 +546,6 @@ pub fn run() {
             ssh_session_delete,
             ctx_init_db,
             ctx_register_project,
-            ctx_list_projects,
             ctx_get_context,
             ctx_get_shared,
             ctx_get_summaries,

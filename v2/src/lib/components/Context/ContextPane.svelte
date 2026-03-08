@@ -46,7 +46,7 @@
       dbMissing = false;
     } catch (e) {
       error = `${e}`;
-      dbMissing = error.includes('not found');
+      dbMissing = error.includes('not found'); // Coupled to Rust error text "ctx database not found"
     } finally {
       loading = false;
     }
