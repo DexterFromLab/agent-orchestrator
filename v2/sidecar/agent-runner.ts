@@ -26,7 +26,9 @@ function log(message: string) {
 rl.on('line', (line: string) => {
   try {
     const msg = JSON.parse(line);
-    handleMessage(msg);
+    handleMessage(msg).catch((err: unknown) => {
+      log(`Unhandled error in message handler: ${err}`);
+    });
   } catch {
     log(`Invalid JSON: ${line}`);
   }
@@ -53,13 +55,13 @@ interface StopMessage {
   sessionId: string;
 }
 
-function handleMessage(msg: Record<string, unknown>) {
+async function handleMessage(msg: Record<string, unknown>) {
   switch (msg.type) {
     case 'ping':
       send({ type: 'pong' });
       break;
     case 'query':
-      handleQuery(msg as unknown as QueryMessage);
+      await handleQuery(msg as unknown as QueryMessage);
       break;
     case 'stop':
       handleStop(msg as unknown as StopMessage);
@@ -149,7 +151,7 @@ async function handleQuery(msg: QueryMessage) {
     sessions.delete(sessionId);
     const errMsg = err instanceof Error ? err.message : String(err);
 
-    if (errMsg.includes('aborted') || errMsg.includes('AbortError')) {
+    if (controller.signal.aborted) {
       log(`Agent session ${sessionId} aborted`);
       send({
         type: 'agent_stopped',

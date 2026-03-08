@@ -69,22 +69,18 @@ impl RemoteManager {
         }
     }
 
-    pub fn list_machines(&self) -> Vec<RemoteMachineInfo> {
-        // Use try_lock for sync context (called from Tauri command handler)
-        let machines = self.machines.try_lock();
-        match machines {
-            Ok(m) => m.values().map(|m| RemoteMachineInfo {
-                id: m.id.clone(),
-                label: m.config.label.clone(),
-                url: m.config.url.clone(),
-                status: m.status.clone(),
-                auto_connect: m.config.auto_connect,
-            }).collect(),
-            Err(_) => Vec::new(),
-        }
+    pub async fn list_machines(&self) -> Vec<RemoteMachineInfo> {
+        let machines = self.machines.lock().await;
+        machines.values().map(|m| RemoteMachineInfo {
+            id: m.id.clone(),
+            label: m.config.label.clone(),
+            url: m.config.url.clone(),
+            status: m.status.clone(),
+            auto_connect: m.config.auto_connect,
+        }).collect()
     }
 
-    pub fn add_machine(&self, config: RemoteMachineConfig) -> String {
+    pub async fn add_machine(&self, config: RemoteMachineConfig) -> String {
         let id = uuid::Uuid::new_v4().to_string();
         let machine = RemoteMachine {
             id: id.clone(),
@@ -92,16 +88,18 @@ impl RemoteManager {
             status: "disconnected".to_string(),
             connection: None,
         };
-        // Use try_lock for sync context
-        if let Ok(mut machines) = self.machines.try_lock() {
-            machines.insert(id.clone(), machine);
-        }
+        self.machines.lock().await.insert(id.clone(), machine);
         id
     }
 
-    pub fn remove_machine(&self, machine_id: &str) -> Result<(), String> {
-        let mut machines = self.machines.try_lock()
-            .map_err(|_| "Lock contention".to_string())?;
+    pub async fn remove_machine(&self, machine_id: &str) -> Result<(), String> {
+        let mut machines = self.machines.lock().await;
+        if let Some(machine) = machines.get_mut(machine_id) {
+            // Abort connection tasks before removing to prevent resource leaks
+            if let Some(conn) = machine.connection.take() {
+                conn._handle.abort();
+            }
+        }
         machines.remove(machine_id)
             .ok_or_else(|| format!("Machine {machine_id} not found"))?;
         Ok(())

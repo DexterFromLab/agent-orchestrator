@@ -364,7 +364,19 @@ fn claude_list_skills() -> Vec<ClaudeSkill> {
 
 #[tauri::command]
 fn claude_read_skill(path: String) -> Result<String, String> {
-    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read skill: {e}"))
+    // Validate path is under ~/.claude/skills/ to prevent path traversal
+    let skills_dir = dirs::home_dir()
+        .ok_or("Cannot determine home directory")?
+        .join(".claude")
+        .join("skills");
+    let canonical_skills = skills_dir.canonicalize()
+        .map_err(|_| "Skills directory does not exist".to_string())?;
+    let canonical_path = std::path::Path::new(&path).canonicalize()
+        .map_err(|e| format!("Invalid skill path: {e}"))?;
+    if !canonical_path.starts_with(&canonical_skills) {
+        return Err("Access denied: path is outside skills directory".to_string());
+    }
+    std::fs::read_to_string(&canonical_path).map_err(|e| format!("Failed to read skill: {e}"))
 }
 
 // --- Group config commands (v3) ---
@@ -458,18 +470,18 @@ fn cli_get_group() -> Option<String> {
 // --- Remote machine commands ---
 
 #[tauri::command]
-fn remote_list(state: State<'_, AppState>) -> Vec<remote::RemoteMachineInfo> {
-    state.remote_manager.list_machines()
+async fn remote_list(state: State<'_, AppState>) -> Result<Vec<remote::RemoteMachineInfo>, String> {
+    Ok(state.remote_manager.list_machines().await)
 }
 
 #[tauri::command]
 async fn remote_add(state: State<'_, AppState>, config: RemoteMachineConfig) -> Result<String, String> {
-    Ok(state.remote_manager.add_machine(config))
+    Ok(state.remote_manager.add_machine(config).await)
 }
 
 #[tauri::command]
 async fn remote_remove(state: State<'_, AppState>, machine_id: String) -> Result<(), String> {
-    state.remote_manager.remove_machine(&machine_id)
+    state.remote_manager.remove_machine(&machine_id).await
 }
 
 #[tauri::command]

@@ -71,41 +71,47 @@ export async function disconnectMachine(id: string): Promise<void> {
   if (machine) machine.status = 'disconnected';
 }
 
+// Stored unlisten functions for cleanup
+let unlistenFns: (() => void)[] = [];
+
 // Initialize event listeners for machine status updates
 export async function initMachineListeners(): Promise<void> {
-  await onRemoteMachineReady((msg) => {
+  // Clean up any existing listeners first
+  destroyMachineListeners();
+
+  unlistenFns.push(await onRemoteMachineReady((msg) => {
     const machine = machines.find(m => m.id === msg.machineId);
     if (machine) {
       machine.status = 'connected';
       notify('success', `Connected to ${machine.label}`);
     }
-  });
+  }));
 
-  await onRemoteMachineDisconnected((msg) => {
+  unlistenFns.push(await onRemoteMachineDisconnected((msg) => {
     const machine = machines.find(m => m.id === msg.machineId);
     if (machine) {
       machine.status = 'disconnected';
       notify('warning', `Disconnected from ${machine.label}`);
     }
-  });
+  }));
 
-  await onRemoteError((msg) => {
+  unlistenFns.push(await onRemoteError((msg) => {
     const machine = machines.find(m => m.id === msg.machineId);
     if (machine) {
       machine.status = 'error';
       notify('error', `Error from ${machine.label}: ${msg.error}`);
     }
-  });
+  }));
 
-  await onRemoteMachineReconnecting((msg) => {
+  unlistenFns.push(await onRemoteMachineReconnecting((msg) => {
     const machine = machines.find(m => m.id === msg.machineId);
     if (machine) {
       machine.status = 'reconnecting';
       notify('info', `Reconnecting to ${machine.label} in ${msg.backoffSecs}s…`);
     }
-  });
+  }));
 
-  await onRemoteMachineReconnectReady((msg) => {
+  unlistenFns.push(await onRemoteMachineReconnectReady((msg) => {
     const machine = machines.find(m => m.id === msg.machineId);
     if (machine) {
       notify('info', `${machine.label} reachable — reconnecting…`);
@@ -113,5 +119,13 @@ export async function initMachineListeners(): Promise<void> {
         notify('error', `Auto-reconnect failed for ${machine.label}: ${e}`);
       });
     }
-  });
+  }));
+}
+
+/** Remove all event listeners to prevent leaks */
+export function destroyMachineListeners(): void {
+  for (const unlisten of unlistenFns) {
+    unlisten();
+  }
+  unlistenFns = [];
 }

@@ -373,13 +373,17 @@ impl SessionDb {
         messages: &[AgentMessageRecord],
     ) -> Result<(), String> {
         let conn = self.conn.lock().unwrap();
+        // Wrap DELETE+INSERTs in a transaction to prevent partial writes on crash
+        let tx = conn.unchecked_transaction()
+            .map_err(|e| format!("Begin transaction failed: {e}"))?;
+
         // Clear previous messages for this session
-        conn.execute(
+        tx.execute(
             "DELETE FROM agent_messages WHERE session_id = ?1",
             params![session_id],
         ).map_err(|e| format!("Delete old messages failed: {e}"))?;
 
-        let mut stmt = conn.prepare(
+        let mut stmt = tx.prepare(
             "INSERT INTO agent_messages (session_id, project_id, sdk_session_id, message_type, content, parent_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
         ).map_err(|e| format!("Prepare insert failed: {e}"))?;
 
@@ -394,6 +398,8 @@ impl SessionDb {
                 msg.created_at,
             ]).map_err(|e| format!("Insert message failed: {e}"))?;
         }
+        drop(stmt);
+        tx.commit().map_err(|e| format!("Commit failed: {e}"))?;
         Ok(())
     }
 

@@ -39,6 +39,7 @@ let sidecarAlive = true;
 // Sidecar crash recovery state
 const MAX_RESTART_ATTEMPTS = 3;
 let restartAttempts = 0;
+let restarting = false;
 export function isSidecarAlive(): boolean {
   return sidecarAlive;
 }
@@ -68,7 +69,7 @@ export async function startAgentDispatcher(): Promise<void> {
         break;
 
       case 'agent_event':
-        handleAgentEvent(sessionId, msg.event!);
+        if (msg.event) handleAgentEvent(sessionId, msg.event);
         break;
 
       case 'agent_stopped':
@@ -88,6 +89,11 @@ export async function startAgentDispatcher(): Promise<void> {
 
   unlistenExit = await onSidecarExited(async () => {
     sidecarAlive = false;
+
+    // Guard against re-entrant exit handler (double-restart race)
+    if (restarting) return;
+    restarting = true;
+
     // Mark all running sessions as errored
     for (const session of getAgentSessions()) {
       if (session.status === 'running' || session.status === 'starting') {
@@ -96,22 +102,26 @@ export async function startAgentDispatcher(): Promise<void> {
     }
 
     // Attempt auto-restart with exponential backoff
-    if (restartAttempts < MAX_RESTART_ATTEMPTS) {
-      restartAttempts++;
-      const delayMs = 1000 * Math.pow(2, restartAttempts - 1); // 1s, 2s, 4s
-      notify('warning', `Sidecar crashed, restarting (attempt ${restartAttempts}/${MAX_RESTART_ATTEMPTS})...`);
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      try {
-        await restartAgent();
-        sidecarAlive = true;
-        // Note: restartAttempts is reset when next sidecar message arrives
-      } catch {
-        if (restartAttempts >= MAX_RESTART_ATTEMPTS) {
-          notify('error', `Sidecar restart failed after ${MAX_RESTART_ATTEMPTS} attempts`);
+    try {
+      if (restartAttempts < MAX_RESTART_ATTEMPTS) {
+        restartAttempts++;
+        const delayMs = 1000 * Math.pow(2, restartAttempts - 1); // 1s, 2s, 4s
+        notify('warning', `Sidecar crashed, restarting (attempt ${restartAttempts}/${MAX_RESTART_ATTEMPTS})...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        try {
+          await restartAgent();
+          sidecarAlive = true;
+          // Note: restartAttempts is reset when next sidecar message arrives
+        } catch {
+          if (restartAttempts >= MAX_RESTART_ATTEMPTS) {
+            notify('error', `Sidecar restart failed after ${MAX_RESTART_ATTEMPTS} attempts`);
+          }
         }
+      } else {
+        notify('error', `Sidecar restart failed after ${MAX_RESTART_ATTEMPTS} attempts`);
       }
-    } else {
-      notify('error', `Sidecar restart failed after ${MAX_RESTART_ATTEMPTS} attempts`);
+    } finally {
+      restarting = false;
     }
   });
 }
@@ -300,4 +310,7 @@ export function stopAgentDispatcher(): void {
     unlistenExit();
     unlistenExit = null;
   }
+  // Clear routing maps to prevent unbounded memory growth
+  toolUseToChildPane.clear();
+  sessionProjectMap.clear();
 }
