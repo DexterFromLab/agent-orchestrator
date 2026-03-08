@@ -11,6 +11,7 @@
 
 ## Completed
 
+- [x] **Sidebar simplification + markdown fixes** -- Sidebar stripped to Settings-only (Sessions/Docs/Context removed — project-specific). MarkdownPane file switching fixed ($effect watches filePath changes). MarkdownPane restyled: sans-serif font, --ctp-* vars, styled blockquotes/tables/links. Terminal area hidden on Files/Context tabs. | Done: 2026-03-08
 - [x] **Agent preview terminal** -- AgentPreviewPane.svelte: read-only xterm.js terminal subscribing to agent session messages. Renders Bash commands (cyan), file ops (yellow), tool results, errors. 👁 button in TerminalTabs spawns preview tab. TerminalTab type extended with 'agent-preview' + agentSessionId field. | Done: 2026-03-08
 - [x] **Terminal tabs close fix** -- Svelte 5 `$state<Map>` reactivity bug: Map.set() didn't trigger $derived updates. Changed projectTerminals from Map to Record (plain object). Fixes: tabs can now be closed, sequential tab naming works. | Done: 2026-03-08
 - [x] **Project settings card redesign** -- SettingsTab project section redesigned: card layout per project with Svelte-state icon picker, inline-editable name, CWD left-ellipsis (direction:rtl), account/profile dropdown (listProfiles), custom toggle switch, subtle remove footer. ProjectHeader profile badge styled as blue pill. All CSS in rem. | Done: 2026-03-08

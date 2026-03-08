@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSS relative units rule (`.claude/rules/18-relative-units.md`): enforces rem/em for layout CSS, px only for icons/borders/shadows
 
 ### Changed
+- Sidebar simplified to Settings-only: removed Sessions, Docs, Context icons from GlobalTabBar (project-specific tabs already in ProjectBox); removed DocsTab/ContextTab imports from App.svelte; removed Alt+1..4 keyboard shortcuts; drawer always renders SettingsTab
+- MarkdownPane file switching: replaced onMount-only `watchFile()` with reactive `$effect` that unwatches previous file and watches new one when `filePath` prop changes; added `highlighterReady` gate to prevent premature watches
+- MarkdownPane styling: migrated all CSS from legacy vars (`--bg-primary`, `--text-primary`, `--border`, `--font-mono`) to `--ctp-*` theme vars; body font changed from monospace to `var(--ui-font-family, sans-serif)`; styled blockquotes (translucent background), table row hover, link hover underlines (border-bottom transition), list markers (--ctp-overlay1), h4 (--ctp-teal); code blocks use `--ctp-mantle` background with border
+- ProjectBox terminal area: only visible on Claude tab (`{#if activeTab === 'claude'}`); grid rows simplified from 4 to 3 (`auto auto 1fr`)
 - SettingsTab project settings: flat row layout replaced with stacked card layout; icon picker rewritten from DOM `classList.toggle('visible')` to Svelte `$state` (iconPickerOpenFor); checkbox replaced with custom toggle switch component
 - SettingsTab CSS: all remaining px values in project section converted to rem; add-project form uses dashed border container
 - AgentPane prompt: replaced separate initial prompt + follow-up input with single unified prompt area; removed `followUpPrompt` state, `handleSubmit` function; follow-up handled via `isResume` detection in `handleUnifiedSubmit()`

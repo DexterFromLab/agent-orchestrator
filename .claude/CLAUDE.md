@@ -68,8 +68,10 @@
 - v3 workspace store (`workspace.svelte.ts`) replaces layout store for v3. Groups loaded from `~/.config/bterminal/groups.json` via `groups-bridge.ts`. State: groups, activeGroupId, activeTab, focusedProjectId. Derived: activeGroup, activeProjects.
 - v3 groups backend (`groups.rs`): load_groups(), save_groups(), default_groups(). Tauri commands: groups_load, groups_save.
 - v3 SQLite additions: agent_messages table (per-project message persistence), project_agent_state table (sdkSessionId, cost, status per project), sessions.project_id column.
-- v3 App.svelte fully rewritten: VSCode-style sidebar layout. Horizontal: left icon rail (GlobalTabBar, 2.75rem, 4 SVG icons) + expandable drawer panel (28em, max 50%, renders active tab content) + main workspace (ProjectGrid always visible) + StatusBar. Settings is a regular sidebar tab. Keyboard: Alt+1..4 (tabs), Ctrl+B (toggle sidebar), Ctrl+, (settings), Escape (close).
-- v3 component tree: App -> GlobalTabBar (icon rail) + sidebar-panel? (drawer) + workspace (ProjectGrid) + StatusBar. See `docs/v3-task_plan.md` for full tree.
+- v3 App.svelte: VSCode-style sidebar layout. Horizontal: left icon rail (GlobalTabBar, 2.75rem, single Settings gear icon) + expandable drawer panel (Settings only, content-driven width, max 50%) + main workspace (ProjectGrid always visible) + StatusBar. Sidebar has Settings only — Sessions/Docs/Context are project-specific (in ProjectBox tabs). Keyboard: Ctrl+B (toggle sidebar), Ctrl+, (settings), Escape (close).
+- v3 component tree: App -> GlobalTabBar (settings icon) + sidebar-panel? (SettingsTab) + workspace (ProjectGrid) + StatusBar. See `docs/v3-task_plan.md` for full tree.
+- MarkdownPane reactively watches filePath changes via $effect (not onMount-only). Uses sans-serif font (--ui-font-family), all --ctp-* theme vars. Styled blockquotes with translucent backgrounds, table row hover, link hover underlines.
+- ProjectBox terminal area only visible on Claude tab ({#if activeTab === 'claude'}). Grid rows: auto auto 1fr (+ terminal when on Claude tab).
 - Svelte 5 event syntax: use `onclick` not `on:click`. Svelte 5 requires lowercase event handler attributes (no colon syntax).
 
 ## Memora Tags
