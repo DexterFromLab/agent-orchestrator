@@ -10,5 +10,6 @@
   .context-tab {
     height: 100%;
     overflow: hidden;
+    min-width: 22em;
   }
 </style>

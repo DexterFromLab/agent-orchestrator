@@ -478,9 +478,10 @@
 
 <style>
   .settings-tab {
-    padding: 12px 16px;
+    padding: 0.75rem 1rem;
     overflow-y: auto;
     height: 100%;
+    min-width: 22em;
   }
 
   h2 {

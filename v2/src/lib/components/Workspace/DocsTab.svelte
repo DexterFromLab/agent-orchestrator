@@ -80,22 +80,23 @@
     display: flex;
     height: 100%;
     overflow: hidden;
+    min-width: 22em;
   }
 
   .file-picker {
-    width: 220px;
+    width: 14em;
     flex-shrink: 0;
     background: var(--ctp-mantle);
     border-right: 1px solid var(--ctp-surface0);
     overflow-y: auto;
-    padding: 8px 0;
+    padding: 0.5rem 0;
   }
 
   .picker-title {
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--ctp-subtext0);
-    padding: 4px 12px 8px;
+    padding: 0.25rem 0.75rem 0.5rem;
     margin: 0;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -110,7 +111,7 @@
   .file-btn {
     display: block;
     width: 100%;
-    padding: 5px 12px;
+    padding: 0.3rem 0.75rem;
     background: transparent;
     border: none;
     color: var(--ctp-subtext0);
@@ -150,7 +151,7 @@
     justify-content: center;
     color: var(--ctp-overlay0);
     font-size: 0.85rem;
-    padding: 20px;
+    padding: 1.25rem;
   }
 
   .no-selection {

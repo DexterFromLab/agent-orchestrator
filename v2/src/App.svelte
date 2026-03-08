@@ -203,13 +203,14 @@
   }
 
   .sidebar-panel {
-    width: 28em;
+    width: max-content;
+    min-width: 16em;
     max-width: 50%;
     display: flex;
     flex-direction: column;
     background: var(--ctp-base);
     border-right: 1px solid var(--ctp-surface1);
-    overflow: hidden;
+    overflow-y: auto;
     flex-shrink: 0;
   }
 
@@ -249,7 +250,7 @@
 
   .panel-content {
     flex: 1;
-    overflow: hidden;
+    overflow-y: auto;
   }
 
   .workspace {
