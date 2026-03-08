@@ -3,7 +3,7 @@
 ## Active
 
 ### v2/v3 Remaining
-- [ ] **E2E testing — run & expand** -- Infrastructure scaffolded (WebdriverIO + tauri-driver). Needs: `cargo install tauri-driver`, `apt install webkit2gtk-driver`, display server. Then run `npm run test:e2e`.
+- [ ] **E2E testing — expand coverage** -- 6 smoke tests passing (WebdriverIO v9.24 + tauri-driver). Add tests for agent sessions, terminal interaction, settings persistence.
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.

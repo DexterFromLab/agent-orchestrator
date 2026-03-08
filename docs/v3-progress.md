@@ -427,3 +427,10 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Updated README.md with complete setup instructions and CI guide
 - [x] Key decision: WebdriverIO over Playwright (Playwright cannot control Tauri/WebKit2GTK apps)
 - [x] Prerequisites: tauri-driver (cargo install), webkit2gtk-driver (apt), display server or xvfb-run
+
+#### E2E Fixes (wdio v9 + tauri-driver compatibility)
+- [x] Fixed wdio v9 BiDi: added `wdio:enforceWebDriverClassic: true` — wdio v9 injects webSocketUrl:true which tauri-driver rejects
+- [x] Removed `browserName: 'wry'` from capabilities (not needed in wdio, only Selenium)
+- [x] Fixed binary path: Cargo workspace target is v2/target/debug/, not v2/src-tauri/target/debug/
+- [x] Fixed tauri-plugin-log panic: telemetry::init() registers tracing-subscriber before plugin-log → changed `?` to `let _ =` in lib.rs
+- [x] All 6 E2E smoke tests pass (6s runtime after build)

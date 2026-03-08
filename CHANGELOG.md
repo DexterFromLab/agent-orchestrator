@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
 ### Fixed
+- E2E wdio.conf.js: added `wdio:enforceWebDriverClassic: true` to disable BiDi negotiation (wdio v9 injects `webSocketUrl:true` which tauri-driver rejects), removed unnecessary `browserName: 'wry'`, fixed binary path to Cargo workspace target dir (`v2/target/debug/` not `v2/src-tauri/target/debug/`)
+- `tauri-plugin-log` init panic: changed `?` to `let _ =` in lib.rs setup hook — telemetry::init() registers tracing-subscriber first, plugin-log silently skips instead of panicking (lib.rs)
 - Workspace teardown race: `switchGroup()` now awaits `waitForPendingPersistence()` before clearing agent state, preventing data loss when agents complete during group switch (agent-dispatcher.ts, workspace.svelte.ts)
 - SettingsTab switchGroup click handler made async with await to properly handle the async switchGroup() flow (SettingsTab.svelte)
 - Re-entrant sidecar exit handler race condition: added `restarting` guard flag preventing double-restart on rapid disconnect/reconnect (agent-dispatcher.ts)
