@@ -20,6 +20,10 @@ export interface CtxSummary {
   created_at: string;
 }
 
+export async function ctxInitDb(): Promise<void> {
+  return invoke('ctx_init_db');
+}
+
 export async function ctxListProjects(): Promise<CtxProject[]> {
   return invoke('ctx_list_projects');
 }

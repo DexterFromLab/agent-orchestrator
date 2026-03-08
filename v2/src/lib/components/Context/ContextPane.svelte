@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import {
+    ctxInitDb,
     ctxListProjects,
     ctxGetContext,
     ctxGetShared,
@@ -26,15 +27,34 @@
   let searchResults = $state<CtxEntry[]>([]);
   let error = $state('');
   let loading = $state(false);
+  let dbMissing = $state(false);
+  let initializing = $state(false);
 
-  onMount(async () => {
+  async function loadData() {
     try {
       projects = await ctxListProjects();
       sharedEntries = await ctxGetShared();
+      error = '';
+      dbMissing = false;
     } catch (e) {
-      error = `ctx database not available: ${e}`;
+      error = `${e}`;
+      dbMissing = error.includes('not found');
     }
-  });
+  }
+
+  async function handleInitDb() {
+    initializing = true;
+    try {
+      await ctxInitDb();
+      await loadData();
+    } catch (e) {
+      error = `Failed to initialize database: ${e}`;
+    } finally {
+      initializing = false;
+    }
+  }
+
+  onMount(loadData);
 
   async function selectProject(name: string) {
     selectedProject = name;
@@ -86,10 +106,21 @@
           <line x1="12" y1="16" x2="12.01" y2="16"></line>
         </svg>
       </div>
-      <div class="ctx-error-text">{error}</div>
-      <div class="ctx-error-hint">
-        Run <code>ctx init</code> in a terminal tab to create the context database.
-      </div>
+      {#if dbMissing}
+        <div class="ctx-error-text">Context database not found</div>
+        <div class="ctx-error-hint">
+          Create the database at <code>~/.claude-context/context.db</code> to get started.
+        </div>
+        <button class="init-btn" onclick={handleInitDb} disabled={initializing}>
+          {#if initializing}
+            Initializing...
+          {:else}
+            Initialize Database
+          {/if}
+        </button>
+      {:else}
+        <div class="ctx-error-text">{error}</div>
+      {/if}
     </div>
   {/if}
 
@@ -251,6 +282,28 @@
     border-radius: 0.1875rem;
     font-family: var(--term-font-family, monospace);
     color: var(--ctp-green);
+  }
+
+  .init-btn {
+    margin-top: 0.5rem;
+    padding: 0.375rem 1rem;
+    background: var(--ctp-blue);
+    color: var(--ctp-base);
+    border: none;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .init-btn:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  .init-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .ctx-body {

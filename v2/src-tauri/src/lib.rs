@@ -183,6 +183,11 @@ fn ssh_session_delete(state: State<'_, AppState>, id: String) -> Result<(), Stri
 // --- ctx commands ---
 
 #[tauri::command]
+fn ctx_init_db(state: State<'_, AppState>) -> Result<(), String> {
+    state.ctx_db.init_db()
+}
+
+#[tauri::command]
 fn ctx_list_projects(state: State<'_, AppState>) -> Result<Vec<ctx::CtxProject>, String> {
     state.ctx_db.list_projects()
 }
@@ -539,6 +544,7 @@ pub fn run() {
             ssh_session_list,
             ssh_session_save,
             ssh_session_delete,
+            ctx_init_db,
             ctx_list_projects,
             ctx_get_context,
             ctx_get_shared,

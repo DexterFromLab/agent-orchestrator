@@ -33,11 +33,15 @@ pub struct CtxDb {
 }
 
 impl CtxDb {
-    pub fn new() -> Self {
-        let db_path = dirs::home_dir()
+    fn db_path() -> std::path::PathBuf {
+        dirs::home_dir()
             .unwrap_or_default()
             .join(".claude-context")
-            .join("context.db");
+            .join("context.db")
+    }
+
+    pub fn new() -> Self {
+        let db_path = Self::db_path();
 
         let conn = if db_path.exists() {
             Connection::open_with_flags(
@@ -49,6 +53,92 @@ impl CtxDb {
         };
 
         Self { conn: Mutex::new(conn) }
+    }
+
+    /// Create the context database directory and schema, then open a read-only connection.
+    pub fn init_db(&self) -> Result<(), String> {
+        let db_path = Self::db_path();
+
+        // Create parent directory
+        if let Some(parent) = db_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create directory: {e}"))?;
+        }
+
+        // Open read-write to create schema
+        let conn = Connection::open(&db_path)
+            .map_err(|e| format!("Failed to create database: {e}"))?;
+
+        conn.execute_batch("PRAGMA journal_mode=WAL;").map_err(|e| format!("WAL mode failed: {e}"))?;
+
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS sessions (
+                name TEXT PRIMARY KEY,
+                description TEXT,
+                work_dir TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS contexts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project TEXT NOT NULL,
+                key TEXT NOT NULL,
+                value TEXT NOT NULL,
+                updated_at TEXT DEFAULT (datetime('now')),
+                UNIQUE(project, key)
+            );
+
+            CREATE TABLE IF NOT EXISTS shared (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS summaries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE VIRTUAL TABLE IF NOT EXISTS contexts_fts USING fts5(
+                project, key, value, content=contexts, content_rowid=id
+            );
+
+            CREATE VIRTUAL TABLE IF NOT EXISTS shared_fts USING fts5(
+                key, value, content=shared
+            );
+
+            CREATE TRIGGER IF NOT EXISTS contexts_ai AFTER INSERT ON contexts BEGIN
+                INSERT INTO contexts_fts(rowid, project, key, value)
+                VALUES (new.id, new.project, new.key, new.value);
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS contexts_ad AFTER DELETE ON contexts BEGIN
+                INSERT INTO contexts_fts(contexts_fts, rowid, project, key, value)
+                VALUES ('delete', old.id, old.project, old.key, old.value);
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS contexts_au AFTER UPDATE ON contexts BEGIN
+                INSERT INTO contexts_fts(contexts_fts, rowid, project, key, value)
+                VALUES ('delete', old.id, old.project, old.key, old.value);
+                INSERT INTO contexts_fts(rowid, project, key, value)
+                VALUES (new.id, new.project, new.key, new.value);
+            END;"
+        ).map_err(|e| format!("Schema creation failed: {e}"))?;
+
+        drop(conn);
+
+        // Re-open as read-only for normal operation
+        let ro_conn = Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        ).map_err(|e| format!("Failed to reopen database: {e}"))?;
+
+        let mut lock = self.conn.lock().unwrap();
+        *lock = Some(ro_conn);
+
+        Ok(())
     }
 
     pub fn list_projects(&self) -> Result<Vec<CtxProject>, String> {
