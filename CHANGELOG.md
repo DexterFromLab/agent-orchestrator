@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- SettingsTab project settings card redesign: each project rendered as a polished card with icon picker (Svelte state-driven emoji grid popup), inline-editable name input, CWD with left-ellipsis (`direction: rtl`), account/profile dropdown (via `listProfiles()` from claude-bridge.ts), custom toggle switch (green track/thumb), and subtle remove footer with trash icon
+- Account/profile dropdown per project in SettingsTab: uses `listProfiles()` to fetch Claude profiles, displays display_name + email in dropdown, blue badge styling; falls back to static label when single profile
+- ProjectHeader profile badge: account name styled as blue pill with translucent background (`color-mix(in srgb, var(--ctp-blue) 10%, transparent)`), font-weight 600, expanded max-width to 8rem
 - Theme integration rule (`.claude/rules/51-theme-integration.md`): mandates all colors via `--ctp-*` CSS custom properties, never hardcode hex/rgb/hsl values
 - AgentPane VSCode-style prompt: unified input always at bottom with auto-resizing textarea, send icon button (arrow SVG) inside rounded container, welcome state with chat icon when no session
 - AgentPane session controls: New Session and Continue buttons shown after session completes, enabling explicit session management
@@ -22,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSS relative units rule (`.claude/rules/18-relative-units.md`): enforces rem/em for layout CSS, px only for icons/borders/shadows
 
 ### Changed
+- SettingsTab project settings: flat row layout replaced with stacked card layout; icon picker rewritten from DOM `classList.toggle('visible')` to Svelte `$state` (iconPickerOpenFor); checkbox replaced with custom toggle switch component
+- SettingsTab CSS: all remaining px values in project section converted to rem; add-project form uses dashed border container
 - AgentPane prompt: replaced separate initial prompt + follow-up input with single unified prompt area; removed `followUpPrompt` state, `handleSubmit` function; follow-up handled via `isResume` detection in `handleUnifiedSubmit()`
 - AgentPane CSS: migrated all legacy CSS vars (`--bg-primary`, `--bg-surface`, `--text-primary`, `--text-secondary`, `--text-muted`, `--border`, `--accent`, `--font-mono`, `--border-radius`) to `--ctp-*` theme vars + rem units
 - ContextPane CSS: same legacy-to-theme var migration as AgentPane
@@ -40,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stub `pick_directory` Tauri command (replaced by `tauri-plugin-dialog` frontend API)
 
 ### Fixed
+- SettingsTab icon picker not opening: replaced broken DOM `classList.toggle('visible')` approach with Svelte `$state` (`iconPickerOpenFor` keyed by project ID); icon picker now reliably opens/closes and dismisses on click-outside or Escape
+- SettingsTab CWD path truncated from right: added `direction: rtl; text-align: left; unicode-bidi: plaintext` on CWD input so path shows the end (project directory) instead of the beginning when truncated
 - Project icons showing "?" — Nerd Font codepoint `\uf120` not rendering without font installed; switched to emoji
 - Native directory picker not opening: added missing `"dialog:default"` permission to `v2/src-tauri/capabilities/default.json` — Tauri's IPC security layer silently blocked `invoke()` calls without this capability
 - Native directory picker not modal on Linux: replaced `@tauri-apps/plugin-dialog` `open()` with custom `pick_directory` Tauri command using `rfd::AsyncFileDialog::set_parent(&window)` — the plugin skips `set_parent` on Linux via `cfg(any(windows, target_os = "macos"))` gate
