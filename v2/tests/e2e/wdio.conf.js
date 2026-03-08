@@ -22,7 +22,9 @@ export const config = {
   path: '/',
 
   // ── Specs ──
-  specs: [resolve(__dirname, 'specs/**/*.test.ts')],
+  // Single spec file — Tauri launches one app instance per session,
+  // and tauri-driver can't re-create sessions between spec files.
+  specs: [resolve(__dirname, 'specs/bterminal.test.ts')],
 
   // ── Capabilities ──
   capabilities: [{
@@ -77,7 +79,7 @@ export const config = {
   },
 
   /**
-   * Spawn tauri-driver before each session.
+   * Spawn tauri-driver before the session.
    * tauri-driver bridges WebDriver protocol to WebKit2GTK's inspector.
    */
   beforeSession() {
@@ -105,7 +107,7 @@ export const config = {
   },
 
   /**
-   * Kill tauri-driver after each session.
+   * Kill tauri-driver after the test run.
    */
   afterSession() {
     if (tauriDriver) {

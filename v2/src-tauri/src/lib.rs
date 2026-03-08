@@ -621,14 +621,10 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
-            if cfg!(debug_assertions) {
-                // Ignore error if logger already initialized (telemetry::init sets up tracing-subscriber)
-                let _ = app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                );
-            }
+            // Note: tauri-plugin-log is NOT initialized here because telemetry::init()
+            // already sets up tracing-subscriber (which bridges the `log` crate via
+            // tracing's compatibility layer). Adding plugin-log would panic with
+            // "attempted to set a logger after the logging system was already initialized".
 
             // Create TauriEventSink for core managers
             let sink: Arc<dyn bterminal_core::event::EventSink> =
