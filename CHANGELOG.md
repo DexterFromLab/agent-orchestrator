@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
+### Added
+- Collapsible text messages in AgentPane: model responses wrapped in `<details open>` (open by default, user-collapsible with first-line preview) (AgentPane.svelte)
+- Collapsible cost summary in AgentPane: `cost.result` wrapped in `<details>` (collapsed by default, expandable with 80-char preview) (AgentPane.svelte)
+- Project max aspect ratio setting: `project_max_aspect` (float 0.3–3.0, default 1.0) limits project box width via CSS `max-width: calc(100vh * var(--project-max-aspect))` (SettingsTab.svelte, ProjectGrid.svelte, App.svelte)
+- No-implicit-push rule: `.claude/rules/52-no-implicit-push.md` — never push unless user explicitly asks
+- `StartupWMClass=bterminal` in install-v2.sh .desktop template for GNOME auto-move extension compatibility
+
 ### Changed
 - AgentPane UI redesign: sans-serif root font (system-ui), tool calls paired with results in collapsible `<details>` groups, hook messages collapsed into compact labels, context window usage meter in status strip, cost bar made minimal (no background), session summary with translucent background, two-phase scroll anchoring, tool-aware output truncation (Bash 500/Read 50/Glob 20 lines), colors softened via `color-mix()`, responsive margins via container queries (AgentPane.svelte)
 - MarkdownPane: added inner scroll wrapper with `container-type: inline-size`, responsive padding via shared `--bterminal-pane-padding-inline` variable (MarkdownPane.svelte)

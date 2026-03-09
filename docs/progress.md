@@ -223,9 +223,27 @@
 - [x] Converted App.svelte sidebar header styles from px to rem (padding, close button, border-radius)
 - [x] Changed GlobalTabBar rail-btn color from --ctp-overlay1 to --ctp-subtext0
 
+### Session: 2026-03-09 — AgentPane Collapsibles, Aspect Ratio, Desktop Integration
+
+#### AgentPane Collapsible Messages
+- [x] Text messages (`msg.type === 'text'`) wrapped in `<details open>` — open by default, collapsible
+- [x] Cost summary (`cost.result`) wrapped in `<details>` — collapsed by default, expandable
+- [x] CSS: `.msg-text-collapsible` and `.msg-summary-collapsible` with preview text
+
+#### Project Max Aspect Ratio Setting
+- [x] New `project_max_aspect` SQLite setting (float, default 1.0, range 0.3–3.0)
+- [x] ProjectGrid: `max-width: calc(100vh * var(--project-max-aspect, 1))` on `.project-slot`
+- [x] SettingsTab: stepper UI in Appearance section
+- [x] App.svelte: restore on startup via getSetting()
+
+#### Desktop Integration
+- [x] install-v2.sh: added `StartupWMClass=bterminal` to .desktop template
+- [x] GNOME auto-move extension compatible
+
+#### No-Implicit-Push Rule
+- [x] Created `.claude/rules/52-no-implicit-push.md` — never push unless explicitly asked
+
 ### Next Steps
 - [ ] Real-world relay testing (2 machines)
 - [ ] TLS/certificate pinning for relay connections
-- [ ] E2E testing with Playwright/WebDriver (when display server available)
 - [ ] Test agent teams with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-- [ ] Convert remaining components from px to rem per rule 18
