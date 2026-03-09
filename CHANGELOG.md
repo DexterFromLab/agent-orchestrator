@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `--bterminal-pane-padding-inline: clamp(0.75rem, 3.5cqi, 2rem)` shared CSS variable for responsive pane padding (catppuccin.css)
 
 ### Fixed
+- Cost bar shows only last turn's cost instead of cumulative session total: `updateAgentCost()` changed from assignment to accumulation (`+=`) so continued sessions properly sum costs across all turns (agents.svelte.ts)
 - ProjectBox tab switch destroys running agent sessions: changed `{#if activeTab}` conditional rendering to CSS `style:display` (flex/none) for all three content panes and terminal section — ClaudeSession now stays mounted across tab switches, preserving session ID, message history, and running agents (ProjectBox.svelte)
 - Sidecar env var stripping now whitelists `CLAUDE_CODE_EXPERIMENTAL_*` vars (both Rust sidecar.rs and JS agent-runner.ts) — previously all `CLAUDE*` vars were stripped, blocking feature flags like agent teams from reaching the SDK (sidecar.rs, agent-runner.ts)
 - E2E terminal tab tests: scoped selectors to `.tab-bar .tab-title` (was `.tab-title` which matched project tabs), used `browser.execute()` for DOM text reads to avoid stale element issues (bterminal.test.ts)
