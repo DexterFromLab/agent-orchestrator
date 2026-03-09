@@ -67,6 +67,7 @@
   .project-slot {
     flex: 0 0 calc((100% - (var(--visible-count) - 1) * 0.25rem) / var(--visible-count));
     min-width: 30rem;
+    max-width: calc(100vh * var(--project-max-aspect, 1));
     display: flex;
   }
 

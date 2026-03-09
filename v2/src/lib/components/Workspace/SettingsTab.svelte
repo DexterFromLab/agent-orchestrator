@@ -44,6 +44,7 @@
   let uiFontSize = $state('');
   let termFont = $state('');
   let termFontSize = $state('');
+  let projectMaxAspect = $state('1.0');
   let selectedTheme = $state<ThemeId>(getCurrentTheme());
 
   // Dropdown open states
@@ -103,13 +104,14 @@
   );
 
   onMount(async () => {
-    const [shell, cwd, font, size, tfont, tsize] = await Promise.all([
+    const [shell, cwd, font, size, tfont, tsize, aspect] = await Promise.all([
       getSetting('default_shell'),
       getSetting('default_cwd'),
       getSetting('ui_font_family'),
       getSetting('ui_font_size'),
       getSetting('term_font_family'),
       getSetting('term_font_size'),
+      getSetting('project_max_aspect'),
     ]);
     defaultShell = shell ?? '';
     defaultCwd = cwd ?? '';
@@ -117,6 +119,8 @@
     uiFontSize = size ?? '';
     termFont = tfont ?? '';
     termFontSize = tsize ?? '';
+    projectMaxAspect = aspect ?? '1.0';
+    applyAspectRatio(projectMaxAspect);
     selectedTheme = getCurrentTheme();
 
     try {
@@ -172,6 +176,20 @@
     termFontSize = size;
     applyCssProp('--term-font-size', `${num}px`);
     await saveGlobalSetting('term_font_size', size);
+  }
+
+  function applyAspectRatio(value: string) {
+    const num = parseFloat(value);
+    if (isNaN(num) || num <= 0) return;
+    document.documentElement.style.setProperty('--project-max-aspect', value);
+  }
+
+  async function handleAspectChange(value: string) {
+    const num = parseFloat(value);
+    if (isNaN(num) || num < 0.3 || num > 3.0) return;
+    projectMaxAspect = value;
+    applyAspectRatio(value);
+    await saveGlobalSetting('project_max_aspect', value);
   }
 
   async function handleThemeChange(themeId: ThemeId) {
@@ -405,6 +423,31 @@
               disabled={(parseInt(termFontSize, 10) || 13) >= 24}
             >+</button>
           </div>
+        </div>
+      </div>
+      <div class="setting-field">
+        <span class="setting-label">Project max aspect ratio</span>
+        <div class="size-control">
+          <button
+            class="size-btn"
+            onclick={() => handleAspectChange((Math.max(0.3, parseFloat(projectMaxAspect) - 0.1)).toFixed(1))}
+            disabled={parseFloat(projectMaxAspect) <= 0.3}
+          >&minus;</button>
+          <input
+            type="number"
+            min="0.3"
+            max="3.0"
+            step="0.1"
+            value={projectMaxAspect}
+            class="size-input"
+            onchange={e => handleAspectChange((e.target as HTMLInputElement).value)}
+          />
+          <span class="size-unit">w:h</span>
+          <button
+            class="size-btn"
+            onclick={() => handleAspectChange((Math.min(3.0, parseFloat(projectMaxAspect) + 0.1)).toFixed(1))}
+            disabled={parseFloat(projectMaxAspect) >= 3.0}
+          >+</button>
         </div>
       </div>
     </div>

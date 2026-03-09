@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { initTheme } from './lib/stores/theme.svelte';
+  import { getSetting } from './lib/adapters/settings-bridge';
   import { isDetachedMode, getDetachedConfig } from './lib/utils/detach';
   import { startAgentDispatcher, stopAgentDispatcher } from './lib/agent-dispatcher';
   import { loadWorkspace, getActiveTab, setActiveTab, setActiveProject, getEnabledProjects } from './lib/stores/workspace.svelte';
@@ -60,6 +61,9 @@
 
   onMount(() => {
     initTheme();
+    getSetting('project_max_aspect').then(v => {
+      if (v) document.documentElement.style.setProperty('--project-max-aspect', v);
+    });
     startAgentDispatcher();
 
     if (!detached) {
