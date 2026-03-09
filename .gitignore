@@ -9,3 +9,5 @@ projects/
 .playwright-mcp/
 v2/.audit/
 .tribunal/
+.vscode/
+.local/
