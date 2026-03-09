@@ -338,7 +338,15 @@
               <span class="model">{(msg.content as import('../../adapters/sdk-messages').InitContent).model}</span>
             </div>
           {:else if msg.type === 'text'}
-            <div class="msg-text markdown-body">{@html renderMarkdown((msg.content as TextContent).text)}</div>
+            {@const textContent = (msg.content as TextContent).text}
+            {@const firstLine = textContent.split('\n')[0].slice(0, 120)}
+            <details class="msg-text-collapsible" open>
+              <summary>
+                <span class="chevron" aria-hidden="true">▶</span>
+                <span class="text-preview">{firstLine}{firstLine.length >= 120 ? '...' : ''}</span>
+              </summary>
+              <div class="msg-text markdown-body">{@html renderMarkdown(textContent)}</div>
+            </details>
           {:else if msg.type === 'thinking'}
             <details class="msg-thinking">
               <summary><span class="chevron" aria-hidden="true">▶</span> Thinking...</summary>
@@ -396,7 +404,13 @@
               <span class="cost-detail">{(cost.durationMs / 1000).toFixed(1)}s</span>
             </div>
             {#if cost.result}
-              <div class="msg-summary">{cost.result}</div>
+              <details class="msg-summary-collapsible">
+                <summary>
+                  <span class="chevron" aria-hidden="true">▶</span>
+                  <span class="summary-preview">{cost.result.split('\n')[0].slice(0, 80)}{cost.result.length > 80 ? '...' : ''}</span>
+                </summary>
+                <div class="msg-summary">{cost.result}</div>
+              </details>
             {/if}
           {:else if msg.type === 'error'}
             <div class="msg-error">{(msg.content as ErrorContent).message}</div>
@@ -712,6 +726,25 @@
     font-size: 0.6875rem;
   }
 
+  /* === Text collapsible wrapper === */
+  .msg-text-collapsible summary {
+    color: var(--ctp-subtext0);
+    font-size: 0.8125rem;
+  }
+
+  .msg-text-collapsible summary .text-preview {
+    color: var(--ctp-subtext1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .msg-text-collapsible[open] > summary .text-preview {
+    display: none;
+  }
+
   /* === Text messages (markdown) === */
   .msg-text {
     word-break: break-word;
@@ -999,7 +1032,29 @@
     color: var(--ctp-overlay0);
   }
 
-  /* === Session summary === */
+  /* === Session summary (collapsible) === */
+  .msg-summary-collapsible {
+    font-size: 0.8125rem;
+  }
+
+  .msg-summary-collapsible summary {
+    color: var(--ctp-overlay1);
+    font-size: 0.75rem;
+  }
+
+  .msg-summary-collapsible summary .summary-preview {
+    color: var(--ctp-overlay0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .msg-summary-collapsible[open] > summary .summary-preview {
+    display: none;
+  }
+
   .msg-summary {
     background: color-mix(in srgb, var(--ctp-surface0) 60%, var(--ctp-base) 40%);
     border-top: 0.125rem solid var(--ctp-surface2);
