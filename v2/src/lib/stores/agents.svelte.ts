@@ -94,11 +94,12 @@ export function updateAgentCost(
 ): void {
   const session = sessions.find(s => s.id === id);
   if (!session) return;
-  session.costUsd = cost.costUsd;
-  session.inputTokens = cost.inputTokens;
-  session.outputTokens = cost.outputTokens;
-  session.numTurns = cost.numTurns;
-  session.durationMs = cost.durationMs;
+  // Accumulate across query invocations (each resume produces its own cost event)
+  session.costUsd += cost.costUsd;
+  session.inputTokens += cost.inputTokens;
+  session.outputTokens += cost.outputTokens;
+  session.numTurns += cost.numTurns;
+  session.durationMs += cost.durationMs;
 }
 
 /** Find a child session that was spawned by a specific tool_use */
