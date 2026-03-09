@@ -1504,7 +1504,7 @@ class TerminalTab(Gtk.Box):
         self.terminal = Vte.Terminal()
         self.terminal.set_font(Pango.FontDescription(FONT))
         self.terminal.set_scrollback_lines(SCROLLBACK_LINES)
-        self.terminal.set_scroll_on_output(True)
+        self.terminal.set_scroll_on_output(False)
         self.terminal.set_scroll_on_keystroke(True)
         self.terminal.set_audible_bell(False)
 
@@ -1733,6 +1733,9 @@ class TerminalTab(Gtk.Box):
             if self.session:
                 # SSH tab: keep session name, show VTE title in window title only
                 self.app.update_tab_title(self, self.session.get("name", "SSH"))
+            elif self.claude_config:
+                # Claude Code tab: keep config name instead of generic VTE title
+                self.app.update_tab_title(self, self.claude_config.get("name", "Claude Code"))
             else:
                 self.app.update_tab_title(self, title)
 
