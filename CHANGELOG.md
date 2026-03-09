@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project max aspect ratio setting: `project_max_aspect` (float 0.3–3.0, default 1.0) limits project box width via CSS `max-width: calc(100vh * var(--project-max-aspect))` (SettingsTab.svelte, ProjectGrid.svelte, App.svelte)
 - No-implicit-push rule: `.claude/rules/52-no-implicit-push.md` — never push unless user explicitly asks
 - `StartupWMClass=bterminal` in install-v2.sh .desktop template for GNOME auto-move extension compatibility
+- MarkdownPane link navigation: relative file links open in Files tab, external URLs open in system browser via `xdg-open`, anchor links scroll in-page (MarkdownPane.svelte, ProjectFiles.svelte, lib.rs)
+- `open_url` Tauri command for opening http/https URLs in system browser (lib.rs)
 
 ### Changed
 - AgentPane UI redesign: sans-serif root font (system-ui), tool calls paired with results in collapsible `<details>` groups, hook messages collapsed into compact labels, context window usage meter in status strip, cost bar made minimal (no background), session summary with translucent background, two-phase scroll anchoring, tool-aware output truncation (Bash 500/Read 50/Glob 20 lines), colors softened via `color-mix()`, responsive margins via container queries (AgentPane.svelte)
