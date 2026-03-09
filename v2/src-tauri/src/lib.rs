@@ -552,6 +552,19 @@ async fn remote_pty_kill(state: State<'_, AppState>, machine_id: String, id: Str
     state.remote_manager.pty_kill(&machine_id, &id).await
 }
 
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    // Only allow http/https URLs
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Only http/https URLs are allowed".into());
+    }
+    std::process::Command::new("xdg-open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| format!("Failed to open URL: {e}"))?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Force dark GTK theme for native dialogs (file chooser, etc.)
@@ -616,6 +629,7 @@ pub fn run() {
             project_agent_state_load,
             cli_get_group,
             pick_directory,
+            open_url,
             frontend_log,
         ])
         .plugin(tauri_plugin_updater::Builder::new().build())

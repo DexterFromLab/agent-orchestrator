@@ -17,6 +17,17 @@
     loadFiles(cwd);
   });
 
+  function handleNavigate(absolutePath: string) {
+    // If the file is in our discovered list, select it directly
+    const match = files.find(f => f.path === absolutePath);
+    if (match) {
+      selectedPath = absolutePath;
+    } else {
+      // File not in sidebar — set it directly (MarkdownPane handles loading)
+      selectedPath = absolutePath;
+    }
+  }
+
   async function loadFiles(dir: string) {
     loading = true;
     try {
@@ -58,7 +69,7 @@
 
   <main class="doc-content">
     {#if selectedPath}
-      <MarkdownPane paneId="pf-{projectName}" filePath={selectedPath} />
+      <MarkdownPane paneId="pf-{projectName}" filePath={selectedPath} onNavigate={handleNavigate} />
     {:else}
       <div class="state-msg full">Select a file</div>
     {/if}

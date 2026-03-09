@@ -8,9 +8,10 @@
     filePath: string;
     paneId: string;
     onExit?: () => void;
+    onNavigate?: (absolutePath: string) => void;
   }
 
-  let { filePath, paneId, onExit }: Props = $props();
+  let { filePath, paneId, onExit, onNavigate }: Props = $props();
 
   let renderedHtml = $state('');
   let error = $state('');
@@ -72,13 +73,59 @@
     unlisten?.();
     unwatchFile(paneId).catch(() => {});
   });
+
+  function handleLinkClick(event: MouseEvent) {
+    const anchor = (event.target as HTMLElement).closest('a');
+    if (!anchor) return;
+
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+
+    // Anchor links — scroll within page
+    if (href.startsWith('#')) return;
+
+    event.preventDefault();
+
+    // External URLs — open in system browser
+    if (/^https?:\/\//.test(href)) {
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke('open_url', { url: href }).catch(() => {
+          // Fallback: do nothing (no shell plugin)
+        });
+      });
+      return;
+    }
+
+    // Relative file link — resolve against current file's directory
+    if (onNavigate) {
+      const dir = filePath.replace(/\/[^/]*$/, '');
+      const resolved = resolveRelativePath(dir, href);
+      onNavigate(resolved);
+    }
+  }
+
+  function resolveRelativePath(base: string, relative: string): string {
+    // Strip any anchor or query from the link
+    const cleanRelative = relative.split('#')[0].split('?')[0];
+    const parts = base.split('/');
+    for (const segment of cleanRelative.split('/')) {
+      if (segment === '..') {
+        parts.pop();
+      } else if (segment !== '.' && segment !== '') {
+        parts.push(segment);
+      }
+    }
+    return parts.join('/');
+  }
 </script>
 
 <div class="markdown-pane">
   {#if error}
     <div class="error">{error}</div>
   {:else}
-    <div class="markdown-pane-scroll">
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="markdown-pane-scroll" onclick={handleLinkClick}>
       <div class="markdown-body">
         {@html renderedHtml}
       </div>
