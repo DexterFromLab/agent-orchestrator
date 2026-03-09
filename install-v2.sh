@@ -193,6 +193,7 @@ Type=Application
 Categories=System;TerminalEmulator;Development;
 Terminal=false
 StartupNotify=true
+StartupWMClass=bterminal
 EOF
 info "Desktop entry created"
 
