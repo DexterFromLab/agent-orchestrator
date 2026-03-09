@@ -20,7 +20,14 @@
     ToolResultContent,
     CostContent,
     ErrorContent,
+    StatusContent,
   } from '../../adapters/sdk-messages';
+
+  // Tool-aware truncation limits
+  const MAX_BASH_LINES = 500;
+  const MAX_READ_LINES = 50;
+  const MAX_GLOB_LINES = 20;
+  const MAX_DEFAULT_LINES = 30;
 
   interface Props {
     sessionId: string;
@@ -42,6 +49,27 @@
   let parentSession = $derived(session?.parentSessionId ? getAgentSession(session.parentSessionId) : undefined);
   let childSessions = $derived(session ? getChildSessions(session.id) : []);
   let totalCost = $derived(session && childSessions.length > 0 ? getTotalCost(session.id) : null);
+  let isRunning = $derived(session?.status === 'running' || session?.status === 'starting');
+
+  // Tool result map — pairs tool_call with tool_result by toolUseId
+  // Cache guard: only rescan when user-role message count changes (tool_results come in user messages)
+  let _cachedResultMap: Record<string, ToolResultContent> = {};
+  let _cachedUserMsgCount = -1;
+  let toolResultMap = $derived.by((): Record<string, ToolResultContent> => {
+    if (!session) return {};
+    const userMsgCount = session.messages.filter(m => m.type === 'tool_result').length;
+    if (userMsgCount === _cachedUserMsgCount) return _cachedResultMap;
+    const map: Record<string, ToolResultContent> = {};
+    for (const msg of session.messages) {
+      if (msg.type === 'tool_result') {
+        const tr = msg.content as ToolResultContent;
+        map[tr.toolUseId] = tr;
+      }
+    }
+    _cachedUserMsgCount = userMsgCount;
+    _cachedResultMap = map;
+    return map;
+  });
 
   // Profile list (for resolving profileName to config_dir)
   let profiles = $state<ClaudeProfile[]>([]);
@@ -55,6 +83,9 @@
       : []
   );
   let skillMenuIndex = $state(0);
+
+  // Track expanded state for tool truncation
+  let expandedTools = $state<Set<string>>(new Set());
 
   const mdRenderer = new Renderer();
   mdRenderer.code = function({ text, lang }: { text: string; lang?: string }) {
@@ -75,7 +106,6 @@
 
   onMount(async () => {
     await getHighlighter();
-    // Load profiles and skills in parallel
     const [profileList, skillList] = await Promise.all([
       listProfiles().catch(() => []),
       listSkills().catch(() => []),
@@ -91,7 +121,6 @@
   // not just explicit close. Stop-on-close is handled by workspace teardown.
 
   let promptRef = $state<HTMLTextAreaElement | undefined>();
-  let isRunning = $derived(session?.status === 'running' || session?.status === 'starting');
 
   async function startQuery(text: string, resume = false) {
     if (!text.trim()) return;
@@ -147,7 +176,6 @@
     if (!inputPrompt.trim() || isRunning) return;
     const expanded = await expandSkillPrompt(inputPrompt);
     showSkillMenu = false;
-    // If session exists with sdkSessionId, this is a follow-up (resume)
     const isResume = !!(session?.sdkSessionId && session.messages.length > 0);
     startQuery(expanded, isResume);
   }
@@ -182,22 +210,14 @@
     }
   }
 
-  function scrollToBottom() {
-    if (autoScroll && scrollContainer) {
-      scrollContainer.scrollTop = scrollContainer.scrollHeight;
-    }
-  }
-
   function handleScroll() {
     if (!scrollContainer) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-    // Lock auto-scroll if user scrolled up more than 50px from bottom
     autoScroll = scrollHeight - scrollTop - clientHeight < 50;
   }
 
   function handleTreeNodeClick(nodeId: string) {
     if (!scrollContainer || !session) return;
-    // Find the message whose tool_call has this toolUseId
     const msg = session.messages.find(
       m => m.type === 'tool_call' && (m.content as ToolCallContent).toolUseId === nodeId
     );
@@ -206,10 +226,18 @@
     scrollContainer.querySelector('#msg-' + CSS.escape(msg.id))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  // Auto-scroll when new messages arrive
+  // Scroll anchoring: two-phase pattern
+  let wasNearBottom = true;
+  $effect.pre(() => {
+    if (session?.messages.length !== undefined) {
+      wasNearBottom = scrollContainer
+        ? scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 80
+        : true;
+    }
+  });
   $effect(() => {
-    if (session?.messages.length) {
-      scrollToBottom();
+    if (session?.messages.length !== undefined && wasNearBottom && autoScroll) {
+      scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
     }
   });
 
@@ -222,10 +250,42 @@
     }
   }
 
-  function truncate(text: string, maxLen: number): string {
-    if (text.length <= maxLen) return text;
-    return text.slice(0, maxLen) + '...';
+  /** Get truncation limit for a tool name */
+  function getTruncationLimit(toolName: string): number {
+    const name = toolName.toLowerCase();
+    if (name === 'bash' || name.includes('bash')) return MAX_BASH_LINES;
+    if (name === 'read' || name === 'write' || name === 'edit') return MAX_READ_LINES;
+    if (name === 'glob' || name === 'grep' || name === 'ls') return MAX_GLOB_LINES;
+    return MAX_DEFAULT_LINES;
   }
+
+  /** Truncate text by lines, return { text, truncated, totalLines } */
+  function truncateByLines(text: string, maxLines: number): { text: string; truncated: boolean; totalLines: number } {
+    const lines = text.split('\n');
+    if (lines.length <= maxLines) return { text, truncated: false, totalLines: lines.length };
+    return { text: lines.slice(0, maxLines).join('\n'), truncated: true, totalLines: lines.length };
+  }
+
+  /** Check if a status message is a hook event */
+  function isHookMessage(content: StatusContent): boolean {
+    return content.subtype === 'hook_started' || content.subtype === 'hook_response';
+  }
+
+  /** Get display name for hook subtype */
+  function hookDisplayName(subtype: string): string {
+    if (subtype === 'hook_started') return 'Hook started';
+    if (subtype === 'hook_response') return 'Hook response';
+    return subtype;
+  }
+
+  // Context meter: estimate percentage of context window used
+  const DEFAULT_CONTEXT_LIMIT = 200_000;
+  let contextPercent = $derived.by(() => {
+    if (!session) return 0;
+    const totalTokens = session.inputTokens + session.outputTokens;
+    if (totalTokens === 0) return 0;
+    return Math.min(100, Math.round((totalTokens / DEFAULT_CONTEXT_LIMIT) * 100));
+  });
 </script>
 
 <div class="agent-pane">
@@ -258,7 +318,7 @@
     {/if}
   {/if}
 
-  <div class="messages" bind:this={scrollContainer} onscroll={handleScroll}>
+  <div class="agent-pane-scroll" bind:this={scrollContainer} onscroll={handleScroll}>
     {#if !session || session.messages.length === 0}
       <div class="welcome-state">
         <div class="welcome-icon">
@@ -281,64 +341,116 @@
             <div class="msg-text markdown-body">{@html renderMarkdown((msg.content as TextContent).text)}</div>
           {:else if msg.type === 'thinking'}
             <details class="msg-thinking">
-              <summary>Thinking...</summary>
+              <summary><span class="chevron" aria-hidden="true">▶</span> Thinking...</summary>
               <pre>{(msg.content as ThinkingContent).text}</pre>
             </details>
           {:else if msg.type === 'tool_call'}
             {@const tc = msg.content as ToolCallContent}
-            <details class="msg-tool-call">
+            {@const pairedResult = toolResultMap[tc.toolUseId]}
+            <details class="msg-tool-group">
               <summary>
+                <span class="chevron" aria-hidden="true">▶</span>
                 <span class="tool-name">{tc.name}</span>
-                <span class="tool-id">{truncate(tc.toolUseId, 12)}</span>
+                {#if pairedResult}
+                  <span class="tool-status tool-status--done">✓</span>
+                {:else if isRunning}
+                  <span class="tool-status tool-status--pending">⋯</span>
+                {/if}
               </summary>
-              <pre class="tool-input">{formatToolInput(tc.input)}</pre>
+              <div class="tool-group-body">
+                <div class="tool-section">
+                  <div class="tool-section-label">Input</div>
+                  <pre class="tool-input">{formatToolInput(tc.input)}</pre>
+                </div>
+                {#if pairedResult}
+                  {@const outputStr = formatToolInput(pairedResult.output)}
+                  {@const limit = getTruncationLimit(tc.name)}
+                  {@const truncated = truncateByLines(outputStr, limit)}
+                  <div class="tool-section">
+                    <div class="tool-section-label">Output</div>
+                    {#if truncated.truncated && !expandedTools.has(tc.toolUseId)}
+                      <pre class="tool-output">{truncated.text}</pre>
+                      <button class="truncation-btn" onclick={() => { expandedTools = new Set([...expandedTools, tc.toolUseId]); }}>
+                        Show all ({truncated.totalLines} lines)
+                      </button>
+                    {:else}
+                      <pre class="tool-output">{outputStr}</pre>
+                    {/if}
+                  </div>
+                {:else if isRunning}
+                  <div class="tool-pending" role="status">
+                    <span aria-hidden="true">⋯</span>
+                    <span class="sr-only">Awaiting tool result</span>
+                  </div>
+                {/if}
+              </div>
             </details>
           {:else if msg.type === 'tool_result'}
-            {@const tr = msg.content as ToolResultContent}
-            <details class="msg-tool-result">
-              <summary>Tool result</summary>
-              <pre class="tool-output">{formatToolInput(tr.output)}</pre>
-            </details>
+            <!-- Tool results rendered inline with their tool_call above; skip standalone rendering -->
           {:else if msg.type === 'cost'}
             {@const cost = msg.content as CostContent}
             <div class="msg-cost">
-              <span>${cost.totalCostUsd.toFixed(4)}</span>
-              <span>{cost.inputTokens + cost.outputTokens} tokens</span>
-              <span>{cost.numTurns} turns</span>
-              <span>{(cost.durationMs / 1000).toFixed(1)}s</span>
+              <span class="cost-value">${cost.totalCostUsd.toFixed(4)}</span>
+              <span class="cost-detail">{cost.inputTokens + cost.outputTokens} tokens</span>
+              <span class="cost-detail">{cost.numTurns} turns</span>
+              <span class="cost-detail">{(cost.durationMs / 1000).toFixed(1)}s</span>
             </div>
+            {#if cost.result}
+              <div class="msg-summary">{cost.result}</div>
+            {/if}
           {:else if msg.type === 'error'}
             <div class="msg-error">{(msg.content as ErrorContent).message}</div>
           {:else if msg.type === 'status'}
-            <div class="msg-status">{JSON.stringify(msg.content)}</div>
+            {@const statusContent = msg.content as StatusContent}
+            {#if isHookMessage(statusContent)}
+              <details class="msg-hook">
+                <summary><span class="chevron" aria-hidden="true">▶</span> <span class="hook-icon">⚙</span> {hookDisplayName(statusContent.subtype)}</summary>
+                <pre>{statusContent.message || JSON.stringify(msg.content, null, 2)}</pre>
+              </details>
+            {:else}
+              <div class="msg-status">{statusContent.message || statusContent.subtype}</div>
+            {/if}
           {/if}
         </div>
       {/each}
+      <div id="message-end"></div>
     {/if}
   </div>
 
-  <!-- Status bar -->
+  <!-- Context meter + status strip -->
   {#if session}
     <div class="status-strip">
       {#if session.status === 'running' || session.status === 'starting'}
         <div class="running-indicator">
           <span class="pulse"></span>
           <span>Running...</span>
+          {#if contextPercent > 0}
+            <span class="context-meter" title="Context window usage">
+              <span class="context-fill" class:context-streaming={isRunning} style="width: {contextPercent}%"></span>
+              <span class="context-label">{contextPercent}%</span>
+            </span>
+          {/if}
           {#if !autoScroll}
-            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollToBottom(); }}>↓ Bottom</button>
+            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior }); }}>↓ Bottom</button>
           {/if}
           <button class="stop-btn" onclick={handleStop}>Stop</button>
         </div>
       {:else if session.status === 'done'}
         <div class="done-bar">
-          <span class="cost">${session.costUsd.toFixed(4)}</span>
+          <span class="cost-value">${session.costUsd.toFixed(4)}</span>
           {#if totalCost && totalCost.costUsd > session.costUsd}
             <span class="total-cost">(total: ${totalCost.costUsd.toFixed(4)})</span>
           {/if}
-          <span class="tokens">{session.inputTokens + session.outputTokens} tok</span>
-          <span class="duration">{(session.durationMs / 1000).toFixed(1)}s</span>
+          <span class="cost-detail">{session.inputTokens + session.outputTokens} tok</span>
+          <span class="cost-detail">{(session.durationMs / 1000).toFixed(1)}s</span>
+          {#if contextPercent > 0}
+            <span class="context-meter" title="Context window usage">
+              <span class="context-fill" style="width: {contextPercent}%"></span>
+              <span class="context-label">{contextPercent}%</span>
+            </span>
+          {/if}
           {#if !autoScroll}
-            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollToBottom(); }}>↓ Bottom</button>
+            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior }); }}>↓ Bottom</button>
           {/if}
         </div>
       {:else if session.status === 'error'}
@@ -373,7 +485,7 @@
     </div>
   {/if}
 
-  <!-- Unified prompt input (VSCode style) -->
+  <!-- Unified prompt input -->
   <div class="prompt-container" class:disabled={isRunning}>
     <div class="prompt-wrapper">
       {#if showSkillMenu && filteredSkills.length > 0}
@@ -445,15 +557,44 @@
 </div>
 
 <style>
+  /* === Root === */
   .agent-pane {
     display: flex;
     flex-direction: column;
     height: 100%;
     background: var(--ctp-base);
     color: var(--ctp-text);
-    font-size: 0.8125rem;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.6;
   }
 
+  /* === Scroll wrapper with container queries === */
+  .agent-pane-scroll {
+    flex: 1;
+    overflow-y: auto;
+    container-type: inline-size;
+    padding: 0.5rem var(--bterminal-pane-padding-inline, 0.75rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-height: 0;
+  }
+
+  /* === Screen reader only === */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* === Subagent bars === */
   .parent-link {
     display: flex;
     align-items: center;
@@ -461,7 +602,7 @@
     padding: 0.25rem 0.75rem;
     border-bottom: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
 
   .parent-badge {
@@ -469,7 +610,7 @@
     color: var(--ctp-crust);
     padding: 0.0625rem 0.3125rem;
     border-radius: 0.1875rem;
-    font-size: 0.5625rem;
+    font-size: 0.625rem;
     font-weight: 700;
     letter-spacing: 0.03em;
   }
@@ -479,7 +620,7 @@
     border: none;
     color: var(--ctp-mauve);
     cursor: pointer;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     padding: 0;
     font-family: inherit;
   }
@@ -494,12 +635,12 @@
     border-bottom: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
     flex-wrap: wrap;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
 
   .children-label {
     color: var(--ctp-overlay0);
-    font-size: 0.625rem;
+    font-size: 0.6875rem;
     margin-right: 0.25rem;
   }
 
@@ -509,7 +650,7 @@
     color: var(--ctp-subtext0);
     padding: 0.0625rem 0.375rem;
     border-radius: 0.1875rem;
-    font-size: 0.625rem;
+    font-size: 0.6875rem;
     cursor: pointer;
     font-family: inherit;
   }
@@ -529,7 +670,7 @@
     background: none;
     border: none;
     color: var(--ctp-mauve);
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     cursor: pointer;
     font-family: var(--term-font-family, monospace);
     padding: 0.125rem 0.25rem;
@@ -537,7 +678,7 @@
 
   .tree-btn:hover { color: var(--ctp-text); }
 
-  /* Welcome state */
+  /* === Welcome state === */
   .welcome-state {
     display: flex;
     flex-direction: column;
@@ -548,40 +689,19 @@
     color: var(--ctp-overlay1);
   }
 
-  .welcome-icon {
-    color: var(--ctp-overlay0);
-    opacity: 0.6;
-  }
+  .welcome-icon { color: var(--ctp-overlay0); opacity: 0.6; }
+  .welcome-text { font-size: 0.9375rem; font-weight: 500; color: var(--ctp-subtext1); }
+  .welcome-hint { font-size: 0.75rem; color: var(--ctp-overlay0); }
 
-  .welcome-text {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--ctp-subtext1);
-  }
-
-  .welcome-hint {
-    font-size: 0.6875rem;
-    color: var(--ctp-overlay0);
-  }
-
-  .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0.5rem 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    min-height: 0;
-  }
-
-  .message { padding: 0.25rem 0; }
+  /* === Messages === */
+  .message { padding: 0.1875rem 0; }
 
   .msg-init {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     color: var(--ctp-overlay0);
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
 
   .msg-init .model {
@@ -589,71 +709,78 @@
     padding: 0.0625rem 0.375rem;
     border-radius: 0.1875rem;
     font-family: var(--term-font-family, monospace);
+    font-size: 0.6875rem;
   }
 
+  /* === Text messages (markdown) === */
   .msg-text {
     word-break: break-word;
-    line-height: 1.5;
+    line-height: 1.65;
   }
 
   .msg-text.markdown-body :global(h1) {
     font-size: 1.4em;
     font-weight: 700;
-    margin: 0.6em 0 0.3em;
+    margin: 0.75em 0 0.35em;
     color: var(--ctp-lavender);
+    line-height: 1.25;
   }
 
   .msg-text.markdown-body :global(h2) {
     font-size: 1.2em;
     font-weight: 600;
-    margin: 0.5em 0 0.3em;
+    margin: 0.6em 0 0.3em;
     color: var(--ctp-blue);
+    line-height: 1.3;
   }
 
   .msg-text.markdown-body :global(h3) {
     font-size: 1.05em;
     font-weight: 600;
-    margin: 0.4em 0 0.2em;
+    margin: 0.5em 0 0.25em;
     color: var(--ctp-sapphire);
   }
 
-  .msg-text.markdown-body :global(p) {
-    margin: 0.4em 0;
-  }
+  .msg-text.markdown-body :global(p) { margin: 0.5em 0; }
 
   .msg-text.markdown-body :global(code) {
     background: var(--ctp-surface0);
-    padding: 0.0625rem 0.3125rem;
-    border-radius: 0.1875rem;
+    padding: 0.1em 0.3em;
+    border-radius: 0.2em;
     font-family: var(--term-font-family, monospace);
-    font-size: 0.9em;
+    font-size: 0.85em;
     color: var(--ctp-green);
   }
 
   .msg-text.markdown-body :global(pre) {
-    background: var(--ctp-surface0);
-    padding: 0.625rem 0.75rem;
+    background: var(--ctp-mantle);
+    padding: 0.75rem 0.875rem;
     border-radius: 0.25rem;
+    border: 1px solid var(--ctp-surface0);
     overflow-x: auto;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     line-height: 1.5;
-    margin: 0.5em 0;
+    margin: 0.625em 0;
+    direction: ltr;
+    unicode-bidi: embed;
   }
 
   .msg-text.markdown-body :global(pre code) {
     background: none;
     padding: 0;
     color: var(--ctp-text);
+    font-size: inherit;
   }
 
   .msg-text.markdown-body :global(.shiki) {
-    background: var(--ctp-surface0) !important;
-    padding: 0.625rem 0.75rem;
+    background: var(--ctp-mantle) !important;
+    padding: 0.75rem 0.875rem;
     border-radius: 0.25rem;
+    border: 1px solid var(--ctp-surface0);
     overflow-x: auto;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     line-height: 1.5;
-    margin: 0.5em 0;
+    margin: 0.625em 0;
   }
 
   .msg-text.markdown-body :global(.shiki code) {
@@ -663,34 +790,28 @@
 
   .msg-text.markdown-body :global(blockquote) {
     border-left: 3px solid var(--ctp-mauve);
-    margin: 0.4em 0;
-    padding: 0.125rem 0.625rem;
+    margin: 0.5em 0;
+    padding: 0.125rem 0.75rem;
     color: var(--ctp-subtext0);
+    background: color-mix(in srgb, var(--ctp-surface0) 20%, transparent);
+    border-radius: 0 0.25rem 0.25rem 0;
   }
 
   .msg-text.markdown-body :global(ul), .msg-text.markdown-body :global(ol) {
-    padding-left: 1.25rem;
-    margin: 0.3em 0;
+    padding-left: 1.5rem;
+    margin: 0.4em 0;
   }
 
-  .msg-text.markdown-body :global(li) {
-    margin: 0.15em 0;
-  }
+  .msg-text.markdown-body :global(li) { margin: 0.2em 0; }
 
-  .msg-text.markdown-body :global(a) {
-    color: var(--ctp-blue);
-    text-decoration: none;
-  }
-
-  .msg-text.markdown-body :global(a:hover) {
-    text-decoration: underline;
-  }
+  .msg-text.markdown-body :global(a) { color: var(--ctp-blue); text-decoration: none; }
+  .msg-text.markdown-body :global(a:hover) { text-decoration: underline; }
 
   .msg-text.markdown-body :global(table) {
     border-collapse: collapse;
     width: 100%;
-    margin: 0.4em 0;
-    font-size: 0.75rem;
+    margin: 0.5em 0;
+    font-size: 0.8rem;
   }
 
   .msg-text.markdown-body :global(th), .msg-text.markdown-body :global(td) {
@@ -704,107 +825,221 @@
     font-weight: 600;
   }
 
+  /* === Shared collapsible styles === */
+  .chevron {
+    display: inline-block;
+    font-size: 0.625rem;
+    transition: transform 0.15s ease;
+    margin-right: 0.25rem;
+  }
+
+  details[open] > summary > .chevron {
+    transform: rotate(90deg);
+  }
+
+  details summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  details summary::-webkit-details-marker { display: none; }
+
+  details summary:focus-visible {
+    outline: 0.125rem solid var(--ctp-blue);
+    outline-offset: 0.125rem;
+    border-radius: 0.25rem;
+  }
+
+  /* === Thinking === */
   .msg-thinking {
     color: var(--ctp-overlay1);
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
   }
 
   .msg-thinking summary {
-    cursor: pointer;
-    color: var(--ctp-mauve);
+    color: color-mix(in srgb, var(--ctp-mauve) 65%, var(--ctp-surface1) 35%);
+    font-size: 0.8125rem;
   }
 
   .msg-thinking pre {
-    margin: 0.25rem 0 0 0.75rem;
+    margin: 0.25rem 0 0 1rem;
     white-space: pre-wrap;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
+    font-family: var(--term-font-family, monospace);
     max-height: 12.5rem;
     overflow-y: auto;
+    direction: ltr;
+    unicode-bidi: embed;
   }
 
-  .msg-tool-call, .msg-tool-result {
-    border-left: 2px solid var(--ctp-blue);
-    padding-left: 0.5rem;
-    font-size: 0.75rem;
+  /* === Tool groups (paired call + result) === */
+  .msg-tool-group {
+    border-left: 2px solid color-mix(in srgb, var(--ctp-blue) 50%, var(--ctp-surface1) 50%);
+    padding-left: 0.625rem;
+    font-size: 0.8125rem;
   }
 
-  .msg-tool-call summary, .msg-tool-result summary {
-    cursor: pointer;
-    color: var(--ctp-blue);
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
+  .msg-tool-group summary {
+    color: var(--ctp-subtext0);
   }
 
   .tool-name {
     font-weight: 600;
-    color: var(--ctp-green);
+    font-family: var(--term-font-family, monospace);
+    font-size: 0.75rem;
+    color: color-mix(in srgb, var(--ctp-green) 65%, var(--ctp-surface1) 35%);
   }
 
-  .tool-id {
-    font-family: var(--term-font-family, monospace);
-    font-size: 0.625rem;
+  .tool-status {
+    font-size: 0.6875rem;
+    margin-left: 0.25rem;
+  }
+
+  .tool-status--done { color: color-mix(in srgb, var(--ctp-green) 65%, var(--ctp-surface1) 35%); }
+  .tool-status--pending { color: var(--ctp-overlay0); animation: pulse 1.5s ease-in-out infinite; }
+
+  .tool-group-body {
+    margin-top: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .tool-section-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
     color: var(--ctp-overlay0);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.125rem;
   }
 
   .tool-input, .tool-output {
-    margin: 0.25rem 0 0 0;
+    margin: 0;
     white-space: pre-wrap;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
+    font-family: var(--term-font-family, monospace);
     max-height: 18.75rem;
     overflow-y: auto;
-    background: var(--ctp-surface0);
+    background: var(--ctp-mantle);
     padding: 0.375rem 0.5rem;
     border-radius: 0.1875rem;
     color: var(--ctp-subtext0);
+    border: 1px solid var(--ctp-surface0);
+    direction: ltr;
+    unicode-bidi: embed;
   }
 
-  .msg-tool-result {
-    border-left-color: var(--ctp-teal);
+  .tool-pending {
+    color: var(--ctp-overlay0);
+    font-size: 0.75rem;
+    padding: 0.25rem 0;
+    animation: pulse 1.5s ease-in-out infinite;
   }
 
-  .msg-tool-result summary {
-    color: var(--ctp-teal);
+  .truncation-btn {
+    background: none;
+    border: none;
+    color: var(--ctp-blue);
+    font-size: 0.6875rem;
+    cursor: pointer;
+    padding: 0.125rem 0;
+    font-family: inherit;
   }
 
+  .truncation-btn:hover { text-decoration: underline; }
+
+  /* === Hook messages === */
+  .msg-hook {
+    font-size: 0.75rem;
+    color: var(--ctp-overlay0);
+  }
+
+  .msg-hook summary {
+    color: var(--ctp-overlay1);
+    font-size: 0.75rem;
+  }
+
+  .hook-icon { opacity: 0.7; }
+
+  .msg-hook pre {
+    margin: 0.25rem 0 0 1rem;
+    white-space: pre-wrap;
+    font-size: 0.6875rem;
+    font-family: var(--term-font-family, monospace);
+    color: var(--ctp-overlay0);
+    max-height: 6.25rem;
+    overflow-y: auto;
+    direction: ltr;
+    unicode-bidi: embed;
+  }
+
+  /* === Cost message (inline in chat) === */
   .msg-cost {
     display: flex;
-    gap: 0.75rem;
-    padding: 0.25rem 0.5rem;
-    background: var(--ctp-surface0);
-    border-radius: 0.1875rem;
-    font-size: 0.6875rem;
-    color: var(--ctp-yellow);
-    font-family: var(--term-font-family, monospace);
+    gap: 0.625rem;
+    padding: 0.25rem 0;
+    font-size: 0.8125rem;
+    color: var(--ctp-subtext0);
+    border-top: 1px solid var(--ctp-surface1);
+    align-items: baseline;
   }
 
+  .cost-value {
+    font-family: var(--term-font-family, monospace);
+    font-size: 0.75rem;
+    color: var(--ctp-subtext1);
+  }
+
+  .cost-detail {
+    font-size: 0.6875rem;
+    color: var(--ctp-overlay0);
+  }
+
+  /* === Session summary === */
+  .msg-summary {
+    background: color-mix(in srgb, var(--ctp-surface0) 60%, var(--ctp-base) 40%);
+    border-top: 0.125rem solid var(--ctp-surface2);
+    padding: 0.5rem 0.625rem;
+    border-radius: 0 0 0.25rem 0.25rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--ctp-subtext1);
+  }
+
+  /* === Error === */
   .msg-error {
     color: var(--ctp-red);
     background: color-mix(in srgb, var(--ctp-red) 10%, transparent);
     padding: 0.375rem 0.5rem;
     border-radius: 0.1875rem;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
   }
 
+  /* === Status (non-hook) === */
   .msg-status {
     color: var(--ctp-overlay0);
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-style: italic;
   }
 
-  /* Status strip */
+  /* === Status strip === */
   .status-strip {
-    padding: 0.25rem 0.75rem;
-    border-top: 1px solid var(--ctp-surface0);
+    padding: 0.25rem var(--bterminal-pane-padding-inline, 0.75rem);
+    border-top: 1px solid var(--ctp-surface1);
     flex-shrink: 0;
+    font-size: 0.8125rem;
   }
 
   .running-indicator {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--ctp-blue);
+    font-size: 0.8125rem;
+    color: var(--ctp-subtext0);
   }
 
   .pulse {
@@ -818,6 +1053,48 @@
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
+  }
+
+  /* === Context meter === */
+  .context-meter {
+    position: relative;
+    width: 3.5rem;
+    height: 0.375rem;
+    background: var(--ctp-surface0);
+    border-radius: 0.1875rem;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .context-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: var(--ctp-blue);
+    border-radius: 0.1875rem;
+    transition: width 0.3s ease;
+  }
+
+  .context-fill.context-streaming {
+    animation: ctx-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes ctx-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .context-label {
+    position: relative;
+    z-index: 1;
+    font-size: 0.5rem;
+    font-family: var(--term-font-family, monospace);
+    color: var(--ctp-text);
+    width: 100%;
+    text-align: center;
+    line-height: 0.375rem;
   }
 
   .stop-btn {
@@ -861,21 +1138,20 @@
 
   .done-bar, .error-bar {
     display: flex;
-    gap: 0.75rem;
-    font-size: 0.6875rem;
-    font-family: var(--term-font-family, monospace);
+    gap: 0.625rem;
+    font-size: 0.8125rem;
     align-items: center;
   }
 
-  .done-bar { color: var(--ctp-green); }
-  .total-cost { color: var(--ctp-yellow); font-size: 0.625rem; }
+  .done-bar { color: var(--ctp-subtext0); }
+  .total-cost { color: var(--ctp-overlay1); font-size: 0.6875rem; }
   .error-bar { color: var(--ctp-red); }
 
-  /* Session controls */
+  /* === Session controls === */
   .session-controls {
     display: flex;
     gap: 0.5rem;
-    padding: 0.375rem 0.75rem;
+    padding: 0.375rem var(--bterminal-pane-padding-inline, 0.75rem);
     justify-content: center;
     flex-shrink: 0;
   }
@@ -886,7 +1162,7 @@
     gap: 0.375rem;
     padding: 0.25rem 0.75rem;
     border-radius: 0.25rem;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
@@ -916,16 +1192,14 @@
     color: var(--ctp-sapphire);
   }
 
-  /* VSCode-style prompt container */
+  /* === Prompt container === */
   .prompt-container {
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem var(--bterminal-pane-padding-inline, 0.75rem);
     flex-shrink: 0;
     border-top: 1px solid var(--ctp-surface0);
   }
 
-  .prompt-container.disabled {
-    opacity: 0.6;
-  }
+  .prompt-container.disabled { opacity: 0.6; }
 
   .prompt-wrapper {
     position: relative;
@@ -937,9 +1211,7 @@
     transition: border-color 0.15s ease;
   }
 
-  .prompt-wrapper:focus-within {
-    border-color: var(--ctp-blue);
-  }
+  .prompt-wrapper:focus-within { border-color: var(--ctp-blue); }
 
   .prompt-input {
     flex: 1;
@@ -947,7 +1219,7 @@
     border: none;
     color: var(--ctp-text);
     font-family: inherit;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     padding: 0.5rem 0.625rem;
     resize: none;
     min-height: 1.25rem;
@@ -956,17 +1228,9 @@
     overflow-y: auto;
   }
 
-  .prompt-input:focus {
-    outline: none;
-  }
-
-  .prompt-input::placeholder {
-    color: var(--ctp-overlay0);
-  }
-
-  .prompt-input:disabled {
-    cursor: not-allowed;
-  }
+  .prompt-input:focus { outline: none; }
+  .prompt-input::placeholder { color: var(--ctp-overlay0); }
+  .prompt-input:disabled { cursor: not-allowed; }
 
   .submit-icon-btn {
     display: flex;
@@ -984,9 +1248,7 @@
     transition: background 0.12s ease, opacity 0.12s ease;
   }
 
-  .submit-icon-btn:hover:not(:disabled) {
-    background: var(--ctp-sapphire);
-  }
+  .submit-icon-btn:hover:not(:disabled) { background: var(--ctp-sapphire); }
 
   .submit-icon-btn:disabled {
     background: var(--ctp-surface1);
@@ -994,7 +1256,7 @@
     cursor: not-allowed;
   }
 
-  /* Skill autocomplete */
+  /* === Skill autocomplete === */
   .skill-menu {
     position: absolute;
     bottom: 100%;
@@ -1019,7 +1281,7 @@
     background: none;
     border: none;
     color: var(--ctp-text);
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     cursor: pointer;
     font-family: inherit;
   }
@@ -1034,15 +1296,14 @@
     font-family: var(--term-font-family, monospace);
     color: var(--ctp-green);
     flex-shrink: 0;
+    font-size: 0.75rem;
   }
 
-  .skill-item:hover .skill-name, .skill-item.active .skill-name {
-    color: var(--ctp-crust);
-  }
+  .skill-item:hover .skill-name, .skill-item.active .skill-name { color: var(--ctp-crust); }
 
   .skill-desc {
     color: var(--ctp-overlay1);
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

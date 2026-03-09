@@ -55,4 +55,7 @@
   --pane-header-height: 32px;
   --pane-gap: 2px;
   --border-radius: 4px;
+
+  /* Pane content padding — shared between AgentPane and MarkdownPane */
+  --bterminal-pane-padding-inline: clamp(0.75rem, 3.5cqi, 2rem);
 }

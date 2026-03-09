@@ -78,8 +78,10 @@
   {#if error}
     <div class="error">{error}</div>
   {:else}
-    <div class="markdown-body">
-      {@html renderedHtml}
+    <div class="markdown-pane-scroll">
+      <div class="markdown-body">
+        {@html renderedHtml}
+      </div>
     </div>
   {/if}
   <div class="file-path">{filePath}</div>
@@ -94,10 +96,14 @@
     color: var(--ctp-text);
   }
 
-  .markdown-body {
+  .markdown-pane-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 1.75rem 2rem;
+    container-type: inline-size;
+  }
+
+  .markdown-body {
+    padding: 1.5rem var(--bterminal-pane-padding-inline, 2rem);
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
     font-size: 0.9rem;
     line-height: 1.7;
@@ -226,6 +232,8 @@
     line-height: 1.6;
     margin: 1.25em 0;
     box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ctp-surface1) 20%, transparent);
+    direction: ltr;
+    unicode-bidi: embed;
   }
 
   .markdown-body :global(pre code) {
