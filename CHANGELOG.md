@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
+### Changed
+- AgentPane UI redesign: sans-serif root font (system-ui), tool calls paired with results in collapsible `<details>` groups, hook messages collapsed into compact labels, context window usage meter in status strip, cost bar made minimal (no background), session summary with translucent background, two-phase scroll anchoring, tool-aware output truncation (Bash 500/Read 50/Glob 20 lines), colors softened via `color-mix()`, responsive margins via container queries (AgentPane.svelte)
+- MarkdownPane: added inner scroll wrapper with `container-type: inline-size`, responsive padding via shared `--bterminal-pane-padding-inline` variable (MarkdownPane.svelte)
+- Added `--bterminal-pane-padding-inline: clamp(0.75rem, 3.5cqi, 2rem)` shared CSS variable for responsive pane padding (catppuccin.css)
+
 ### Fixed
 - ProjectBox tab switch destroys running agent sessions: changed `{#if activeTab}` conditional rendering to CSS `style:display` (flex/none) for all three content panes and terminal section — ClaudeSession now stays mounted across tab switches, preserving session ID, message history, and running agents (ProjectBox.svelte)
 - Sidecar env var stripping now whitelists `CLAUDE_CODE_EXPERIMENTAL_*` vars (both Rust sidecar.rs and JS agent-runner.ts) — previously all `CLAUDE*` vars were stripped, blocking feature flags like agent teams from reaching the SDK (sidecar.rs, agent-runner.ts)

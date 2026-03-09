@@ -5,7 +5,7 @@
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
 - v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
 - v2 Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles, skill discovery.
-- v3 Mission Control (All Phases 1-10 Complete): project groups, workspace store, 12 Workspace components, session continuity, workspace teardown, dead v2 component cleanup. 138 vitest + 34 cargo tests.
+- v3 Mission Control (All Phases 1-10 Complete): project groups, workspace store, 12 Workspace components, session continuity, workspace teardown, dead v2 component cleanup. 139 vitest + 34 cargo tests.
 - v3 docs: `docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
@@ -71,7 +71,8 @@
 - v3 SQLite additions: agent_messages table (per-project message persistence), project_agent_state table (sdkSessionId, cost, status per project), sessions.project_id column.
 - v3 App.svelte: VSCode-style sidebar layout. Horizontal: left icon rail (GlobalTabBar, 2.75rem, single Settings gear icon) + expandable drawer panel (Settings only, content-driven width, max 50%) + main workspace (ProjectGrid always visible) + StatusBar. Sidebar has Settings only — Sessions/Docs/Context are project-specific (in ProjectBox tabs). Keyboard: Ctrl+B (toggle sidebar), Ctrl+, (settings), Escape (close).
 - v3 component tree: App -> GlobalTabBar (settings icon) + sidebar-panel? (SettingsTab) + workspace (ProjectGrid) + StatusBar. See `docs/v3-task_plan.md` for full tree.
-- MarkdownPane reactively watches filePath changes via $effect (not onMount-only). Uses sans-serif font (--ui-font-family), all --ctp-* theme vars. Styled blockquotes with translucent backgrounds, table row hover, link hover underlines.
+- MarkdownPane reactively watches filePath changes via $effect (not onMount-only). Uses sans-serif font (Inter, system-ui), all --ctp-* theme vars. Styled blockquotes with translucent backgrounds, table row hover, link hover underlines. Inner `.markdown-pane-scroll` wrapper with `container-type: inline-size` for responsive padding via `--bterminal-pane-padding-inline`.
+- AgentPane UI (redesigned 2026-03-09): sans-serif root font (`system-ui, -apple-system, sans-serif`), monospace only on code/tool names. Tool calls paired with results in collapsible `<details>` groups via `$derived.by` toolResultMap (cache-guarded by tool_result count). Hook messages collapsed into compact `<details>` with gear icon. Context window meter inline in status strip. Cost bar minimal (no background, subtle border-top). Session summary with translucent surface background. Two-phase scroll anchoring (`$effect.pre` + `$effect`). Tool-aware output truncation (Bash 500 lines, Read/Write 50, Glob/Grep 20, default 30). Colors softened via `color-mix()`. Inner `.agent-pane-scroll` wrapper with `container-type: inline-size` for responsive padding via shared `--bterminal-pane-padding-inline` variable.
 - ProjectBox uses CSS `style:display` (flex/none) instead of `{#if}` for tab content panes — keeps ClaudeSession mounted across tab switches (prevents session ID reset and message loss). Terminal section also uses `style:display`. Grid rows: auto auto 1fr auto.
 - Svelte 5 event syntax: use `onclick` not `on:click`. Svelte 5 requires lowercase event handler attributes (no colon syntax).
 

@@ -8,6 +8,8 @@
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Env var whitelist fix done. 3 test sessions ran ($1.10, $0.69, $1.70) but model didn't spawn subagents — needs complex multi-part prompts to trigger delegation. Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 
+- [ ] **AgentPane visual verification** -- Redesigned UI not yet tested in dev mode. Launch `npm run tauri dev` and verify tool grouping, hook collapsing, context meter, scroll anchoring work correctly.
+
 ## Completed
 
 - [x] **E2E testing — consolidated & expanded** -- Consolidated 4 spec files into single bterminal.test.ts (Tauri single-session requirement). 25 tests across 4 describe blocks: Smoke(6), Workspace(8), Settings(6), Keyboard(5). Fixed WebDriver clicks on Svelte components via browser.execute(), removed tauri-plugin-log (redundant with telemetry::init()). | Done: 2026-03-08
@@ -20,3 +22,4 @@
 - [x] **ContextPane project-scoped redesign** -- Auto-registers project in ctx DB on mount. Removed project selector. | Done: 2026-03-08
 - [x] **ctx init fix + UI init button** -- Fixed ctx CLI, added Initialize Database button in ContextPane. | Done: 2026-03-08
 - [x] **Premium markdown typography** -- MarkdownPane CSS overhaul with Inter font, prose spacing, gradient HR. | Done: 2026-03-08
+- [x] **AgentPane + MarkdownPane UI redesign** -- AgentPane: sans-serif font, tool call/result pairing via $derived.by, hook message collapsing, context meter, muted colors via color-mix(), responsive margins via container queries. MarkdownPane: container query wrapper, shared responsive padding variable. Tribunal-elected design (S-3-R4, 88% confidence). 139/139 tests pass. | Done: 2026-03-09

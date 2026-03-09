@@ -8,3 +8,4 @@ plugins/
 projects/
 .playwright-mcp/
 v2/.audit/
+.tribunal/

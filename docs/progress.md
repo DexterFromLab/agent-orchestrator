@@ -2,6 +2,18 @@
 
 > Earlier sessions (2026-03-05 to 2026-03-06 multi-machine): see [progress-archive.md](progress-archive.md)
 
+### Session: 2026-03-09 — AgentPane + MarkdownPane UI Redesign
+
+#### Tribunal-Elected Design (S-3-R4, 88% confidence)
+- [x] AgentPane full rewrite: sans-serif root font, tool call/result pairing via `$derived.by` toolResultMap, hook message collapsing, context window meter, cost bar minimized, session summary styling
+- [x] Two-phase scroll anchoring (`$effect.pre` + `$effect`)
+- [x] Tool-aware output truncation (Bash 500, Read/Write 50, Glob/Grep 20, default 30 lines)
+- [x] Colors softened via `color-mix(in srgb, var(--ctp-*) 65%, var(--ctp-surface1) 35%)`
+- [x] MarkdownPane: container query wrapper, shared responsive padding variable
+- [x] catppuccin.css: `--bterminal-pane-padding-inline: clamp(0.75rem, 3.5cqi, 2rem)`
+- [x] 139/139 vitest passing, 0 new TypeScript errors
+- [ ] Visual verification in dev mode (pending)
+
 ### Session: 2026-03-06 (continued) — Sidecar Env Var Bug Fix
 
 #### CLAUDE* Environment Variable Leak (critical fix)
