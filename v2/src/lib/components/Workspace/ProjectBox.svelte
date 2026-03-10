@@ -7,6 +7,9 @@
   import TeamAgentsPanel from './TeamAgentsPanel.svelte';
   import ProjectFiles from './ProjectFiles.svelte';
   import ContextPane from '../Context/ContextPane.svelte';
+  import FilesTab from './FilesTab.svelte';
+  import SshTab from './SshTab.svelte';
+  import MemoriesTab from './MemoriesTab.svelte';
   import { getTerminalTabs } from '../../stores/workspace.svelte';
 
   interface Props {
@@ -22,11 +25,22 @@
   let mainSessionId = $state<string | null>(null);
   let terminalExpanded = $state(false);
 
-  type ProjectTab = 'claude' | 'files' | 'context';
-  let activeTab = $state<ProjectTab>('claude');
+  type ProjectTab = 'model' | 'docs' | 'context' | 'files' | 'ssh' | 'memories';
+  let activeTab = $state<ProjectTab>('model');
+
+  // PERSISTED-LAZY: track which tabs have been activated at least once
+  let everActivated = $state<Record<string, boolean>>({});
 
   let termTabs = $derived(getTerminalTabs(project.id));
   let termTabCount = $derived(termTabs.length);
+
+  /** Activate a tab — for lazy tabs, mark as ever-activated */
+  function switchTab(tab: ProjectTab) {
+    activeTab = tab;
+    if (!everActivated[tab]) {
+      everActivated = { ...everActivated, [tab]: true };
+    }
+  }
 
   function toggleTerminal() {
     terminalExpanded = !terminalExpanded;
@@ -48,38 +62,70 @@
   <div class="project-tabs">
     <button
       class="ptab"
-      class:active={activeTab === 'claude'}
-      onclick={() => activeTab = 'claude'}
-    >Claude</button>
+      class:active={activeTab === 'model'}
+      onclick={() => switchTab('model')}
+    >Model</button>
     <button
       class="ptab"
-      class:active={activeTab === 'files'}
-      onclick={() => activeTab = 'files'}
-    >Files</button>
+      class:active={activeTab === 'docs'}
+      onclick={() => switchTab('docs')}
+    >Docs</button>
     <button
       class="ptab"
       class:active={activeTab === 'context'}
-      onclick={() => activeTab = 'context'}
+      onclick={() => switchTab('context')}
     >Context</button>
+    <button
+      class="ptab"
+      class:active={activeTab === 'files'}
+      onclick={() => switchTab('files')}
+    >Files</button>
+    <button
+      class="ptab"
+      class:active={activeTab === 'ssh'}
+      onclick={() => switchTab('ssh')}
+    >SSH</button>
+    <button
+      class="ptab"
+      class:active={activeTab === 'memories'}
+      onclick={() => switchTab('memories')}
+    >Memory</button>
   </div>
 
   <div class="project-content-area">
-    <!-- Use CSS display instead of {#if} to keep ClaudeSession alive across tab switches -->
-    <div class="content-pane" style:display={activeTab === 'claude' ? 'flex' : 'none'}>
+    <!-- PERSISTED-EAGER: always mounted, toggled via display -->
+    <div class="content-pane" style:display={activeTab === 'model' ? 'flex' : 'none'}>
       <ClaudeSession {project} onsessionid={(id) => mainSessionId = id} />
       {#if mainSessionId}
         <TeamAgentsPanel {mainSessionId} />
       {/if}
     </div>
-    <div class="content-pane" style:display={activeTab === 'files' ? 'flex' : 'none'}>
+    <div class="content-pane" style:display={activeTab === 'docs' ? 'flex' : 'none'}>
       <ProjectFiles cwd={project.cwd} projectName={project.name} />
     </div>
     <div class="content-pane" style:display={activeTab === 'context' ? 'flex' : 'none'}>
       <ContextPane projectName={project.name} projectCwd={project.cwd} />
     </div>
+
+    <!-- PERSISTED-LAZY: mount on first activation, then toggle via display -->
+    {#if everActivated['files']}
+      <div class="content-pane" style:display={activeTab === 'files' ? 'flex' : 'none'}>
+        <FilesTab cwd={project.cwd} />
+      </div>
+    {/if}
+    {#if everActivated['ssh']}
+      <div class="content-pane" style:display={activeTab === 'ssh' ? 'flex' : 'none'}>
+        <SshTab projectId={project.id} />
+      </div>
+    {/if}
+    {#if everActivated['memories']}
+      <div class="content-pane" style:display={activeTab === 'memories' ? 'flex' : 'none'}>
+        <MemoriesTab />
+      </div>
+    {/if}
   </div>
 
-  <div class="terminal-section" style:display={activeTab === 'claude' ? 'flex' : 'none'}>
+  <div class="terminal-section" style:display={activeTab === 'model' ? 'flex' : 'none'}>
       <button class="terminal-toggle" onclick={toggleTerminal}>
         <span class="toggle-chevron" class:expanded={terminalExpanded}>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
