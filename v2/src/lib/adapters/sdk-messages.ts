@@ -8,6 +8,7 @@ export type AgentMessageType =
   | 'tool_call'
   | 'tool_result'
   | 'status'
+  | 'compaction'
   | 'cost'
   | 'error'
   | 'unknown';
@@ -60,6 +61,11 @@ export interface CostContent {
   isError: boolean;
   result?: string;
   errors?: string[];
+}
+
+export interface CompactionContent {
+  trigger: 'manual' | 'auto';
+  preTokens: number;
 }
 
 export interface ErrorContent {
@@ -121,6 +127,21 @@ function adaptSystemMessage(
         cwd: str(raw.cwd),
         tools: Array.isArray(raw.tools) ? raw.tools.filter((t): t is string => typeof t === 'string') : [],
       } satisfies InitContent,
+      timestamp,
+    }];
+  }
+
+  if (subtype === 'compact_boundary') {
+    const meta = typeof raw.compact_metadata === 'object' && raw.compact_metadata !== null
+      ? raw.compact_metadata as Record<string, unknown>
+      : {};
+    return [{
+      id: uuid,
+      type: 'compaction',
+      content: {
+        trigger: str(meta.trigger, 'auto') as 'manual' | 'auto',
+        preTokens: num(meta.pre_tokens),
+      } satisfies CompactionContent,
       timestamp,
     }];
   }

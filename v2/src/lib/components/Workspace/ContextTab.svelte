@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getAgentSession, getTotalCost, type AgentSession } from '../../stores/agents.svelte';
-  import type { AgentMessage, ToolCallContent, CostContent } from '../../adapters/sdk-messages';
+  import type { AgentMessage, ToolCallContent, CostContent, CompactionContent } from '../../adapters/sdk-messages';
 
   interface Props {
     sessionId: string | null;
@@ -15,6 +15,33 @@
 
   // Context window size (Claude 3.5 Sonnet = 200k, Opus = 200k)
   const CONTEXT_WINDOW = 200_000;
+
+  // --- Compaction tracking ---
+  interface CompactionEvent {
+    timestamp: number;
+    trigger: 'manual' | 'auto';
+    preTokens: number;
+    messageIndex: number;
+  }
+
+  let compactions = $derived.by((): CompactionEvent[] => {
+    const events: CompactionEvent[] = [];
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (msg.type === 'compaction') {
+        const c = msg.content as CompactionContent;
+        events.push({
+          timestamp: msg.timestamp,
+          trigger: c.trigger,
+          preTokens: c.preTokens,
+          messageIndex: i,
+        });
+      }
+    }
+    return events;
+  });
+
+  let lastCompaction = $derived(compactions.length > 0 ? compactions[compactions.length - 1] : null);
 
   // --- Token category breakdown ---
   interface TokenCategory {
@@ -293,6 +320,33 @@
 
     for (const msg of messages) {
       if (msg.type === 'init' || msg.type === 'status') continue;
+
+      if (msg.type === 'compaction') {
+        // Insert compaction boundary marker
+        if (currentTurn) {
+          turnNodes.push(currentTurn);
+          currentTurn = null;
+          currentToolCall = null;
+        }
+        const c = msg.content as CompactionContent;
+        turnNodes.push({
+          id: `compact-${msg.id}`,
+          label: `Compacted (${c.trigger})`,
+          type: 'turn',
+          color: 'var(--ctp-red)',
+          tokens: c.preTokens,
+          children: [{
+            id: `compact-detail-${msg.id}`,
+            label: `${formatTokens(c.preTokens)} tokens removed`,
+            type: 'error',
+            color: 'var(--ctp-red)',
+            tokens: 0,
+            children: [],
+            detail: `Context was ${c.trigger === 'auto' ? 'automatically' : 'manually'} compacted. ${formatTokens(c.preTokens)} tokens of earlier conversation were summarized.`,
+          }],
+        });
+        continue;
+      }
 
       if (msg.type === 'cost') {
         // End of turn
@@ -616,6 +670,12 @@
       <div class="stat status-pill" class:running={session.status === 'running'} class:done={session.status === 'done'} class:error={session.status === 'error'}>
         <span class="stat-value">{session.status}</span>
       </div>
+      {#if compactions.length > 0}
+        <div class="stat compaction-pill" title="Context compacted {compactions.length} time{compactions.length > 1 ? 's' : ''}. Last: {lastCompaction?.trigger} ({formatTokens(lastCompaction?.preTokens ?? 0)} tokens summarized)">
+          <span class="stat-value">{compactions.length}×</span>
+          <span class="stat-label">compacted</span>
+        </div>
+      {/if}
     </div>
 
     <!-- Context Meter -->
@@ -986,6 +1046,12 @@
   .status-pill.done .stat-value { color: var(--ctp-blue); }
   .status-pill.error { background: color-mix(in srgb, var(--ctp-red) 15%, transparent); }
   .status-pill.error .stat-value { color: var(--ctp-red); }
+
+  .compaction-pill {
+    background: color-mix(in srgb, var(--ctp-yellow) 15%, transparent);
+  }
+  .compaction-pill .stat-value { color: var(--ctp-yellow); }
+  .compaction-pill .stat-label { color: var(--ctp-yellow); opacity: 0.7; }
 
   /* Context meter */
   .meter-section {
