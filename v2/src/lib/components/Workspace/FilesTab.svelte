@@ -270,16 +270,18 @@
     {#if fileTabs.length > 0}
       <div class="file-tab-bar">
         {#each fileTabs as tab (tab.path)}
-          <button
+          <div
             class="file-tab"
             class:active={activeTabPath === tab.path}
             class:preview={!tab.pinned}
             onclick={() => activeTabPath = tab.path}
             ondblclick={() => { tab.pinned = true; }}
+            role="tab"
+            tabindex="0"
           >
             <span class="file-tab-name" class:italic={!tab.pinned}>{tab.name}</span>
             <button class="file-tab-close" onclick={(e) => { e.stopPropagation(); closeTab(tab.path); }}>×</button>
-          </button>
+          </div>
         {/each}
       </div>
     {/if}
