@@ -269,6 +269,304 @@
     else next.add(idx);
     expandedTurns = next;
   }
+
+  // --- Sub-tab navigation ---
+  type ContextSubTab = 'overview' | 'ast' | 'graph';
+  let activeSubTab = $state<ContextSubTab>('overview');
+
+  // --- AST Tree ---
+  interface AstNode {
+    id: string;
+    label: string;
+    type: 'turn' | 'thinking' | 'text' | 'tool_call' | 'tool_result' | 'file' | 'error';
+    color: string;
+    tokens: number;
+    children: AstNode[];
+    detail?: string;
+  }
+
+  let astTree = $derived.by((): AstNode[] => {
+    const turnNodes: AstNode[] = [];
+    let turnIdx = 0;
+    let currentTurn: AstNode | null = null;
+    let currentToolCall: AstNode | null = null;
+
+    for (const msg of messages) {
+      if (msg.type === 'init' || msg.type === 'status') continue;
+
+      if (msg.type === 'cost') {
+        // End of turn
+        if (currentTurn) {
+          turnNodes.push(currentTurn);
+          currentTurn = null;
+          currentToolCall = null;
+        }
+        continue;
+      }
+
+      // Start new turn if needed
+      if (!currentTurn) {
+        currentTurn = {
+          id: `turn-${turnIdx}`,
+          label: `Turn ${++turnIdx}`,
+          type: 'turn',
+          color: 'var(--ctp-lavender)',
+          tokens: 0,
+          children: [],
+        };
+      }
+
+      const est = estimateTokens(msg);
+      currentTurn.tokens += est;
+
+      if (msg.type === 'thinking') {
+        currentTurn.children.push({
+          id: `think-${msg.id}`,
+          label: 'Thinking',
+          type: 'thinking',
+          color: 'var(--ctp-mauve)',
+          tokens: est,
+          children: [],
+          detail: truncateText(extractText(msg), 60),
+        });
+        currentToolCall = null;
+      } else if (msg.type === 'text') {
+        currentTurn.children.push({
+          id: `text-${msg.id}`,
+          label: 'Response',
+          type: 'text',
+          color: 'var(--ctp-green)',
+          tokens: est,
+          children: [],
+          detail: truncateText(extractText(msg), 60),
+        });
+        currentToolCall = null;
+      } else if (msg.type === 'tool_call') {
+        const tc = msg.content as ToolCallContent;
+        const tcNode: AstNode = {
+          id: `tc-${tc.toolUseId}`,
+          label: tc.name,
+          type: 'tool_call',
+          color: 'var(--ctp-peach)',
+          tokens: est,
+          children: [],
+        };
+
+        // Add file references as children of tool call
+        const files = extractFilePaths(tc);
+        for (const f of files) {
+          tcNode.children.push({
+            id: `file-${tc.toolUseId}-${f.path}`,
+            label: f.path.split('/').pop() ?? f.path,
+            type: 'file',
+            color: opColor(f.op),
+            tokens: 0,
+            children: [],
+            detail: f.path,
+          });
+        }
+
+        currentTurn.children.push(tcNode);
+        currentToolCall = tcNode;
+      } else if (msg.type === 'tool_result') {
+        // Attach result size to the matching tool call
+        if (currentToolCall) {
+          currentToolCall.tokens += est;
+          currentToolCall.detail = `${formatTokens(currentToolCall.tokens)} tokens`;
+        }
+      } else if (msg.type === 'error') {
+        currentTurn.children.push({
+          id: `err-${msg.id}`,
+          label: 'Error',
+          type: 'error',
+          color: 'var(--ctp-red)',
+          tokens: est,
+          children: [],
+          detail: extractText(msg),
+        });
+      }
+    }
+
+    // Push final turn if not ended by cost
+    if (currentTurn && currentTurn.children.length > 0) {
+      turnNodes.push(currentTurn);
+    }
+
+    return turnNodes;
+  });
+
+  // --- Tool Graph ---
+  interface GraphNode {
+    id: string;
+    label: string;
+    type: 'file' | 'tool';
+    x: number;
+    y: number;
+    color: string;
+    count: number;
+  }
+
+  interface GraphEdge {
+    from: string;
+    to: string;
+    op: string;
+    color: string;
+  }
+
+  let toolGraph = $derived.by((): { nodes: GraphNode[]; edges: GraphEdge[] } => {
+    const fileNodes = new Map<string, { label: string; count: number; ops: Set<string> }>();
+    const toolNodes = new Map<string, { count: number }>();
+    const edges: GraphEdge[] = [];
+
+    for (const msg of messages) {
+      if (msg.type !== 'tool_call') continue;
+      const tc = msg.content as ToolCallContent;
+      const toolName = tc.name;
+
+      // Track tool node
+      const existing = toolNodes.get(toolName);
+      if (existing) existing.count++;
+      else toolNodes.set(toolName, { count: 1 });
+
+      // Track file nodes and edges
+      const files = extractFilePaths(tc);
+      for (const f of files) {
+        const fNode = fileNodes.get(f.path);
+        if (fNode) {
+          fNode.count++;
+          fNode.ops.add(f.op);
+        } else {
+          fileNodes.set(f.path, {
+            label: f.path.split('/').pop() ?? f.path,
+            count: 1,
+            ops: new Set([f.op]),
+          });
+        }
+
+        edges.push({
+          from: `tool-${toolName}`,
+          to: `file-${f.path}`,
+          op: f.op,
+          color: opColor(f.op),
+        });
+      }
+    }
+
+    // Layout: tools on left, files on right
+    const nodes: GraphNode[] = [];
+    const toolList = Array.from(toolNodes.entries()).sort((a, b) => b[1].count - a[1].count);
+    const fileList = Array.from(fileNodes.entries()).sort((a, b) => b[1].count - a[1].count);
+
+    const NODE_SPACING = 36;
+    const LEFT_X = 20;
+    const RIGHT_X = 220;
+
+    toolList.forEach(([name, data], i) => {
+      nodes.push({
+        id: `tool-${name}`,
+        label: name,
+        type: 'tool',
+        x: LEFT_X,
+        y: 20 + i * NODE_SPACING,
+        color: toolColor(name),
+        count: data.count,
+      });
+    });
+
+    fileList.forEach(([path, data], i) => {
+      nodes.push({
+        id: `file-${path}`,
+        label: data.label,
+        type: 'file',
+        x: RIGHT_X,
+        y: 20 + i * NODE_SPACING,
+        color: 'var(--ctp-text)',
+        count: data.count,
+      });
+    });
+
+    // Deduplicate edges (same from→to, aggregate)
+    const edgeMap = new Map<string, GraphEdge>();
+    for (const e of edges) {
+      const key = `${e.from}→${e.to}`;
+      if (!edgeMap.has(key)) edgeMap.set(key, e);
+    }
+
+    return { nodes, edges: Array.from(edgeMap.values()) };
+  });
+
+  // AST layout helpers
+  const AST_NODE_W = 110;
+  const AST_NODE_H = 28;
+  const AST_H_GAP = 16;
+  const AST_V_GAP = 6;
+
+  interface AstLayout {
+    node: AstNode;
+    x: number;
+    y: number;
+    children: AstLayout[];
+  }
+
+  function layoutAst(node: AstNode, x: number, y: number): { layout: AstLayout; height: number } {
+    if (node.children.length === 0) {
+      return { layout: { node, x, y, children: [] }, height: AST_NODE_H };
+    }
+
+    const childLayouts: AstLayout[] = [];
+    let childY = y;
+    let totalHeight = 0;
+
+    for (const child of node.children) {
+      const result = layoutAst(child, x + AST_NODE_W + AST_H_GAP, childY);
+      childLayouts.push(result.layout);
+      childY += result.height + AST_V_GAP;
+      totalHeight += result.height + AST_V_GAP;
+    }
+    totalHeight -= AST_V_GAP;
+
+    const parentY = childLayouts.length > 0
+      ? (childLayouts[0].y + childLayouts[childLayouts.length - 1].y) / 2
+      : y;
+
+    return {
+      layout: { node, x, y: parentY, children: childLayouts },
+      height: Math.max(AST_NODE_H, totalHeight),
+    };
+  }
+
+  function astSvgWidth(layout: AstLayout): number {
+    let maxX = layout.x + AST_NODE_W;
+    for (const child of layout.children) maxX = Math.max(maxX, astSvgWidth(child));
+    return maxX + 12;
+  }
+
+  // Helpers
+  function extractText(msg: AgentMessage): string {
+    const c = msg.content;
+    if (typeof c === 'string') return c;
+    if (c && typeof c === 'object' && 'text' in c) return String((c as Record<string, unknown>).text ?? '');
+    if (c && typeof c === 'object' && 'message' in c) return String((c as Record<string, unknown>).message ?? '');
+    return '';
+  }
+
+  function truncateText(text: string, maxLen: number): string {
+    if (text.length <= maxLen) return text;
+    return text.slice(0, maxLen - 1) + '…';
+  }
+
+  function toolColor(name: string): string {
+    switch (name) {
+      case 'Read': case 'read': return 'var(--ctp-blue)';
+      case 'Write': case 'write': return 'var(--ctp-peach)';
+      case 'Edit': case 'edit': return 'var(--ctp-peach)';
+      case 'Grep': case 'grep': return 'var(--ctp-mauve)';
+      case 'Glob': case 'glob': return 'var(--ctp-teal)';
+      case 'Bash': case 'bash': return 'var(--ctp-yellow)';
+      case 'Agent': case 'Task': return 'var(--ctp-flamingo)';
+      default: return 'var(--ctp-sapphire)';
+    }
+  }
 </script>
 
 <div class="context-tab">
@@ -284,6 +582,15 @@
       <p class="empty-hint">Start an agent session to see context window analysis</p>
     </div>
   {:else}
+    <!-- Sub-tab switcher -->
+    <div class="sub-tabs">
+      <button class="sub-tab" class:active={activeSubTab === 'overview'} onclick={() => activeSubTab = 'overview'}>Overview</button>
+      <button class="sub-tab" class:active={activeSubTab === 'ast'} onclick={() => activeSubTab = 'ast'}>AST</button>
+      <button class="sub-tab" class:active={activeSubTab === 'graph'} onclick={() => activeSubTab = 'graph'}>Graph</button>
+    </div>
+
+    <!-- Overview panel -->
+    <div class="sub-panel" style:display={activeSubTab === 'overview' ? 'flex' : 'none'}>
     <!-- Stats Bar -->
     <div class="stats-bar">
       <div class="stat">
@@ -413,6 +720,195 @@
           <div class="turns-empty">No turns yet</div>
         {/if}
       </div>
+    </div>
+    </div>
+
+    <!-- AST panel -->
+    <div class="sub-panel ast-panel" style:display={activeSubTab === 'ast' ? 'flex' : 'none'}>
+      {#if astTree.length === 0}
+        <div class="turns-empty">No conversation data yet</div>
+      {:else}
+        <div class="ast-scroll">
+          {#each astTree as turnNode (turnNode.id)}
+            {@const result = layoutAst(turnNode, 8, 8)}
+            {@const svgW = astSvgWidth(result.layout)}
+            {@const svgH = Math.max(50, result.height + 20)}
+            <div class="ast-turn-block">
+              <div class="ast-turn-label">
+                <span class="ast-turn-name">{turnNode.label}</span>
+                <span class="ast-turn-tokens">{formatTokens(turnNode.tokens)}</span>
+              </div>
+              <div class="ast-svg-wrap">
+                <svg width={svgW} height={svgH}>
+                  {#snippet renderAstNode(layout: AstLayout)}
+                    <!-- Edges -->
+                    {#each layout.children as child}
+                      <path
+                        d="M {layout.x + AST_NODE_W} {layout.y + AST_NODE_H / 2}
+                           C {layout.x + AST_NODE_W + AST_H_GAP / 2} {layout.y + AST_NODE_H / 2},
+                             {child.x - AST_H_GAP / 2} {child.y + AST_NODE_H / 2},
+                             {child.x} {child.y + AST_NODE_H / 2}"
+                        fill="none"
+                        stroke="var(--ctp-surface1)"
+                        stroke-width="1"
+                      />
+                    {/each}
+
+                    <!-- Node -->
+                    <rect
+                      x={layout.x}
+                      y={layout.y}
+                      width={AST_NODE_W}
+                      height={AST_NODE_H}
+                      rx="4"
+                      fill="color-mix(in srgb, {layout.node.color} 12%, var(--ctp-surface0))"
+                      stroke={layout.node.color}
+                      stroke-width="1"
+                    />
+                    <!-- Status dot -->
+                    <circle
+                      cx={layout.x + 8}
+                      cy={layout.y + AST_NODE_H / 2}
+                      r="3"
+                      fill={layout.node.color}
+                    />
+                    <!-- Label -->
+                    <text
+                      x={layout.x + 16}
+                      y={layout.y + AST_NODE_H / 2}
+                      fill="var(--ctp-text)"
+                      font-size="9"
+                      font-family="var(--term-font-family, monospace)"
+                      dominant-baseline="middle"
+                    >{truncateText(layout.node.label, 12)}</text>
+                    <!-- Token count (right side) -->
+                    {#if layout.node.tokens > 0}
+                      <text
+                        x={layout.x + AST_NODE_W - 4}
+                        y={layout.y + AST_NODE_H / 2}
+                        fill="var(--ctp-overlay0)"
+                        font-size="7"
+                        font-family="var(--term-font-family, monospace)"
+                        dominant-baseline="middle"
+                        text-anchor="end"
+                      >{formatTokens(layout.node.tokens)}</text>
+                    {/if}
+
+                    <!-- Tooltip title -->
+                    {#if layout.node.detail}
+                      <title>{layout.node.detail}</title>
+                    {/if}
+
+                    {#each layout.children as child}
+                      {@render renderAstNode(child)}
+                    {/each}
+                  {/snippet}
+
+                  {@render renderAstNode(result.layout)}
+                </svg>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Graph panel -->
+    <div class="sub-panel graph-panel" style:display={activeSubTab === 'graph' ? 'flex' : 'none'}>
+      {#if toolGraph.nodes.length === 0}
+        <div class="turns-empty">No tool calls yet</div>
+      {:else}
+        {@const maxY = Math.max(...toolGraph.nodes.map(n => n.y)) + 40}
+        <div class="graph-scroll">
+          <svg width="380" height={maxY}>
+            <!-- Edges -->
+            {#each toolGraph.edges as edge}
+              {@const fromNode = toolGraph.nodes.find(n => n.id === edge.from)}
+              {@const toNode = toolGraph.nodes.find(n => n.id === edge.to)}
+              {#if fromNode && toNode}
+                <path
+                  d="M {fromNode.x + 80} {fromNode.y + 14}
+                     C {fromNode.x + 140} {fromNode.y + 14},
+                       {toNode.x - 60} {toNode.y + 14},
+                       {toNode.x} {toNode.y + 14}"
+                  fill="none"
+                  stroke={edge.color}
+                  stroke-width="1"
+                  opacity="0.4"
+                />
+              {/if}
+            {/each}
+
+            <!-- Nodes -->
+            {#each toolGraph.nodes as node (node.id)}
+              {#if node.type === 'tool'}
+                <!-- Tool node (left side) -->
+                <rect
+                  x={node.x}
+                  y={node.y}
+                  width="80"
+                  height="28"
+                  rx="4"
+                  fill="color-mix(in srgb, {node.color} 15%, var(--ctp-surface0))"
+                  stroke={node.color}
+                  stroke-width="1"
+                />
+                <text
+                  x={node.x + 8}
+                  y={node.y + 14}
+                  fill={node.color}
+                  font-size="9"
+                  font-weight="600"
+                  font-family="var(--term-font-family, monospace)"
+                  dominant-baseline="middle"
+                >{node.label}</text>
+                <text
+                  x={node.x + 76}
+                  y={node.y + 14}
+                  fill="var(--ctp-overlay0)"
+                  font-size="7"
+                  font-family="var(--term-font-family, monospace)"
+                  dominant-baseline="middle"
+                  text-anchor="end"
+                >{node.count}×</text>
+              {:else}
+                <!-- File node (right side) -->
+                <rect
+                  x={node.x}
+                  y={node.y}
+                  width="140"
+                  height="28"
+                  rx="4"
+                  fill="var(--ctp-surface0)"
+                  stroke="var(--ctp-surface1)"
+                  stroke-width="1"
+                />
+                <text
+                  x={node.x + 8}
+                  y={node.y + 14}
+                  fill="var(--ctp-text)"
+                  font-size="8"
+                  font-family="var(--term-font-family, monospace)"
+                  dominant-baseline="middle"
+                >{truncateText(node.label, 16)}</text>
+                <text
+                  x={node.x + 136}
+                  y={node.y + 14}
+                  fill="var(--ctp-overlay0)"
+                  font-size="7"
+                  font-family="var(--term-font-family, monospace)"
+                  dominant-baseline="middle"
+                  text-anchor="end"
+                >{node.count}×</text>
+              {/if}
+            {/each}
+
+            <!-- Column headers -->
+            <text x="20" y="10" fill="var(--ctp-overlay0)" font-size="8" font-weight="600" text-transform="uppercase">Tools</text>
+            <text x="220" y="10" fill="var(--ctp-overlay0)" font-size="8" font-weight="600" text-transform="uppercase">Files</text>
+          </svg>
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -795,5 +1291,113 @@
     font-size: 0.7rem;
     text-align: center;
     padding: 1rem;
+  }
+
+  /* Sub-tabs */
+  .sub-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--ctp-mantle);
+    border-bottom: 1px solid var(--ctp-surface0);
+    flex-shrink: 0;
+  }
+
+  .sub-tab {
+    padding: 0.25rem 0.75rem;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--ctp-overlay1);
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.12s, background 0.12s, border-color 0.12s;
+  }
+
+  .sub-tab:hover {
+    color: var(--ctp-subtext1);
+    background: var(--ctp-surface0);
+  }
+
+  .sub-tab.active {
+    color: var(--ctp-text);
+    font-weight: 600;
+    border-bottom-color: var(--ctp-blue);
+    background: var(--ctp-base);
+  }
+
+  .sub-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* AST */
+  .ast-panel {
+    gap: 0.125rem;
+  }
+
+  .ast-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.375rem;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .ast-turn-block {
+    border: 1px solid var(--ctp-surface0);
+    border-radius: 0.375rem;
+    overflow: hidden;
+    background: var(--ctp-base);
+  }
+
+  .ast-turn-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25rem 0.5rem;
+    background: var(--ctp-mantle);
+    border-bottom: 1px solid var(--ctp-surface0);
+  }
+
+  .ast-turn-name {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--ctp-lavender);
+  }
+
+  .ast-turn-tokens {
+    font-size: 0.575rem;
+    font-family: var(--term-font-family, monospace);
+    color: var(--ctp-overlay1);
+  }
+
+  .ast-svg-wrap {
+    overflow-x: auto;
+    padding: 0.25rem;
+  }
+
+  .ast-svg-wrap svg {
+    display: block;
+  }
+
+  /* Graph */
+  .graph-panel {
+    padding: 0.375rem;
+  }
+
+  .graph-scroll {
+    overflow: auto;
+    flex: 1;
+  }
+
+  .graph-scroll svg {
+    display: block;
   }
 </style>
