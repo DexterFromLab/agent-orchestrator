@@ -566,6 +566,19 @@ fn read_file_content(path: String) -> Result<FileContent, String> {
     Ok(FileContent::Text { content, lang })
 }
 
+// --- Write file ---
+
+#[tauri::command]
+fn write_file_content(path: String, content: String) -> Result<(), String> {
+    let file_path = std::path::Path::new(&path);
+    // Safety: only write to existing files (no arbitrary path creation)
+    if !file_path.is_file() {
+        return Err(format!("Not an existing file: {path}"));
+    }
+    std::fs::write(&path, content.as_bytes())
+        .map_err(|e| format!("Failed to write file: {e}"))
+}
+
 // Directory picker: custom rfd command with parent window for modal behavior on Linux
 #[tauri::command]
 async fn pick_directory(window: tauri::Window) -> Result<Option<String>, String> {
@@ -743,6 +756,7 @@ pub fn run() {
             discover_markdown_files,
             list_directory_children,
             read_file_content,
+            write_file_content,
             agent_messages_save,
             agent_messages_load,
             project_agent_state_save,

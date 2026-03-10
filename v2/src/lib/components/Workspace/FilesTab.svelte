@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { listDirectoryChildren, readFileContent, type DirEntry, type FileContent } from '../../adapters/files-bridge';
-  import { getHighlighter, highlightCode, escapeHtml } from '../../utils/highlight';
+  import { listDirectoryChildren, readFileContent, writeFileContent, type DirEntry, type FileContent } from '../../adapters/files-bridge';
+  import { getSetting } from '../../adapters/settings-bridge';
   import { convertFileSrc } from '@tauri-apps/api/core';
+  import CodeEditor from './CodeEditor.svelte';
 
   interface Props {
     cwd: string;
@@ -22,11 +23,12 @@
     name: string;
     pinned: boolean;
     content: FileContent | null;
+    dirty: boolean;
+    editContent: string; // current editor content (may differ from saved)
   }
 
   let roots = $state<TreeNode[]>([]);
   let expandedPaths = $state<Set<string>>(new Set());
-  let highlighterReady = $state(false);
 
   // Tab state: open file tabs + active tab
   let fileTabs = $state<FileTab[]>([]);
@@ -38,16 +40,21 @@
   let sidebarWidth = $state(14); // rem
   let resizing = $state(false);
 
+  // Settings
+  let saveOnBlur = $state(false);
+
   // Derived: active tab's content
   let activeTab = $derived(fileTabs.find(t => t.path === activeTabPath) ?? null);
 
-  // Load root directory
+  // Load root directory + settings
   $effect(() => {
     const dir = cwd;
     loadDirectory(dir).then(entries => {
       roots = entries.map(e => ({ ...e, depth: 0 }));
     });
-    getHighlighter().then(() => { highlighterReady = true; });
+    getSetting('files_save_on_blur').then(v => {
+      saveOnBlur = v === 'true';
+    });
   });
 
   async function loadDirectory(path: string): Promise<DirEntry[]> {
@@ -96,6 +103,8 @@
       name: node.name,
       pinned: false,
       content: null,
+      dirty: false,
+      editContent: '',
     };
 
     if (existing) {
@@ -116,7 +125,10 @@
     try {
       const content = await readFileContent(node.path);
       const target = fileTabs.find(t => t.path === node.path);
-      if (target) target.content = content;
+      if (target) {
+        target.content = content;
+        target.editContent = content.type === 'Text' ? content.content : '';
+      }
     } catch (e) {
       const target = fileTabs.find(t => t.path === node.path);
       if (target) target.content = { type: 'Binary', message: `Error: ${e}` };
@@ -142,6 +154,11 @@
   }
 
   function closeTab(path: string) {
+    const tab = fileTabs.find(t => t.path === path);
+    if (tab?.dirty) {
+      // Save before closing if dirty
+      saveTab(tab);
+    }
     fileTabs = fileTabs.filter(t => t.path !== path);
     if (activeTabPath === path) {
       activeTabPath = fileTabs[fileTabs.length - 1]?.path ?? null;
@@ -184,18 +201,42 @@
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  function renderHighlighted(content: string, lang: string): string {
-    if (!highlighterReady || lang === 'text' || lang === 'csv') {
-      return `<pre><code>${escapeHtml(content)}</code></pre>`;
-    }
-    const highlighted = highlightCode(content, lang);
-    if (highlighted !== escapeHtml(content)) return highlighted;
-    return `<pre><code>${escapeHtml(content)}</code></pre>`;
-  }
-
   function isImageExt(path: string): boolean {
     const ext = path.split('.').pop()?.toLowerCase() ?? '';
     return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'].includes(ext);
+  }
+
+  // Editor change handler
+  function handleEditorChange(tabPath: string, newContent: string) {
+    const tab = fileTabs.find(t => t.path === tabPath);
+    if (!tab || tab.content?.type !== 'Text') return;
+    tab.editContent = newContent;
+    tab.dirty = newContent !== tab.content.content;
+  }
+
+  // Save a tab to disk
+  async function saveTab(tab: FileTab) {
+    if (!tab.dirty || tab.content?.type !== 'Text') return;
+    try {
+      await writeFileContent(tab.path, tab.editContent);
+      // Update the saved content reference
+      tab.content = { type: 'Text', content: tab.editContent, lang: tab.content.lang };
+      tab.dirty = false;
+    } catch (e) {
+      console.warn('Failed to save file:', e);
+    }
+  }
+
+  // Save active tab
+  function saveActiveTab() {
+    if (activeTab?.dirty) saveTab(activeTab);
+  }
+
+  // Blur handler: save if setting enabled
+  function handleEditorBlur(tabPath: string) {
+    if (!saveOnBlur) return;
+    const tab = fileTabs.find(t => t.path === tabPath);
+    if (tab?.dirty) saveTab(tab);
   }
 
   // Drag-resize sidebar
@@ -279,10 +320,13 @@
             class:preview={!tab.pinned}
             onclick={() => activeTabPath = tab.path}
             ondblclick={() => { tab.pinned = true; }}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activeTabPath = tab.path; } }}
             role="tab"
             tabindex="0"
           >
-            <span class="file-tab-name" class:italic={!tab.pinned}>{tab.name}</span>
+            <span class="file-tab-name" class:italic={!tab.pinned}>
+              {tab.name}{#if tab.dirty}<span class="dirty-dot"></span>{/if}
+            </span>
             <button class="file-tab-close" onclick={(e) => { e.stopPropagation(); closeTab(tab.path); }}>×</button>
           </div>
         {/each}
@@ -308,17 +352,24 @@
         <div class="viewer-state">{activeTab.content.message}</div>
       {/if}
     {:else if activeTab.content?.type === 'Text'}
-      <div class="viewer-code">
-        {#if activeTab.content.lang === 'csv'}
-          <pre class="csv-content"><code>{activeTab.content.content}</code></pre>
-        {:else}
-          {@html renderHighlighted(activeTab.content.content, activeTab.content.lang)}
-        {/if}
-      </div>
+      {#key activeTabPath}
+        <CodeEditor
+          content={activeTab.editContent}
+          lang={activeTab.content.lang}
+          onchange={(c) => handleEditorChange(activeTab!.path, c)}
+          onsave={saveActiveTab}
+          onblur={() => handleEditorBlur(activeTab!.path)}
+        />
+      {/key}
     {/if}
 
     {#if activeTab}
-      <div class="viewer-path">{activeTab.path}</div>
+      <div class="viewer-path">
+        {activeTab.path}
+        {#if activeTab.dirty}
+          <span class="path-dirty">(unsaved)</span>
+        {/if}
+      </div>
     {/if}
   </main>
 </div>
@@ -517,10 +568,22 @@
   .file-tab-name {
     overflow: hidden;
     text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 
   .file-tab-name.italic {
     font-style: italic;
+  }
+
+  .dirty-dot {
+    display: inline-block;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 50%;
+    background: var(--ctp-peach);
+    flex-shrink: 0;
   }
 
   .file-tab-close {
@@ -581,57 +644,6 @@
     font-size: 0.7rem;
   }
 
-  .viewer-code {
-    flex: 1;
-    overflow: auto;
-    padding: 0.75rem 1rem;
-  }
-
-  .viewer-code :global(pre) {
-    margin: 0;
-    font-family: var(--term-font-family, 'JetBrains Mono', monospace);
-    font-size: 0.775rem;
-    line-height: 1.55;
-    color: var(--ctp-text);
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-
-  .viewer-code :global(code) {
-    font-family: inherit;
-    background: none;
-    padding: 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-
-  .viewer-code :global(.shiki) {
-    background: transparent !important;
-    padding: 0;
-    margin: 0;
-    border: none;
-    box-shadow: none;
-    white-space: pre-wrap !important;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-
-  .viewer-code :global(.shiki code) {
-    white-space: pre-wrap !important;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-
-  .csv-content {
-    font-family: var(--term-font-family, monospace);
-    font-size: 0.75rem;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    tab-size: 4;
-  }
-
   .viewer-image {
     flex: 1;
     display: flex;
@@ -655,5 +667,13 @@
     font-family: var(--term-font-family, monospace);
     color: var(--ctp-overlay0);
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .path-dirty {
+    color: var(--ctp-peach);
+    font-size: 0.6rem;
   }
 </style>

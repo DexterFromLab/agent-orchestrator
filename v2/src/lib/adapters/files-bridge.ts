@@ -20,3 +20,7 @@ export function listDirectoryChildren(path: string): Promise<DirEntry[]> {
 export function readFileContent(path: string): Promise<FileContent> {
   return invoke<FileContent>('read_file_content', { path });
 }
+
+export function writeFileContent(path: string, content: string): Promise<void> {
+  return invoke<void>('write_file_content', { path, content });
+}
