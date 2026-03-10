@@ -483,6 +483,9 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Sub-tab navigation: Overview | AST | Graph
 - [x] AST tab: per-turn SVG conversation trees (Thinking/Response/ToolCall/File nodes, bezier edges, token counts)
 - [x] Graph tab: bipartite tool→file DAG (tools left, files right, curved edges, count badges)
+- [x] Compaction detection: sdk-messages.ts adapts `compact_boundary` system messages → `CompactionContent` type
+- [x] Stats bar compaction pill: yellow count badge with tooltip (last trigger, tokens removed)
+- [x] AST compaction boundaries: red "Compacted" nodes inserted between turns at compaction points
 
 #### FilesTab Fixes & CodeMirror Editor
 - [x] Fixed HTML nesting error: `<button>` inside `<button>` → `<div role="tab">`

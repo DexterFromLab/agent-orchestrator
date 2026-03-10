@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ContextTab: LLM context window visualization with stats bar (tokens, cost, turns, duration), segmented token meter (color-coded by message type), file references tree (extracted from tool calls), and collapsible turn breakdown — replaces old ContextPane ctx database viewer (ContextTab.svelte)
 - ContextTab AST view: per-turn SVG conversation trees showing hierarchical message flow (Turn → Thinking/Response/Tool Calls → File operations), with bezier edges, color-coded nodes, token counts, and detail tooltips (ContextTab.svelte)
 - ContextTab Graph view: bipartite tool→file DAG with tools on left (color-coded by type) and files on right, curved SVG edges showing which tools touched which files, count badges on both sides (ContextTab.svelte)
+- Compaction event detection: `compact_boundary` SDK messages adapted to `CompactionContent` type in sdk-messages.ts, ContextTab shows yellow compaction count pill in stats bar and red boundary nodes in AST view
 
 ### Changed
 - AgentPane UI redesign: sans-serif root font (system-ui), tool calls paired with results in collapsible `<details>` groups, hook messages collapsed into compact labels, context window usage meter in status strip, cost bar made minimal (no background), session summary with translucent background, two-phase scroll anchoring, tool-aware output truncation (Bash 500/Read 50/Glob 20 lines), colors softened via `color-mix()`, responsive margins via container queries (AgentPane.svelte)
