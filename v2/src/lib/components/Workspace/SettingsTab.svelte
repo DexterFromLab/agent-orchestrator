@@ -45,6 +45,7 @@
   let termFont = $state('');
   let termFontSize = $state('');
   let projectMaxAspect = $state('1.0');
+  let filesSaveOnBlur = $state(false);
   let selectedTheme = $state<ThemeId>(getCurrentTheme());
 
   // Dropdown open states
@@ -104,7 +105,7 @@
   );
 
   onMount(async () => {
-    const [shell, cwd, font, size, tfont, tsize, aspect] = await Promise.all([
+    const [shell, cwd, font, size, tfont, tsize, aspect, saveOnBlur] = await Promise.all([
       getSetting('default_shell'),
       getSetting('default_cwd'),
       getSetting('ui_font_family'),
@@ -112,6 +113,7 @@
       getSetting('term_font_family'),
       getSetting('term_font_size'),
       getSetting('project_max_aspect'),
+      getSetting('files_save_on_blur'),
     ]);
     defaultShell = shell ?? '';
     defaultCwd = cwd ?? '';
@@ -120,6 +122,7 @@
     termFont = tfont ?? '';
     termFontSize = tsize ?? '';
     projectMaxAspect = aspect ?? '1.0';
+    filesSaveOnBlur = saveOnBlur === 'true';
     applyAspectRatio(projectMaxAspect);
     selectedTheme = getCurrentTheme();
 
@@ -478,6 +481,25 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
+      </div>
+    </div>
+
+    <h3 class="subsection-title">Editor</h3>
+    <div class="settings-grid">
+      <div class="setting-field">
+        <label class="setting-label toggle-label">
+          <span>Save on blur</span>
+          <button
+            class="toggle-switch"
+            class:on={filesSaveOnBlur}
+            role="switch"
+            aria-checked={filesSaveOnBlur}
+            onclick={() => { filesSaveOnBlur = !filesSaveOnBlur; saveGlobalSetting('files_save_on_blur', String(filesSaveOnBlur)); }}
+          >
+            <span class="toggle-thumb"></span>
+          </button>
+        </label>
+        <span class="setting-hint">Auto-save files when the editor loses focus</span>
       </div>
     </div>
   </section>
@@ -1320,5 +1342,56 @@
   .browse-btn:hover {
     color: var(--ctp-text);
     background: var(--ctp-surface1);
+  }
+
+  .subsection-title {
+    font-size: 0.725rem;
+    font-weight: 600;
+    color: var(--ctp-subtext1);
+    margin: 0.75rem 0 0.5rem;
+  }
+
+  .setting-hint {
+    font-size: 0.625rem;
+    color: var(--ctp-overlay0);
+  }
+
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+
+  .toggle-switch {
+    position: relative;
+    width: 2rem;
+    height: 1.125rem;
+    border: none;
+    border-radius: 0.5625rem;
+    background: var(--ctp-surface1);
+    cursor: pointer;
+    transition: background 0.2s;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch.on {
+    background: var(--ctp-blue);
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background: var(--ctp-text);
+    transition: transform 0.2s;
+  }
+
+  .toggle-switch.on .toggle-thumb {
+    transform: translateX(0.875rem);
   }
 </style>
