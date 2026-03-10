@@ -74,7 +74,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/styles/themes.ts` | Theme palette definitions (17 themes), ThemeId/ThemePalette/ThemeMeta types, THEME_LIST |
 | `v2/src/lib/styles/catppuccin.css` | CSS custom properties: 26 --ctp-* color vars + --ui-font-* + --term-font-* |
 | `v2/src/lib/components/Agent/AgentTree.svelte` | SVG agent tree visualization |
-| `v2/src/lib/components/Context/ContextPane.svelte` | ctx database viewer (projects, entries, search) |
+| `v2/src/lib/components/Context/ContextPane.svelte` | ctx database viewer (projects, entries, search) — replaced by ContextTab in ProjectBox |
+| `v2/src/lib/components/Workspace/ContextTab.svelte` | LLM context window visualization (stats, token meter, file refs, turn breakdown) |
+| `v2/src/lib/components/Workspace/CodeEditor.svelte` | CodeMirror 6 wrapper (15 languages, Catppuccin theme, save/blur callbacks) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (group name, project count, agent count, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
 | `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, FilesTab, SshTab, MemoriesTab, CommandPalette, DocsTab, SettingsTab |

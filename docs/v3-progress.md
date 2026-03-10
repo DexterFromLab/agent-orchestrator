@@ -471,7 +471,24 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Adapter registry: registerMemoryAdapter(), getDefaultAdapter(), getAvailableAdapters()
 - [x] UI: search bar, tag display, expandable cards, adapter switcher, placeholder when no adapter
 
+#### Context Tab Repurpose (ContextTab.svelte)
+- [x] Replaced ContextPane (ctx database viewer) with LLM context window visualization
+- [x] Tribunal debate for design (S-1-R4 winner at 82% confidence)
+- [x] Stats bar: input/output tokens, cost, turns, duration
+- [x] Segmented token meter: CSS flex bar with color-coded categories (assistant/thinking/tool calls/tool results)
+- [x] File references: extracted from tool_call messages, colored op badges
+- [x] Turn breakdown: collapsible message groups by user prompt
+- [x] Token estimation via ~4 chars/token heuristic
+- [x] Wired into ProjectBox (replaces ContextPane, passes sessionId)
+
+#### FilesTab Fixes & CodeMirror Editor
+- [x] Fixed HTML nesting error: `<button>` inside `<button>` → `<div role="tab">`
+- [x] Fixed Svelte 5 $state proxy reactivity: look up tab from reactive array before setting content
+- [x] CodeEditor.svelte: CodeMirror 6 with 15 lazy-loaded language modes, Catppuccin theme
+- [x] Dirty tracking, Ctrl+S save, save-on-blur setting (files_save_on_blur in SettingsTab)
+- [x] write_file_content Rust command (safety: existing files only)
+
 #### Verification
-- [x] svelte-check: 0 new errors
+- [x] svelte-check: 0 new errors (only pre-existing esrap type errors)
 - [x] vitest: 139/139 tests pass
 - [x] cargo check: compiles cleanly

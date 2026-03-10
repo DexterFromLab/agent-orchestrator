@@ -13,6 +13,9 @@
 
 ## Completed
 
+- [x] **Context tab repurpose** -- Replaced ContextPane (ctx database viewer) with ContextTab (LLM context window visualization). Stats bar, segmented token meter, file references, turn breakdown. Tribunal debate (S-1-R4 at 82%). Token estimation via ~4 chars/token heuristic. | Done: 2026-03-10
+- [x] **CodeMirror 6 editor** -- Replaced shiki viewer in FilesTab with CodeMirror 6. CodeEditor.svelte wrapper: 15 lazy-loaded language modes, Catppuccin theme, auto-close brackets, bracket matching, code folding, Ctrl+S save, dirty tracking, save-on-blur setting. write_file_content Rust command. | Done: 2026-03-10
+- [x] **FilesTab reactivity fixes** -- Fixed HTML nesting (<button> inside <button>), Svelte 5 $state proxy reactivity for file content loading. | Done: 2026-03-10
 - [x] **Tab system overhaul** -- Renamed Claude→Model, Files→Docs. Added Files (VSCode-style tree+viewer), SSH (CRUD+launch), Memory (pluggable adapter) tabs. PERSISTED-EAGER/LAZY mount strategies. Rust list_directory_children + read_file_content commands. | Done: 2026-03-10
 - [x] **AgentPane collapsibles + aspect ratio** -- Text messages collapsible (open by default), cost summary collapsed by default. Project max aspect ratio setting (0.3–3.0, default 1.0) with CSS var + SettingsTab stepper. No-implicit-push rule 52. Desktop StartupWMClass. | Done: 2026-03-09
 - [x] **AgentPane + MarkdownPane UI redesign** -- AgentPane: sans-serif font, tool call/result pairing via $derived.by, hook message collapsing, context meter, muted colors via color-mix(), responsive margins via container queries. MarkdownPane: container query wrapper, shared responsive padding variable. Tribunal-elected design (S-3-R4, 88% confidence). 139/139 tests pass. | Done: 2026-03-09
@@ -22,5 +25,3 @@
 - [x] **OTEL telemetry** -- Full-scope OpenTelemetry: telemetry.rs (TelemetryGuard, tracing + OTLP layers), telemetry-bridge.ts (frontend→Rust), #[tracing::instrument] on 10 commands, agent dispatcher lifecycle logging, Docker Tempo+Grafana stack (port 9715). BTERMINAL_OTLP_ENDPOINT env var controls export. | Done: 2026-03-08
 - [x] **Medium/Low audit fixes** -- All 6 MEDIUM + 8 LOW findings fixed: runtime type guards in sdk-messages.ts, ANTHROPIC_* env stripping, timestamp mismatch, async lock, error propagation, input validation, mutex poisoning, log warnings, payload validation. 172/172 tests pass. | Done: 2026-03-08
 - [x] **Security & correctness audit fixes** -- 5 CRITICAL + 4 HIGH findings fixed: path traversal, race conditions, memory leaks, listener leaks, transaction safety. 3 false positives dismissed. | Done: 2026-03-08
-- [x] **ctx dead code cleanup** -- Removed ContextTab.svelte, CtxProject struct, list_projects(), ctx_list_projects command. | Done: 2026-03-08
-- [x] **ContextPane project-scoped redesign** -- Auto-registers project in ctx DB on mount. Removed project selector. | Done: 2026-03-08
