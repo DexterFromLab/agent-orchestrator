@@ -536,3 +536,37 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 #### Verification
 - [x] vitest: 194/194 tests pass (+24 new: 5 extractWorktreePath, 10 bash write, 9 acknowledge/worktree)
 - [x] cargo test: 34/34 pass
+
+### Session: 2026-03-11 — S-1 Phase 2: Filesystem Write Detection
+
+#### Rust Backend — ProjectFsWatcher
+- [x] New module `v2/src-tauri/src/fs_watcher.rs` — per-project recursive inotify watchers via notify crate v6
+- [x] Debouncing (100ms per-file), ignored dirs (.git/, node_modules/, target/, etc.)
+- [x] Emits `fs-write-detected` Tauri events with FsWritePayload { project_id, file_path, timestamp_ms }
+- [x] Two Tauri commands: `fs_watch_project`, `fs_unwatch_project`
+- [x] ProjectFsWatcher added to AppState, initialized in setup()
+- [x] 5 Rust unit tests for path filtering (should_ignore_path)
+
+#### Frontend Bridge
+- [x] New `v2/src/lib/adapters/fs-watcher-bridge.ts` — fsWatchProject(), fsUnwatchProject(), onFsWriteDetected()
+
+#### External Write Detection (conflicts store)
+- [x] EXTERNAL_SESSION_ID = '__external__' sentinel for non-agent writers
+- [x] agentWriteTimestamps Map — tracks when agents write files (for timing heuristic)
+- [x] recordExternalWrite(projectId, filePath, timestampMs) — 2s grace window suppresses agent's own writes
+- [x] getExternalConflictCount(projectId) — counts external-only conflicts
+- [x] FileConflict.isExternal flag, ProjectConflicts.externalConflictCount field
+- [x] clearAllConflicts/clearProjectConflicts clear timestamp state
+
+#### Health Store Integration
+- [x] externalConflictCount added to ProjectHealth interface
+- [x] Attention reason includes "(N external)" note when external conflicts present
+
+#### UI Updates
+- [x] ProjectBox $effect: starts/stops fs watcher per project CWD, listens for events, calls recordExternalWrite
+- [x] ProjectHeader: split conflict badge into orange "ext write" badge + red "agent conflict" badge
+- [x] Toast notification on new external write conflict
+
+#### Verification
+- [x] vitest: 202/202 tests pass (+8 new external write tests)
+- [x] cargo test: 39/39 pass (+5 new fs_watcher tests)

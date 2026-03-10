@@ -35,7 +35,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/bterminal-relay/` | Standalone relay binary (WebSocket server, token auth, CLI) |
 | `v2/src-tauri/src/pty.rs` | PTY backend (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/groups.rs` | Groups config (load/save ~/.config/bterminal/groups.json) |
-| `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + settings + 12 remote + 4 claude + 2 groups) |
+| `v2/src-tauri/src/fs_watcher.rs` | ProjectFsWatcher (inotify per-project recursive file change detection, S-1 Phase 2) |
+| `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + fs_watcher + settings + 12 remote + 4 claude + 2 groups) |
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |
 | `v2/src-tauri/src/remote.rs` | RemoteManager (WebSocket client connections to relays) |
@@ -62,6 +63,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/remote-bridge.ts` | Remote machine management IPC wrapper |
 | `v2/src/lib/adapters/files-bridge.ts` | File browser IPC wrapper (list_directory_children, read_file_content) |
 | `v2/src/lib/adapters/memory-adapter.ts` | Pluggable memory adapter interface (MemoryAdapter, registry) |
+| `v2/src/lib/adapters/fs-watcher-bridge.ts` | Filesystem watcher IPC wrapper (project CWD write detection) |
 | `v2/src/lib/adapters/telemetry-bridge.ts` | Frontend telemetry bridge (routes events to Rust tracing via IPC) |
 | `docker/tempo/` | Docker compose: Tempo + Grafana for trace visualization (port 9715) |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
@@ -78,7 +80,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Workspace/ContextTab.svelte` | LLM context window visualization (stats, token meter, file refs, turn breakdown) |
 | `v2/src/lib/components/Workspace/CodeEditor.svelte` | CodeMirror 6 wrapper (15 languages, Catppuccin theme, save/blur callbacks) |
 | `v2/src/lib/stores/health.svelte.ts` | Project health store (activity state, burn rate, context pressure, file conflicts, attention scoring) |
-| `v2/src/lib/stores/conflicts.svelte.ts` | File overlap conflict detection (per-project, session-scoped, worktree-aware, dismissible) |
+| `v2/src/lib/stores/conflicts.svelte.ts` | File overlap + external write conflict detection (per-project, session-scoped, worktree-aware, dismissible, inotify-backed) |
 | `v2/src/lib/utils/tool-files.ts` | Shared file path extraction from tool_call inputs (extractFilePaths, extractWritePaths, extractWorktreePath) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Mission Control bar (agent states, $/hr burn rate, attention queue, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
