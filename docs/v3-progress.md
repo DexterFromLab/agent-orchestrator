@@ -480,6 +480,9 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Turn breakdown: collapsible message groups by user prompt
 - [x] Token estimation via ~4 chars/token heuristic
 - [x] Wired into ProjectBox (replaces ContextPane, passes sessionId)
+- [x] Sub-tab navigation: Overview | AST | Graph
+- [x] AST tab: per-turn SVG conversation trees (Thinking/Response/ToolCall/File nodes, bezier edges, token counts)
+- [x] Graph tab: bipartite tool→file DAG (tools left, files right, curved edges, count badges)
 
 #### FilesTab Fixes & CodeMirror Editor
 - [x] Fixed HTML nesting error: `<button>` inside `<button>` → `<div role="tab">`
