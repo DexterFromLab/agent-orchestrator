@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - FilesTab invalid HTML nesting: file tab bar used `<button>` inside `<button>` which Svelte/browser rejects — changed outer element to `<div role="tab">` (FilesTab.svelte)
+- FilesTab file content not rendering: after inserting a FileTab into the `$state` array, the local plain-object reference lost Svelte 5 proxy reactivity — content mutations were invisible. Fixed by looking up from the reactive array before setting content (FilesTab.svelte)
 - ClaudeSession type errors: cast `last_session_id` to UUID template literal type, add missing `timestamp` field (from `created_at`) to restored AgentMessage records (ClaudeSession.svelte)
 - Cost bar shows only last turn's cost instead of cumulative session total: `updateAgentCost()` changed from assignment to accumulation (`+=`) so continued sessions properly sum costs across all turns (agents.svelte.ts)
 - ProjectBox tab switch destroys running agent sessions: changed `{#if activeTab}` conditional rendering to CSS `style:display` (flex/none) for all three content panes and terminal section — ClaudeSession now stays mounted across tab switches, preserving session ID, message history, and running agents (ProjectBox.svelte)
