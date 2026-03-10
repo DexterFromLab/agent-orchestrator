@@ -7,6 +7,8 @@ import {
   clearSessionWrites,
   clearProjectConflicts,
   clearAllConflicts,
+  acknowledgeConflicts,
+  setSessionWorktree,
 } from './conflicts.svelte';
 
 beforeEach(() => {
@@ -152,6 +154,85 @@ describe('conflicts store', () => {
       recordFileWrite('proj-2', 'sess-d', '/b.ts');
       clearAllConflicts();
       expect(getTotalConflictCount()).toBe(0);
+    });
+  });
+
+  describe('acknowledgeConflicts', () => {
+    it('suppresses conflict from counts after acknowledge', () => {
+      recordFileWrite('proj-1', 'sess-a', '/a.ts');
+      recordFileWrite('proj-1', 'sess-b', '/a.ts');
+      expect(hasConflicts('proj-1')).toBe(true);
+      acknowledgeConflicts('proj-1');
+      expect(hasConflicts('proj-1')).toBe(false);
+      expect(getTotalConflictCount()).toBe(0);
+      expect(getProjectConflicts('proj-1').conflictCount).toBe(0);
+    });
+
+    it('resurfaces conflict when new write arrives on acknowledged file', () => {
+      recordFileWrite('proj-1', 'sess-a', '/a.ts');
+      recordFileWrite('proj-1', 'sess-b', '/a.ts');
+      acknowledgeConflicts('proj-1');
+      expect(hasConflicts('proj-1')).toBe(false);
+      // Third session writes same file — should resurface
+      recordFileWrite('proj-1', 'sess-c', '/a.ts');
+      // recordFileWrite returns false for already-conflicted file, but the ack should be cleared
+      expect(hasConflicts('proj-1')).toBe(true);
+    });
+
+    it('no-ops for unknown project', () => {
+      acknowledgeConflicts('nonexistent'); // Should not throw
+    });
+  });
+
+  describe('worktree suppression', () => {
+    it('suppresses conflict between sessions in different worktrees', () => {
+      setSessionWorktree('sess-a', null); // main tree
+      setSessionWorktree('sess-b', '/tmp/wt-1'); // worktree
+      recordFileWrite('proj-1', 'sess-a', '/a.ts');
+      recordFileWrite('proj-1', 'sess-b', '/a.ts');
+      expect(hasConflicts('proj-1')).toBe(false);
+      expect(getTotalConflictCount()).toBe(0);
+    });
+
+    it('detects conflict between sessions in same worktree', () => {
+      setSessionWorktree('sess-a', '/tmp/wt-1');
+      setSessionWorktree('sess-b', '/tmp/wt-1');
+      recordFileWrite('proj-1', 'sess-a', '/a.ts');
+      recordFileWrite('proj-1', 'sess-b', '/a.ts');
+      expect(hasConflicts('proj-1')).toBe(true);
+    });
+
+    it('detects conflict between sessions both in main tree', () => {
+      setSessionWorktree('sess-a', null);
+      setSessionWorktree('sess-b', null);
+      recordFileWrite('proj-1', 'sess-a', '/a.ts');
+      recordFileWrite('proj-1', 'sess-b', '/a.ts');
+      expect(hasConflicts('proj-1')).toBe(true);
+    });
+
+    it('suppresses conflict when two worktrees differ', () => {
+      setSessionWorktree('sess-a', '/tmp/wt-1');
+      setSessionWorktree('sess-b', '/tmp/wt-2');
+      recordFileWrite('proj-1', 'sess-a', '/a.ts');
+      recordFileWrite('proj-1', 'sess-b', '/a.ts');
+      expect(hasConflicts('proj-1')).toBe(false);
+    });
+
+    it('sessions without worktree info conflict normally (backward compat)', () => {
+      // No setSessionWorktree calls — both default to null (main tree)
+      recordFileWrite('proj-1', 'sess-a', '/a.ts');
+      recordFileWrite('proj-1', 'sess-b', '/a.ts');
+      expect(hasConflicts('proj-1')).toBe(true);
+    });
+
+    it('clearSessionWrites cleans up worktree tracking', () => {
+      setSessionWorktree('sess-a', '/tmp/wt-1');
+      recordFileWrite('proj-1', 'sess-a', '/a.ts');
+      clearSessionWrites('proj-1', 'sess-a');
+      // Subsequent session in main tree should not be compared against stale wt data
+      recordFileWrite('proj-1', 'sess-b', '/a.ts');
+      recordFileWrite('proj-1', 'sess-c', '/a.ts');
+      expect(hasConflicts('proj-1')).toBe(true);
     });
   });
 });

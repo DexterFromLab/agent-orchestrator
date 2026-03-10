@@ -25,8 +25,8 @@ import {
 } from './adapters/groups-bridge';
 import { tel } from './adapters/telemetry-bridge';
 import { recordActivity, recordToolDone, recordTokenSnapshot } from './stores/health.svelte';
-import { recordFileWrite, clearSessionWrites } from './stores/conflicts.svelte';
-import { extractWritePaths } from './utils/tool-files';
+import { recordFileWrite, clearSessionWrites, setSessionWorktree } from './stores/conflicts.svelte';
+import { extractWritePaths, extractWorktreePath } from './utils/tool-files';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
@@ -184,6 +184,12 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
         const projId = sessionProjectMap.get(sessionId);
         if (projId) {
           recordActivity(projId, tc.name);
+          // Worktree tracking: detect worktree isolation on Agent/Task calls or EnterWorktree
+          const wtPath = extractWorktreePath(tc);
+          if (wtPath) {
+            // The child session (or this session) is entering a worktree
+            setSessionWorktree(sessionId, wtPath);
+          }
           // Conflict detection: track file writes
           const writePaths = extractWritePaths(tc);
           for (const filePath of writePaths) {

@@ -7,6 +7,8 @@ export interface ProjectConfig {
   cwd: string;
   profile: string;
   enabled: boolean;
+  /** When true, agents for this project use git worktrees for isolation */
+  useWorktrees?: boolean;
 }
 
 export interface GroupConfig {

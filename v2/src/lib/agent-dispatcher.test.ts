@@ -174,10 +174,12 @@ vi.mock('./stores/notifications.svelte', () => ({
 vi.mock('./stores/conflicts.svelte', () => ({
   recordFileWrite: vi.fn().mockReturnValue(false),
   clearSessionWrites: vi.fn(),
+  setSessionWorktree: vi.fn(),
 }));
 
 vi.mock('./utils/tool-files', () => ({
   extractWritePaths: vi.fn().mockReturnValue([]),
+  extractWorktreePath: vi.fn().mockReturnValue(null),
 }));
 
 // Use fake timers to control setTimeout in sidecar crash recovery

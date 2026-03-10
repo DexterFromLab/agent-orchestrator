@@ -2,6 +2,7 @@
   import type { ProjectConfig } from '../../types/groups';
   import { PROJECT_ACCENTS } from '../../types/groups';
   import type { ProjectHealth } from '../../stores/health.svelte';
+  import { acknowledgeConflicts } from '../../stores/conflicts.svelte';
 
   interface Props {
     project: ProjectConfig;
@@ -81,9 +82,13 @@
   </div>
   <div class="header-info">
     {#if health && health.fileConflictCount > 0}
-      <span class="info-conflict" title="{health.fileConflictCount} file conflict{health.fileConflictCount > 1 ? 's' : ''} — multiple agents writing same file">
-        ⚠ {health.fileConflictCount} conflict{health.fileConflictCount > 1 ? 's' : ''}
-      </span>
+      <button
+        class="info-conflict"
+        title="{health.fileConflictCount} file conflict{health.fileConflictCount > 1 ? 's' : ''} — click to dismiss"
+        onclick={(e: MouseEvent) => { e.stopPropagation(); acknowledgeConflicts(project.id); }}
+      >
+        ⚠ {health.fileConflictCount} conflict{health.fileConflictCount > 1 ? 's' : ''} ✕
+      </button>
       <span class="info-sep">·</span>
     {/if}
     {#if contextPct !== null && contextPct > 0}
@@ -238,6 +243,14 @@
     background: color-mix(in srgb, var(--ctp-red) 12%, transparent);
     padding: 0.0625rem 0.375rem;
     border-radius: 0.1875rem;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: inherit;
+  }
+
+  .info-conflict:hover {
+    background: color-mix(in srgb, var(--ctp-red) 25%, transparent);
   }
 
   .info-profile {

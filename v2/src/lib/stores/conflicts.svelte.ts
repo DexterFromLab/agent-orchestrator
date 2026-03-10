@@ -31,7 +31,28 @@ interface FileWriteEntry {
 // projectId -> filePath -> FileWriteEntry
 let projectFileWrites = $state<Map<string, Map<string, FileWriteEntry>>>(new Map());
 
+// projectId -> set of acknowledged file paths (suppresses badge until new conflict on that file)
+let acknowledgedFiles = $state<Map<string, Set<string>>>(new Map());
+
+// sessionId -> worktree path (null = main working tree)
+let sessionWorktrees = $state<Map<string, string | null>>(new Map());
+
 // --- Public API ---
+
+/** Register the worktree path for a session (null = main working tree) */
+export function setSessionWorktree(sessionId: string, worktreePath: string | null): void {
+  sessionWorktrees.set(sessionId, worktreePath ?? null);
+}
+
+/** Check if two sessions are in different worktrees (conflict suppression) */
+function areInDifferentWorktrees(sessionIdA: string, sessionIdB: string): boolean {
+  const wtA = sessionWorktrees.get(sessionIdA) ?? null;
+  const wtB = sessionWorktrees.get(sessionIdB) ?? null;
+  // Both null = same main tree, both same string = same worktree → not different
+  if (wtA === wtB) return false;
+  // One or both non-null and different → different worktrees
+  return true;
+}
 
 /** Record that a session wrote to a file. Returns true if this creates a new conflict. */
 export function recordFileWrite(projectId: string, sessionId: string, filePath: string): boolean {
@@ -42,7 +63,7 @@ export function recordFileWrite(projectId: string, sessionId: string, filePath: 
   }
 
   let entry = projectMap.get(filePath);
-  const hadConflict = entry ? entry.sessionIds.size >= 2 : false;
+  const hadConflict = entry ? countRealConflictSessions(entry, sessionId) >= 2 : false;
 
   if (!entry) {
     entry = { sessionIds: new Set([sessionId]), lastWriteTs: Date.now() };
@@ -50,21 +71,46 @@ export function recordFileWrite(projectId: string, sessionId: string, filePath: 
     return false;
   }
 
+  const isNewSession = !entry.sessionIds.has(sessionId);
   entry.sessionIds.add(sessionId);
   entry.lastWriteTs = Date.now();
 
-  // New conflict = we just went from 1 session to 2+
-  return !hadConflict && entry.sessionIds.size >= 2;
+  // Check if this is a real conflict (not suppressed by worktrees)
+  const realConflictCount = countRealConflictSessions(entry, sessionId);
+  const isNewConflict = !hadConflict && realConflictCount >= 2;
+
+  // Clear acknowledgement when a new session writes to a previously-acknowledged file
+  if (isNewSession && realConflictCount >= 2) {
+    const ackSet = acknowledgedFiles.get(projectId);
+    if (ackSet) ackSet.delete(filePath);
+  }
+
+  return isNewConflict;
 }
 
-/** Get all conflicts for a project */
+/**
+ * Count sessions that are in a real conflict with the given session
+ * (same worktree or both in main tree). Returns total including the session itself.
+ */
+function countRealConflictSessions(entry: FileWriteEntry, forSessionId: string): number {
+  let count = 0;
+  for (const sid of entry.sessionIds) {
+    if (sid === forSessionId || !areInDifferentWorktrees(sid, forSessionId)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/** Get all conflicts for a project (excludes acknowledged and worktree-suppressed) */
 export function getProjectConflicts(projectId: string): ProjectConflicts {
   const projectMap = projectFileWrites.get(projectId);
   if (!projectMap) return { projectId, conflicts: [], conflictCount: 0 };
 
+  const ackSet = acknowledgedFiles.get(projectId);
   const conflicts: FileConflict[] = [];
   for (const [filePath, entry] of projectMap) {
-    if (entry.sessionIds.size >= 2) {
+    if (hasRealConflict(entry) && !(ackSet?.has(filePath))) {
       conflicts.push({
         filePath,
         shortName: filePath.split('/').pop() ?? filePath,
@@ -79,25 +125,54 @@ export function getProjectConflicts(projectId: string): ProjectConflicts {
   return { projectId, conflicts, conflictCount: conflicts.length };
 }
 
-/** Check if a project has any file conflicts */
+/** Check if a project has any unacknowledged real conflicts */
 export function hasConflicts(projectId: string): boolean {
   const projectMap = projectFileWrites.get(projectId);
   if (!projectMap) return false;
-  for (const entry of projectMap.values()) {
-    if (entry.sessionIds.size >= 2) return true;
+  const ackSet = acknowledgedFiles.get(projectId);
+  for (const [filePath, entry] of projectMap) {
+    if (hasRealConflict(entry) && !(ackSet?.has(filePath))) return true;
   }
   return false;
 }
 
-/** Get total conflict count across all projects */
+/** Get total unacknowledged conflict count across all projects */
 export function getTotalConflictCount(): number {
   let total = 0;
-  for (const projectMap of projectFileWrites.values()) {
-    for (const entry of projectMap.values()) {
-      if (entry.sessionIds.size >= 2) total++;
+  for (const [projectId, projectMap] of projectFileWrites) {
+    const ackSet = acknowledgedFiles.get(projectId);
+    for (const [filePath, entry] of projectMap) {
+      if (hasRealConflict(entry) && !(ackSet?.has(filePath))) total++;
     }
   }
   return total;
+}
+
+/** Check if a file write entry has a real conflict (2+ sessions in same worktree) */
+function hasRealConflict(entry: FileWriteEntry): boolean {
+  if (entry.sessionIds.size < 2) return false;
+  // Check all pairs for same-worktree conflict
+  const sids = Array.from(entry.sessionIds);
+  for (let i = 0; i < sids.length; i++) {
+    for (let j = i + 1; j < sids.length; j++) {
+      if (!areInDifferentWorktrees(sids[i], sids[j])) return true;
+    }
+  }
+  return false;
+}
+
+/** Acknowledge all current conflicts for a project (suppresses badge until new conflict) */
+export function acknowledgeConflicts(projectId: string): void {
+  const projectMap = projectFileWrites.get(projectId);
+  if (!projectMap) return;
+
+  const ackSet = acknowledgedFiles.get(projectId) ?? new Set();
+  for (const [filePath, entry] of projectMap) {
+    if (hasRealConflict(entry)) {
+      ackSet.add(filePath);
+    }
+  }
+  acknowledgedFiles.set(projectId, ackSet);
 }
 
 /** Remove a session from all file write tracking (call on session end) */
@@ -114,15 +189,22 @@ export function clearSessionWrites(projectId: string, sessionId: string): void {
 
   if (projectMap.size === 0) {
     projectFileWrites.delete(projectId);
+    acknowledgedFiles.delete(projectId);
   }
+
+  // Clean up worktree tracking
+  sessionWorktrees.delete(sessionId);
 }
 
 /** Clear all conflict tracking for a project */
 export function clearProjectConflicts(projectId: string): void {
   projectFileWrites.delete(projectId);
+  acknowledgedFiles.delete(projectId);
 }
 
 /** Clear all conflict state */
 export function clearAllConflicts(): void {
   projectFileWrites = new Map();
+  acknowledgedFiles = new Map();
+  sessionWorktrees = new Map();
 }
