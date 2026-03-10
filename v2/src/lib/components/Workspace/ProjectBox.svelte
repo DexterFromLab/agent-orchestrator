@@ -6,7 +6,7 @@
   import TerminalTabs from './TerminalTabs.svelte';
   import TeamAgentsPanel from './TeamAgentsPanel.svelte';
   import ProjectFiles from './ProjectFiles.svelte';
-  import ContextPane from '../Context/ContextPane.svelte';
+  import ContextTab from './ContextTab.svelte';
   import FilesTab from './FilesTab.svelte';
   import SshTab from './SshTab.svelte';
   import MemoriesTab from './MemoriesTab.svelte';
@@ -104,7 +104,7 @@
       <ProjectFiles cwd={project.cwd} projectName={project.name} />
     </div>
     <div class="content-pane" style:display={activeTab === 'context' ? 'flex' : 'none'}>
-      <ContextPane projectName={project.name} projectCwd={project.cwd} />
+      <ContextTab sessionId={mainSessionId} />
     </div>
 
     <!-- PERSISTED-LAZY: mount on first activation, then toggle via display -->
