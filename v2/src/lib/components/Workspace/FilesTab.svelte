@@ -16,12 +16,30 @@
     depth: number;
   }
 
+  // Open file tab
+  interface FileTab {
+    path: string;
+    name: string;
+    pinned: boolean;
+    content: FileContent | null;
+  }
+
   let roots = $state<TreeNode[]>([]);
   let expandedPaths = $state<Set<string>>(new Set());
-  let selectedPath = $state<string | null>(null);
-  let fileContent = $state<FileContent | null>(null);
-  let fileLoading = $state(false);
   let highlighterReady = $state(false);
+
+  // Tab state: open file tabs + active tab
+  let fileTabs = $state<FileTab[]>([]);
+  let activeTabPath = $state<string | null>(null);
+  let fileLoading = $state(false);
+
+  // Sidebar state
+  let sidebarCollapsed = $state(false);
+  let sidebarWidth = $state(14); // rem
+  let resizing = $state(false);
+
+  // Derived: active tab's content
+  let activeTab = $derived(fileTabs.find(t => t.path === activeTabPath) ?? null);
 
   // Load root directory
   $effect(() => {
@@ -48,7 +66,6 @@
       next.delete(path);
       expandedPaths = next;
     } else {
-      // Load children if not yet loaded
       if (!node.children) {
         node.loading = true;
         const entries = await loadDirectory(path);
@@ -59,19 +76,72 @@
     }
   }
 
-  async function selectFile(node: TreeNode) {
+  /** Single click: preview file (replaces existing preview tab) */
+  async function previewFile(node: TreeNode) {
     if (node.is_dir) {
       toggleDir(node);
       return;
     }
-    selectedPath = node.path;
+    // If already open as pinned tab, just focus it
+    const existing = fileTabs.find(t => t.path === node.path);
+    if (existing?.pinned) {
+      activeTabPath = node.path;
+      return;
+    }
+
+    // Replace any existing preview (unpinned) tab
+    const previewIdx = fileTabs.findIndex(t => !t.pinned);
+    const tab: FileTab = {
+      path: node.path,
+      name: node.name,
+      pinned: false,
+      content: null,
+    };
+
+    if (existing) {
+      // Already the preview tab, just refocus
+      activeTabPath = node.path;
+      return;
+    }
+
+    if (previewIdx >= 0) {
+      fileTabs[previewIdx] = tab;
+    } else {
+      fileTabs = [...fileTabs, tab];
+    }
+    activeTabPath = node.path;
+
+    // Load content
     fileLoading = true;
     try {
-      fileContent = await readFileContent(node.path);
+      tab.content = await readFileContent(node.path);
     } catch (e) {
-      fileContent = { type: 'Binary', message: `Error: ${e}` };
+      tab.content = { type: 'Binary', message: `Error: ${e}` };
     } finally {
       fileLoading = false;
+    }
+  }
+
+  /** Double click: pin the file as a permanent tab */
+  function pinFile(node: TreeNode) {
+    if (node.is_dir) return;
+    const existing = fileTabs.find(t => t.path === node.path);
+    if (existing) {
+      existing.pinned = true;
+      activeTabPath = node.path;
+    } else {
+      // Open and pin directly
+      previewFile(node).then(() => {
+        const tab = fileTabs.find(t => t.path === node.path);
+        if (tab) tab.pinned = true;
+      });
+    }
+  }
+
+  function closeTab(path: string) {
+    fileTabs = fileTabs.filter(t => t.path !== path);
+    if (activeTabPath === path) {
+      activeTabPath = fileTabs[fileTabs.length - 1]?.path ?? null;
     }
   }
 
@@ -124,67 +194,126 @@
     const ext = path.split('.').pop()?.toLowerCase() ?? '';
     return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'].includes(ext);
   }
+
+  // Drag-resize sidebar
+  function startResize(e: MouseEvent) {
+    e.preventDefault();
+    resizing = true;
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    function onMove(ev: MouseEvent) {
+      const delta = ev.clientX - startX;
+      const newWidth = startWidth + delta / 16; // convert px to rem (approx)
+      sidebarWidth = Math.max(8, Math.min(30, newWidth));
+    }
+
+    function onUp() {
+      resizing = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    }
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
 </script>
 
 <div class="files-tab">
-  <aside class="tree-sidebar">
-    <div class="tree-header">
-      <span class="tree-title">Explorer</span>
-    </div>
-    <div class="tree-list">
-      {#each flatNodes as node (node.path)}
-        <button
-          class="tree-row"
-          class:selected={selectedPath === node.path}
-          class:dir={node.is_dir}
-          style="padding-left: {0.5 + node.depth * 1}rem"
-          onclick={() => selectFile(node)}
-        >
-          <span class="tree-icon">{fileIcon(node)}</span>
-          <span class="tree-name">{node.name}</span>
-          {#if !node.is_dir}
-            <span class="tree-size">{formatSize(node.size)}</span>
-          {/if}
-          {#if node.loading}
-            <span class="tree-loading">…</span>
-          {/if}
+  {#if !sidebarCollapsed}
+    <aside class="tree-sidebar" style="width: {sidebarWidth}rem">
+      <div class="tree-header">
+        <span class="tree-title">Explorer</span>
+        <button class="collapse-btn" onclick={() => sidebarCollapsed = true} title="Collapse sidebar">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M8 2L4 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </button>
-      {/each}
-      {#if flatNodes.length === 0}
-        <div class="tree-empty">No files</div>
-      {/if}
-    </div>
-  </aside>
+      </div>
+      <div class="tree-list">
+        {#each flatNodes as node (node.path)}
+          <button
+            class="tree-row"
+            class:selected={activeTabPath === node.path}
+            class:dir={node.is_dir}
+            style="padding-left: {0.5 + node.depth * 1}rem"
+            onclick={() => previewFile(node)}
+            ondblclick={() => pinFile(node)}
+          >
+            <span class="tree-icon">{fileIcon(node)}</span>
+            <span class="tree-name">{node.name}</span>
+            {#if !node.is_dir}
+              <span class="tree-size">{formatSize(node.size)}</span>
+            {/if}
+            {#if node.loading}
+              <span class="tree-loading">…</span>
+            {/if}
+          </button>
+        {/each}
+        {#if flatNodes.length === 0}
+          <div class="tree-empty">No files</div>
+        {/if}
+      </div>
+    </aside>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="resize-handle" class:active={resizing} onmousedown={startResize}></div>
+  {:else}
+    <button class="expand-btn" onclick={() => sidebarCollapsed = false} title="Show explorer">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  {/if}
 
   <main class="file-viewer">
-    {#if fileLoading}
+    <!-- File tabs bar -->
+    {#if fileTabs.length > 0}
+      <div class="file-tab-bar">
+        {#each fileTabs as tab (tab.path)}
+          <button
+            class="file-tab"
+            class:active={activeTabPath === tab.path}
+            class:preview={!tab.pinned}
+            onclick={() => activeTabPath = tab.path}
+            ondblclick={() => { tab.pinned = true; }}
+          >
+            <span class="file-tab-name" class:italic={!tab.pinned}>{tab.name}</span>
+            <button class="file-tab-close" onclick={(e) => { e.stopPropagation(); closeTab(tab.path); }}>×</button>
+          </button>
+        {/each}
+      </div>
+    {/if}
+
+    <!-- Content area -->
+    {#if fileLoading && activeTabPath && !activeTab?.content}
       <div class="viewer-state">Loading…</div>
-    {:else if !selectedPath}
+    {:else if !activeTab}
       <div class="viewer-state">Select a file to view</div>
-    {:else if fileContent?.type === 'TooLarge'}
+    {:else if activeTab.content?.type === 'TooLarge'}
       <div class="viewer-state">
         <span class="viewer-warning">File too large</span>
-        <span class="viewer-detail">{formatSize(fileContent.size)}</span>
+        <span class="viewer-detail">{formatSize(activeTab.content.size)}</span>
       </div>
-    {:else if fileContent?.type === 'Binary'}
-      {#if isImageExt(selectedPath)}
+    {:else if activeTab.content?.type === 'Binary'}
+      {#if isImageExt(activeTab.path)}
         <div class="viewer-image">
-          <img src={convertFileSrc(selectedPath)} alt={selectedPath.split('/').pop()} />
+          <img src={convertFileSrc(activeTab.path)} alt={activeTab.name} />
         </div>
       {:else}
-        <div class="viewer-state">{fileContent.message}</div>
+        <div class="viewer-state">{activeTab.content.message}</div>
       {/if}
-    {:else if fileContent?.type === 'Text'}
+    {:else if activeTab.content?.type === 'Text'}
       <div class="viewer-code">
-        {#if fileContent.lang === 'csv'}
-          <pre class="csv-content"><code>{fileContent.content}</code></pre>
+        {#if activeTab.content.lang === 'csv'}
+          <pre class="csv-content"><code>{activeTab.content.content}</code></pre>
         {:else}
-          {@html renderHighlighted(fileContent.content, fileContent.lang)}
+          {@html renderHighlighted(activeTab.content.content, activeTab.content.lang)}
         {/if}
       </div>
     {/if}
-    {#if selectedPath}
-      <div class="viewer-path">{selectedPath}</div>
+
+    {#if activeTab}
+      <div class="viewer-path">{activeTab.path}</div>
     {/if}
   </main>
 </div>
@@ -197,20 +326,26 @@
     flex: 1;
   }
 
+  /* --- Sidebar --- */
+
   .tree-sidebar {
-    width: 14rem;
     flex-shrink: 0;
     background: var(--ctp-mantle);
     border-right: 1px solid var(--ctp-surface0);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-width: 8rem;
+    max-width: 30rem;
   }
 
   .tree-header {
     padding: 0.375rem 0.625rem;
     border-bottom: 1px solid var(--ctp-surface0);
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .tree-title {
@@ -219,6 +354,49 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--ctp-overlay1);
+  }
+
+  .collapse-btn, .expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--ctp-overlay1);
+    cursor: pointer;
+    padding: 0.125rem;
+    border-radius: 0.1875rem;
+    transition: color 0.12s, background 0.12s;
+  }
+
+  .collapse-btn:hover, .expand-btn:hover {
+    color: var(--ctp-text);
+    background: var(--ctp-surface0);
+  }
+
+  .expand-btn {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 100%;
+    background: var(--ctp-mantle);
+    border-right: 1px solid var(--ctp-surface0);
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .resize-handle {
+    width: 4px;
+    cursor: col-resize;
+    background: transparent;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    margin-left: -2px;
+    margin-right: -2px;
+    z-index: 1;
+  }
+
+  .resize-handle:hover, .resize-handle.active {
+    background: var(--ctp-blue);
   }
 
   .tree-list {
@@ -293,6 +471,82 @@
     text-align: center;
   }
 
+  /* --- File tab bar --- */
+
+  .file-tab-bar {
+    display: flex;
+    background: var(--ctp-mantle);
+    border-bottom: 1px solid var(--ctp-surface0);
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .file-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.375rem 0.25rem 0.625rem;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--ctp-overlay1);
+    font-size: 0.675rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.1s, background 0.1s;
+    max-width: 10rem;
+  }
+
+  .file-tab:hover {
+    background: var(--ctp-surface0);
+    color: var(--ctp-subtext1);
+  }
+
+  .file-tab.active {
+    background: var(--ctp-base);
+    color: var(--ctp-text);
+    border-bottom-color: var(--accent, var(--ctp-blue));
+  }
+
+  .file-tab-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-tab-name.italic {
+    font-style: italic;
+  }
+
+  .file-tab-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    border: none;
+    background: transparent;
+    color: var(--ctp-overlay0);
+    font-size: 0.75rem;
+    cursor: pointer;
+    border-radius: 0.125rem;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.1s, background 0.1s;
+  }
+
+  .file-tab:hover .file-tab-close,
+  .file-tab.active .file-tab-close {
+    opacity: 1;
+  }
+
+  .file-tab-close:hover {
+    background: var(--ctp-surface1);
+    color: var(--ctp-text);
+  }
+
+  /* --- Viewer --- */
+
   .file-viewer {
     flex: 1;
     min-width: 0;
@@ -334,12 +588,18 @@
     font-size: 0.775rem;
     line-height: 1.55;
     color: var(--ctp-text);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .viewer-code :global(code) {
     font-family: inherit;
     background: none;
     padding: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .viewer-code :global(.shiki) {
@@ -348,12 +608,22 @@
     margin: 0;
     border: none;
     box-shadow: none;
+    white-space: pre-wrap !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .viewer-code :global(.shiki code) {
+    white-space: pre-wrap !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .csv-content {
     font-family: var(--term-font-family, monospace);
     font-size: 0.75rem;
-    white-space: pre;
+    white-space: pre-wrap;
+    word-wrap: break-word;
     tab-size: 4;
   }
 
