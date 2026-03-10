@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAgentSession, getTotalCost, type AgentSession } from '../../stores/agents.svelte';
   import type { AgentMessage, ToolCallContent, CostContent, CompactionContent } from '../../adapters/sdk-messages';
+  import { extractFilePaths } from '../../utils/tool-files';
 
   interface Props {
     sessionId: string | null;
@@ -195,41 +196,6 @@
     return Math.ceil(text.length / 4);
   }
 
-  function extractFilePaths(tc: ToolCallContent): { path: string; op: string }[] {
-    const results: { path: string; op: string }[] = [];
-    const input = tc.input as Record<string, unknown>;
-
-    switch (tc.name) {
-      case 'Read':
-      case 'read':
-        if (input?.file_path) results.push({ path: String(input.file_path), op: 'read' });
-        break;
-      case 'Write':
-      case 'write':
-        if (input?.file_path) results.push({ path: String(input.file_path), op: 'write' });
-        break;
-      case 'Edit':
-      case 'edit':
-        if (input?.file_path) results.push({ path: String(input.file_path), op: 'write' });
-        break;
-      case 'Glob':
-      case 'glob':
-        if (input?.pattern) results.push({ path: String(input.pattern), op: 'glob' });
-        break;
-      case 'Grep':
-      case 'grep':
-        if (input?.path) results.push({ path: String(input.path), op: 'grep' });
-        break;
-      case 'Bash':
-      case 'bash':
-        // Try to extract file paths from bash commands
-        const cmd = String(input?.command ?? '');
-        const fileMatch = cmd.match(/(?:cat|head|tail|less|vim|nano|code)\s+["']?([^\s"'|;&]+)/);
-        if (fileMatch) results.push({ path: fileMatch[1], op: 'bash' });
-        break;
-    }
-    return results;
-  }
 
   function formatTokens(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;

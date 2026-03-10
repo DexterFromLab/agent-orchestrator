@@ -171,6 +171,15 @@ vi.mock('./stores/notifications.svelte', () => ({
   notify: (...args: unknown[]) => mockNotify(...args),
 }));
 
+vi.mock('./stores/conflicts.svelte', () => ({
+  recordFileWrite: vi.fn().mockReturnValue(false),
+  clearSessionWrites: vi.fn(),
+}));
+
+vi.mock('./utils/tool-files', () => ({
+  extractWritePaths: vi.fn().mockReturnValue([]),
+}));
+
 // Use fake timers to control setTimeout in sidecar crash recovery
 beforeEach(() => {
   vi.useFakeTimers();

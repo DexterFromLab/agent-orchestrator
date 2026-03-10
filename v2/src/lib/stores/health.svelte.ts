@@ -2,6 +2,7 @@
 // Tracks per-project activity state, burn rate, context pressure, and attention scoring
 
 import { getAgentSession, type AgentSession } from './agents.svelte';
+import { getProjectConflicts } from './conflicts.svelte';
 
 // --- Types ---
 
@@ -20,6 +21,8 @@ export interface ProjectHealth {
   burnRatePerHour: number;
   /** Context pressure as fraction 0..1 (null if unknown) */
   contextPressure: number | null;
+  /** Number of file conflicts (2+ agents writing same file) */
+  fileConflictCount: number;
   /** Attention urgency score (higher = more urgent, 0 = no attention needed) */
   attentionScore: number;
   /** Human-readable attention reason */
@@ -51,6 +54,7 @@ const SCORE_STALLED = 100;
 const SCORE_CONTEXT_CRITICAL = 80; // >90% context
 const SCORE_CONTEXT_HIGH = 40; // >75% context
 const SCORE_ERROR = 90;
+const SCORE_FILE_CONFLICT = 70; // 2+ agents writing same file
 const SCORE_IDLE_LONG = 20; // >2x stall threshold but not stalled (shouldn't happen, safety)
 
 // --- State ---
@@ -228,7 +232,11 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
   // Burn rate
   const burnRatePerHour = computeBurnRate(tracker.costSnapshots);
 
-  // Attention scoring
+  // File conflicts
+  const conflicts = getProjectConflicts(tracker.projectId);
+  const fileConflictCount = conflicts.conflictCount;
+
+  // Attention scoring — highest-priority signal wins
   let attentionScore = 0;
   let attentionReason: string | null = null;
 
@@ -242,6 +250,9 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
   } else if (contextPressure !== null && contextPressure > 0.9) {
     attentionScore = SCORE_CONTEXT_CRITICAL;
     attentionReason = `Context ${Math.round(contextPressure * 100)}% — near limit`;
+  } else if (fileConflictCount > 0) {
+    attentionScore = SCORE_FILE_CONFLICT;
+    attentionReason = `${fileConflictCount} file conflict${fileConflictCount > 1 ? 's' : ''} — agents writing same file`;
   } else if (contextPressure !== null && contextPressure > 0.75) {
     attentionScore = SCORE_CONTEXT_HIGH;
     attentionReason = `Context ${Math.round(contextPressure * 100)}%`;
@@ -255,6 +266,7 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
     idleDurationMs,
     burnRatePerHour,
     contextPressure,
+    fileConflictCount,
     attentionScore,
     attentionReason,
   };

@@ -2,6 +2,7 @@ import { loadGroups, saveGroups, getCliGroup } from '../adapters/groups-bridge';
 import type { GroupsFile, GroupConfig, ProjectConfig } from '../types/groups';
 import { clearAllAgentSessions } from '../stores/agents.svelte';
 import { clearHealthTracking } from '../stores/health.svelte';
+import { clearAllConflicts } from '../stores/conflicts.svelte';
 import { waitForPendingPersistence } from '../agent-dispatcher';
 
 export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings';
@@ -78,6 +79,7 @@ export async function switchGroup(groupId: string): Promise<void> {
   projectTerminals = {};
   clearAllAgentSessions();
   clearHealthTracking();
+  clearAllConflicts();
 
   activeGroupId = groupId;
   activeProjectId = null;

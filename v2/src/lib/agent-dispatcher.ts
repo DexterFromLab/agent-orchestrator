@@ -25,6 +25,8 @@ import {
 } from './adapters/groups-bridge';
 import { tel } from './adapters/telemetry-bridge';
 import { recordActivity, recordToolDone, recordTokenSnapshot } from './stores/health.svelte';
+import { recordFileWrite, clearSessionWrites } from './stores/conflicts.svelte';
+import { extractWritePaths } from './utils/tool-files';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
@@ -180,7 +182,18 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
         }
         // Health: record tool start
         const projId = sessionProjectMap.get(sessionId);
-        if (projId) recordActivity(projId, tc.name);
+        if (projId) {
+          recordActivity(projId, tc.name);
+          // Conflict detection: track file writes
+          const writePaths = extractWritePaths(tc);
+          for (const filePath of writePaths) {
+            const isNewConflict = recordFileWrite(projId, sessionId, filePath);
+            if (isNewConflict) {
+              const shortName = filePath.split('/').pop() ?? filePath;
+              notify('warning', `File conflict: ${shortName} — multiple agents writing`);
+            }
+          }
+        }
         break;
       }
 
@@ -214,6 +227,8 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
         if (costProjId) {
           recordTokenSnapshot(costProjId, cost.inputTokens + cost.outputTokens, cost.totalCostUsd);
           recordToolDone(costProjId);
+          // Conflict tracking: clear session writes on completion
+          clearSessionWrites(costProjId, sessionId);
         }
         // Persist session state for project-scoped sessions
         persistSessionForProject(sessionId);

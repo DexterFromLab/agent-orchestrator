@@ -80,6 +80,12 @@
     <span class="project-id">({project.identifier})</span>
   </div>
   <div class="header-info">
+    {#if health && health.fileConflictCount > 0}
+      <span class="info-conflict" title="{health.fileConflictCount} file conflict{health.fileConflictCount > 1 ? 's' : ''} — multiple agents writing same file">
+        ⚠ {health.fileConflictCount} conflict{health.fileConflictCount > 1 ? 's' : ''}
+      </span>
+      <span class="info-sep">·</span>
+    {/if}
     {#if contextPct !== null && contextPct > 0}
       <span class="info-ctx" style="color: {ctxColor()}" title="Context window usage">ctx {contextPct}%</span>
       <span class="info-sep">·</span>
@@ -222,6 +228,16 @@
     color: var(--ctp-surface2);
     font-size: 0.6rem;
     flex-shrink: 0;
+  }
+
+  .info-conflict {
+    font-size: 0.6rem;
+    color: var(--ctp-red);
+    font-weight: 600;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--ctp-red) 12%, transparent);
+    padding: 0.0625rem 0.375rem;
+    border-radius: 0.1875rem;
   }
 
   .info-profile {

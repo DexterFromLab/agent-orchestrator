@@ -2,6 +2,7 @@
   import { getAgentSessions } from '../../stores/agents.svelte';
   import { getActiveGroup, getEnabledProjects, setActiveProject } from '../../stores/workspace.svelte';
   import { getHealthAggregates, getAttentionQueue, type ProjectHealth } from '../../stores/health.svelte';
+  import { getTotalConflictCount } from '../../stores/conflicts.svelte';
 
   let agentSessions = $derived(getAgentSessions());
   let activeGroup = $derived(getActiveGroup());
@@ -15,6 +16,7 @@
   let health = $derived(getHealthAggregates());
   let attentionQueue = $derived(getAttentionQueue(5));
 
+  let totalConflicts = $derived(getTotalConflictCount());
   let showAttention = $state(false);
 
   function projectName(projectId: string): string {
@@ -64,6 +66,12 @@
     {#if health.stalled > 0}
       <span class="item state-stalled" title="Stalled agents (>15 min inactive)">
         {health.stalled} stalled
+      </span>
+      <span class="sep"></span>
+    {/if}
+    {#if totalConflicts > 0}
+      <span class="item state-conflict" title="{totalConflicts} file conflict{totalConflicts > 1 ? 's' : ''} — multiple agents writing same file">
+        ⚠ {totalConflicts} conflict{totalConflicts > 1 ? 's' : ''}
       </span>
       <span class="sep"></span>
     {/if}
@@ -170,6 +178,11 @@
 
   .state-stalled {
     color: var(--ctp-peach);
+    font-weight: 600;
+  }
+
+  .state-conflict {
+    color: var(--ctp-red);
     font-weight: 600;
   }
 
