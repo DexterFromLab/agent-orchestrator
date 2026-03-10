@@ -104,7 +104,7 @@ export function updateProjectSession(projectId: string, sessionId: string): void
   }
 }
 
-/** Record activity — call on every agent message */
+/** Record activity — call on every agent message. Auto-starts tick if stopped. */
 export function recordActivity(projectId: string, toolName?: string): void {
   const t = trackers.get(projectId);
   if (!t) return;
@@ -113,6 +113,8 @@ export function recordActivity(projectId: string, toolName?: string): void {
     t.lastToolName = toolName;
     t.toolInFlight = true;
   }
+  // Auto-start tick when activity resumes
+  if (!tickInterval) startHealthTick();
 }
 
 /** Record tool completion */
@@ -136,10 +138,24 @@ export function recordTokenSnapshot(projectId: string, totalTokens: number, cost
   t.costSnapshots = t.costSnapshots.filter(([ts]) => ts > cutoff);
 }
 
-/** Start the health tick timer */
+/** Check if any tracked project has an active (running/starting) session */
+function hasActiveSession(): boolean {
+  for (const t of trackers.values()) {
+    if (!t.sessionId) continue;
+    const session = getAgentSession(t.sessionId);
+    if (session && (session.status === 'running' || session.status === 'starting')) return true;
+  }
+  return false;
+}
+
+/** Start the health tick timer (auto-stops when no active sessions) */
 export function startHealthTick(): void {
   if (tickInterval) return;
   tickInterval = setInterval(() => {
+    if (!hasActiveSession()) {
+      stopHealthTick();
+      return;
+    }
     tickTs = Date.now();
   }, TICK_INTERVAL_MS);
 }
