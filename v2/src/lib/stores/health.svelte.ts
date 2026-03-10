@@ -23,6 +23,8 @@ export interface ProjectHealth {
   contextPressure: number | null;
   /** Number of file conflicts (2+ agents writing same file) */
   fileConflictCount: number;
+  /** Number of external write conflicts (filesystem writes by non-agent processes) */
+  externalConflictCount: number;
   /** Attention urgency score (higher = more urgent, 0 = no attention needed) */
   attentionScore: number;
   /** Human-readable attention reason */
@@ -235,6 +237,7 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
   // File conflicts
   const conflicts = getProjectConflicts(tracker.projectId);
   const fileConflictCount = conflicts.conflictCount;
+  const externalConflictCount = conflicts.externalConflictCount;
 
   // Attention scoring — highest-priority signal wins
   let attentionScore = 0;
@@ -252,7 +255,8 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
     attentionReason = `Context ${Math.round(contextPressure * 100)}% — near limit`;
   } else if (fileConflictCount > 0) {
     attentionScore = SCORE_FILE_CONFLICT;
-    attentionReason = `${fileConflictCount} file conflict${fileConflictCount > 1 ? 's' : ''} — agents writing same file`;
+    const extNote = externalConflictCount > 0 ? ` (${externalConflictCount} external)` : '';
+    attentionReason = `${fileConflictCount} file conflict${fileConflictCount > 1 ? 's' : ''}${extNote}`;
   } else if (contextPressure !== null && contextPressure > 0.75) {
     attentionScore = SCORE_CONTEXT_HIGH;
     attentionReason = `Context ${Math.round(contextPressure * 100)}%`;
@@ -267,6 +271,7 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
     burnRatePerHour,
     contextPressure,
     fileConflictCount,
+    externalConflictCount,
     attentionScore,
     attentionReason,
   };

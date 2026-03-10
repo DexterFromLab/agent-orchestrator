@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import type { ProjectConfig } from '../../types/groups';
   import { PROJECT_ACCENTS } from '../../types/groups';
   import ProjectHeader from './ProjectHeader.svelte';
@@ -12,6 +13,9 @@
   import MemoriesTab from './MemoriesTab.svelte';
   import { getTerminalTabs } from '../../stores/workspace.svelte';
   import { getProjectHealth } from '../../stores/health.svelte';
+  import { fsWatchProject, fsUnwatchProject, onFsWriteDetected } from '../../adapters/fs-watcher-bridge';
+  import { recordExternalWrite } from '../../stores/conflicts.svelte';
+  import { notify } from '../../stores/notifications.svelte';
 
   interface Props {
     project: ProjectConfig;
@@ -47,6 +51,35 @@
   function toggleTerminal() {
     terminalExpanded = !terminalExpanded;
   }
+
+  // S-1 Phase 2: start filesystem watcher for this project's CWD
+  $effect(() => {
+    const cwd = project.cwd;
+    const projectId = project.id;
+    if (!cwd) return;
+
+    // Start watching
+    fsWatchProject(projectId, cwd).catch(e =>
+      console.warn(`Failed to start fs watcher for ${projectId}:`, e)
+    );
+
+    // Listen for fs write events (filter to this project)
+    let unlisten: (() => void) | null = null;
+    onFsWriteDetected((event) => {
+      if (event.project_id !== projectId) return;
+      const isNew = recordExternalWrite(projectId, event.file_path, event.timestamp_ms);
+      if (isNew) {
+        const shortName = event.file_path.split('/').pop() ?? event.file_path;
+        notify('warning', `External write: ${shortName} — file also modified by agent`);
+      }
+    }).then(fn => { unlisten = fn; });
+
+    return () => {
+      // Cleanup: stop watching on unmount or project change
+      fsUnwatchProject(projectId).catch(() => {});
+      unlisten?.();
+    };
+  });
 </script>
 
 <div

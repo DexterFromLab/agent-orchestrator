@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
   recordFileWrite,
+  recordExternalWrite,
   getProjectConflicts,
+  getExternalConflictCount,
   hasConflicts,
   getTotalConflictCount,
   clearSessionWrites,
@@ -9,6 +11,7 @@ import {
   clearAllConflicts,
   acknowledgeConflicts,
   setSessionWorktree,
+  EXTERNAL_SESSION_ID,
 } from './conflicts.svelte';
 
 beforeEach(() => {
@@ -233,6 +236,100 @@ describe('conflicts store', () => {
       recordFileWrite('proj-1', 'sess-b', '/a.ts');
       recordFileWrite('proj-1', 'sess-c', '/a.ts');
       expect(hasConflicts('proj-1')).toBe(true);
+    });
+  });
+
+  describe('external write detection (S-1 Phase 2)', () => {
+    it('suppresses external write within grace period after agent write', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1000);
+      recordFileWrite('proj-1', 'sess-a', '/src/main.ts');
+      // External write arrives 500ms later — within 2s grace period
+      vi.setSystemTime(1500);
+      const result = recordExternalWrite('proj-1', '/src/main.ts', 1500);
+      expect(result).toBe(false);
+      expect(getExternalConflictCount('proj-1')).toBe(0);
+      vi.useRealTimers();
+    });
+
+    it('detects external write outside grace period', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1000);
+      recordFileWrite('proj-1', 'sess-a', '/src/main.ts');
+      // External write arrives 3s later — outside 2s grace period
+      vi.setSystemTime(4000);
+      const result = recordExternalWrite('proj-1', '/src/main.ts', 4000);
+      expect(result).toBe(true);
+      expect(getExternalConflictCount('proj-1')).toBe(1);
+      vi.useRealTimers();
+    });
+
+    it('ignores external write to file no agent has written', () => {
+      recordFileWrite('proj-1', 'sess-a', '/src/other.ts');
+      const result = recordExternalWrite('proj-1', '/src/unrelated.ts', Date.now());
+      expect(result).toBe(false);
+    });
+
+    it('ignores external write for project with no agent writes', () => {
+      const result = recordExternalWrite('proj-1', '/src/main.ts', Date.now());
+      expect(result).toBe(false);
+    });
+
+    it('marks conflict as external in getProjectConflicts', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1000);
+      recordFileWrite('proj-1', 'sess-a', '/src/main.ts');
+      vi.setSystemTime(4000);
+      recordExternalWrite('proj-1', '/src/main.ts', 4000);
+      const result = getProjectConflicts('proj-1');
+      expect(result.conflictCount).toBe(1);
+      expect(result.externalConflictCount).toBe(1);
+      expect(result.conflicts[0].isExternal).toBe(true);
+      expect(result.conflicts[0].sessionIds).toContain(EXTERNAL_SESSION_ID);
+      vi.useRealTimers();
+    });
+
+    it('external conflicts can be acknowledged', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1000);
+      recordFileWrite('proj-1', 'sess-a', '/src/main.ts');
+      vi.setSystemTime(4000);
+      recordExternalWrite('proj-1', '/src/main.ts', 4000);
+      expect(hasConflicts('proj-1')).toBe(true);
+      acknowledgeConflicts('proj-1');
+      expect(hasConflicts('proj-1')).toBe(false);
+      expect(getExternalConflictCount('proj-1')).toBe(0);
+      vi.useRealTimers();
+    });
+
+    it('clearAllConflicts clears external write timestamps', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1000);
+      recordFileWrite('proj-1', 'sess-a', '/src/main.ts');
+      clearAllConflicts();
+      // After clearing, external writes should not create conflicts (no agent writes tracked)
+      vi.setSystemTime(4000);
+      const result = recordExternalWrite('proj-1', '/src/main.ts', 4000);
+      expect(result).toBe(false);
+      vi.useRealTimers();
+    });
+
+    it('external conflict coexists with agent-agent conflict', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1000);
+      recordFileWrite('proj-1', 'sess-a', '/src/agent.ts');
+      recordFileWrite('proj-1', 'sess-b', '/src/agent.ts');
+      recordFileWrite('proj-1', 'sess-a', '/src/ext.ts');
+      vi.setSystemTime(4000);
+      recordExternalWrite('proj-1', '/src/ext.ts', 4000);
+      const result = getProjectConflicts('proj-1');
+      expect(result.conflictCount).toBe(2);
+      expect(result.externalConflictCount).toBe(1);
+      const extConflict = result.conflicts.find(c => c.isExternal);
+      const agentConflict = result.conflicts.find(c => !c.isExternal);
+      expect(extConflict?.filePath).toBe('/src/ext.ts');
+      expect(agentConflict?.filePath).toBe('/src/agent.ts');
+      vi.useRealTimers();
     });
   });
 });

@@ -81,13 +81,23 @@
     <span class="project-id">({project.identifier})</span>
   </div>
   <div class="header-info">
-    {#if health && health.fileConflictCount > 0}
+    {#if health && health.externalConflictCount > 0}
       <button
-        class="info-conflict"
-        title="{health.fileConflictCount} file conflict{health.fileConflictCount > 1 ? 's' : ''} — click to dismiss"
+        class="info-conflict info-conflict-external"
+        title="{health.externalConflictCount} external write{health.externalConflictCount > 1 ? 's' : ''} — files modified outside agent — click to dismiss"
         onclick={(e: MouseEvent) => { e.stopPropagation(); acknowledgeConflicts(project.id); }}
       >
-        ⚠ {health.fileConflictCount} conflict{health.fileConflictCount > 1 ? 's' : ''} ✕
+        ⚡ {health.externalConflictCount} ext write{health.externalConflictCount > 1 ? 's' : ''} ✕
+      </button>
+      <span class="info-sep">·</span>
+    {/if}
+    {#if health && health.fileConflictCount - (health.externalConflictCount ?? 0) > 0}
+      <button
+        class="info-conflict"
+        title="{health.fileConflictCount - (health.externalConflictCount ?? 0)} agent conflict{health.fileConflictCount - (health.externalConflictCount ?? 0) > 1 ? 's' : ''} — click to dismiss"
+        onclick={(e: MouseEvent) => { e.stopPropagation(); acknowledgeConflicts(project.id); }}
+      >
+        ⚠ {health.fileConflictCount - (health.externalConflictCount ?? 0)} conflict{health.fileConflictCount - (health.externalConflictCount ?? 0) > 1 ? 's' : ''} ✕
       </button>
       <span class="info-sep">·</span>
     {/if}
@@ -251,6 +261,15 @@
 
   .info-conflict:hover {
     background: color-mix(in srgb, var(--ctp-red) 25%, transparent);
+  }
+
+  .info-conflict-external {
+    color: var(--ctp-peach);
+    background: color-mix(in srgb, var(--ctp-peach) 12%, transparent);
+  }
+
+  .info-conflict-external:hover {
+    background: color-mix(in srgb, var(--ctp-peach) 25%, transparent);
   }
 
   .info-profile {

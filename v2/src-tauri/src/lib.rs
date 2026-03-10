@@ -1,5 +1,6 @@
 mod ctx;
 mod event_sink;
+mod fs_watcher;
 mod groups;
 mod pty;
 mod remote;
@@ -15,6 +16,7 @@ use pty::{PtyManager, PtyOptions};
 use remote::{RemoteManager, RemoteMachineConfig};
 use session::{Session, SessionDb, LayoutState, SshSession, AgentMessageRecord, ProjectAgentState};
 use sidecar::{AgentQueryOptions, SidecarConfig, SidecarManager};
+use fs_watcher::ProjectFsWatcher;
 use watcher::FileWatcherManager;
 use std::sync::Arc;
 use tauri::{Manager, State};
@@ -24,6 +26,7 @@ struct AppState {
     sidecar_manager: Arc<SidecarManager>,
     session_db: Arc<SessionDb>,
     file_watcher: Arc<FileWatcherManager>,
+    fs_watcher: Arc<ProjectFsWatcher>,
     ctx_db: Arc<CtxDb>,
     remote_manager: Arc<RemoteManager>,
     _telemetry: telemetry::TelemetryGuard,
@@ -109,6 +112,23 @@ fn file_unwatch(state: State<'_, AppState>, pane_id: String) {
 #[tauri::command]
 fn file_read(state: State<'_, AppState>, path: String) -> Result<String, String> {
     state.file_watcher.read_file(&path)
+}
+
+// --- Project filesystem watcher commands (S-1 Phase 2) ---
+
+#[tauri::command]
+fn fs_watch_project(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    project_id: String,
+    cwd: String,
+) -> Result<(), String> {
+    state.fs_watcher.watch_project(&app, &project_id, &cwd)
+}
+
+#[tauri::command]
+fn fs_unwatch_project(state: State<'_, AppState>, project_id: String) {
+    state.fs_watcher.unwatch_project(&project_id);
 }
 
 // --- Session persistence commands ---
@@ -736,6 +756,8 @@ pub fn run() {
             file_watch,
             file_unwatch,
             file_read,
+            fs_watch_project,
+            fs_unwatch_project,
             session_list,
             session_save,
             session_delete,
@@ -831,6 +853,7 @@ pub fn run() {
             );
 
             let file_watcher = Arc::new(FileWatcherManager::new());
+            let fs_watcher = Arc::new(ProjectFsWatcher::new());
             let ctx_db = Arc::new(CtxDb::new());
             let remote_manager = Arc::new(RemoteManager::new());
 
@@ -845,6 +868,7 @@ pub fn run() {
                 sidecar_manager,
                 session_db,
                 file_watcher,
+                fs_watcher,
                 ctx_db,
                 remote_manager,
                 _telemetry: telemetry_guard,

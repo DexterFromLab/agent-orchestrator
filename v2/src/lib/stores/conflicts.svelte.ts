@@ -1,6 +1,10 @@
 // File overlap conflict detection — Svelte 5 runes
 // Tracks which files each agent session writes to per project.
 // Detects when two or more sessions write to the same file (file overlap conflict).
+// Also detects external filesystem writes (S-1 Phase 2) via inotify events.
+
+/** Sentinel session ID for external (non-agent) writes */
+export const EXTERNAL_SESSION_ID = '__external__';
 
 export interface FileConflict {
   /** Absolute file path */
@@ -11,6 +15,8 @@ export interface FileConflict {
   sessionIds: string[];
   /** Timestamp of most recent write */
   lastWriteTs: number;
+  /** True if this conflict involves an external (non-agent) writer */
+  isExternal: boolean;
 }
 
 export interface ProjectConflicts {
@@ -19,6 +25,8 @@ export interface ProjectConflicts {
   conflicts: FileConflict[];
   /** Total conflicting files */
   conflictCount: number;
+  /** Number of files with external write conflicts */
+  externalConflictCount: number;
 }
 
 // --- State ---
@@ -36,6 +44,13 @@ let acknowledgedFiles = $state<Map<string, Set<string>>>(new Map());
 
 // sessionId -> worktree path (null = main working tree)
 let sessionWorktrees = $state<Map<string, string | null>>(new Map());
+
+// projectId -> filePath -> timestamp of most recent agent write (for external write heuristic)
+let agentWriteTimestamps = $state<Map<string, Map<string, number>>>(new Map());
+
+// Time window: if an fs event arrives within this window after an agent tool_call write,
+// it's attributed to the agent (suppressed). Otherwise it's external.
+const AGENT_WRITE_GRACE_MS = 2000;
 
 // --- Public API ---
 
@@ -60,6 +75,16 @@ export function recordFileWrite(projectId: string, sessionId: string, filePath: 
   if (!projectMap) {
     projectMap = new Map();
     projectFileWrites.set(projectId, projectMap);
+  }
+
+  // Track agent write timestamp for external write heuristic
+  if (sessionId !== EXTERNAL_SESSION_ID) {
+    let tsMap = agentWriteTimestamps.get(projectId);
+    if (!tsMap) {
+      tsMap = new Map();
+      agentWriteTimestamps.set(projectId, tsMap);
+    }
+    tsMap.set(filePath, Date.now());
   }
 
   let entry = projectMap.get(filePath);
@@ -89,6 +114,47 @@ export function recordFileWrite(projectId: string, sessionId: string, filePath: 
 }
 
 /**
+ * Record an external filesystem write detected via inotify.
+ * Uses timing heuristic: if an agent wrote this file within AGENT_WRITE_GRACE_MS,
+ * the write is attributed to the agent and suppressed.
+ * Returns true if this creates a new external write conflict.
+ */
+export function recordExternalWrite(projectId: string, filePath: string, timestampMs: number): boolean {
+  // Timing heuristic: check if any agent recently wrote this file
+  const tsMap = agentWriteTimestamps.get(projectId);
+  if (tsMap) {
+    const lastAgentWrite = tsMap.get(filePath);
+    if (lastAgentWrite && (timestampMs - lastAgentWrite) < AGENT_WRITE_GRACE_MS) {
+      // This is likely our agent's write — suppress
+      return false;
+    }
+  }
+
+  // Check if any agent session has written this file (for conflict to be meaningful)
+  const projectMap = projectFileWrites.get(projectId);
+  if (!projectMap) return false; // No agent writes at all — not a conflict
+  const entry = projectMap.get(filePath);
+  if (!entry || entry.sessionIds.size === 0) return false; // No agent wrote this file
+
+  // Record external write as a conflict
+  return recordFileWrite(projectId, EXTERNAL_SESSION_ID, filePath);
+}
+
+/** Get the count of external write conflicts for a project */
+export function getExternalConflictCount(projectId: string): number {
+  const projectMap = projectFileWrites.get(projectId);
+  if (!projectMap) return 0;
+  const ackSet = acknowledgedFiles.get(projectId);
+  let count = 0;
+  for (const [filePath, entry] of projectMap) {
+    if (entry.sessionIds.has(EXTERNAL_SESSION_ID) && !(ackSet?.has(filePath))) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
  * Count sessions that are in a real conflict with the given session
  * (same worktree or both in main tree). Returns total including the session itself.
  */
@@ -105,24 +171,28 @@ function countRealConflictSessions(entry: FileWriteEntry, forSessionId: string):
 /** Get all conflicts for a project (excludes acknowledged and worktree-suppressed) */
 export function getProjectConflicts(projectId: string): ProjectConflicts {
   const projectMap = projectFileWrites.get(projectId);
-  if (!projectMap) return { projectId, conflicts: [], conflictCount: 0 };
+  if (!projectMap) return { projectId, conflicts: [], conflictCount: 0, externalConflictCount: 0 };
 
   const ackSet = acknowledgedFiles.get(projectId);
   const conflicts: FileConflict[] = [];
+  let externalConflictCount = 0;
   for (const [filePath, entry] of projectMap) {
     if (hasRealConflict(entry) && !(ackSet?.has(filePath))) {
+      const isExternal = entry.sessionIds.has(EXTERNAL_SESSION_ID);
+      if (isExternal) externalConflictCount++;
       conflicts.push({
         filePath,
         shortName: filePath.split('/').pop() ?? filePath,
         sessionIds: Array.from(entry.sessionIds),
         lastWriteTs: entry.lastWriteTs,
+        isExternal,
       });
     }
   }
 
   // Most recent conflicts first
   conflicts.sort((a, b) => b.lastWriteTs - a.lastWriteTs);
-  return { projectId, conflicts, conflictCount: conflicts.length };
+  return { projectId, conflicts, conflictCount: conflicts.length, externalConflictCount };
 }
 
 /** Check if a project has any unacknowledged real conflicts */
@@ -200,6 +270,7 @@ export function clearSessionWrites(projectId: string, sessionId: string): void {
 export function clearProjectConflicts(projectId: string): void {
   projectFileWrites.delete(projectId);
   acknowledgedFiles.delete(projectId);
+  agentWriteTimestamps.delete(projectId);
 }
 
 /** Clear all conflict state */
@@ -207,4 +278,5 @@ export function clearAllConflicts(): void {
   projectFileWrites = new Map();
   acknowledgedFiles = new Map();
   sessionWorktrees = new Map();
+  agentWriteTimestamps = new Map();
 }
