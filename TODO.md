@@ -10,9 +10,12 @@
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Env var whitelist fix done. 3 test sessions ran ($1.10, $0.69, $1.70) but model didn't spawn subagents — needs complex multi-part prompts to trigger delegation. Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
+- [ ] **Configurable stall threshold** -- health.yaml per-project config for stall threshold (currently hardcoded 15 min). Adaptive suggestions after 50 sessions from session_metrics data.
+- [ ] **Agent provider adapter pattern** -- Abstract model interface (ProviderConfig, ProviderCapabilities) for multi-model support (Claude, Codex, Ollama). Rename agent-runner.mjs → claude-runner.mjs, capability gates in UI.
 
 ## Completed
 
+- [x] **Project Health Dashboard (S-3)** -- health.svelte.ts store (activity state, burn rate, context pressure, attention scoring). Mission Control status bar (running/idle/stalled counts, $/hr, attention queue). ProjectHeader indicators (status dot, ctx%, $/hr). session_metrics SQLite table (100-row retention). Metric persistence on agent completion. | Done: 2026-03-10
 - [x] **Context tab repurpose** -- Replaced ContextPane (ctx database viewer) with ContextTab (LLM context window visualization). Stats bar, segmented token meter, file references, turn breakdown. Tribunal debate (S-1-R4 at 82%). Token estimation via ~4 chars/token heuristic. | Done: 2026-03-10
 - [x] **CodeMirror 6 editor** -- Replaced shiki viewer in FilesTab with CodeMirror 6. CodeEditor.svelte wrapper: 15 lazy-loaded language modes, Catppuccin theme, auto-close brackets, bracket matching, code folding, Ctrl+S save, dirty tracking, save-on-blur setting. write_file_content Rust command. | Done: 2026-03-10
 - [x] **FilesTab reactivity fixes** -- Fixed HTML nesting (<button> inside <button>), Svelte 5 $state proxy reactivity for file content loading. | Done: 2026-03-10
@@ -22,6 +25,3 @@
 - [x] **E2E testing — consolidated & expanded** -- Consolidated 4 spec files into single bterminal.test.ts (Tauri single-session requirement). 25 tests across 4 describe blocks: Smoke(6), Workspace(8), Settings(6), Keyboard(5). Fixed WebDriver clicks on Svelte components via browser.execute(), removed tauri-plugin-log (redundant with telemetry::init()). | Done: 2026-03-08
 - [x] **px→rem conversion** -- All ~100 px layout violations converted to rem across 10 components (AgentPane, ToastContainer, CommandPalette, SettingsTab, TeamAgentsPanel, AgentCard, StatusBar, AgentTree, TerminalPane, AgentPreviewPane). Rule 18 fully enforced. | Done: 2026-03-08
 - [x] **Workspace teardown race fix** -- Added pendingPersistCount counter + waitForPendingPersistence() fence in agent-dispatcher.ts. switchGroup() awaits persistence before clearing state. Last open HIGH audit finding resolved. | Done: 2026-03-08
-- [x] **OTEL telemetry** -- Full-scope OpenTelemetry: telemetry.rs (TelemetryGuard, tracing + OTLP layers), telemetry-bridge.ts (frontend→Rust), #[tracing::instrument] on 10 commands, agent dispatcher lifecycle logging, Docker Tempo+Grafana stack (port 9715). BTERMINAL_OTLP_ENDPOINT env var controls export. | Done: 2026-03-08
-- [x] **Medium/Low audit fixes** -- All 6 MEDIUM + 8 LOW findings fixed: runtime type guards in sdk-messages.ts, ANTHROPIC_* env stripping, timestamp mismatch, async lock, error propagation, input validation, mutex poisoning, log warnings, payload validation. 172/172 tests pass. | Done: 2026-03-08
-- [x] **Security & correctness audit fixes** -- 5 CRITICAL + 4 HIGH findings fixed: path traversal, race conditions, memory leaks, listener leaks, transaction safety. 3 false positives dismissed. | Done: 2026-03-08

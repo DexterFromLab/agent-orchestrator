@@ -77,7 +77,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Context/ContextPane.svelte` | ctx database viewer (projects, entries, search) — replaced by ContextTab in ProjectBox |
 | `v2/src/lib/components/Workspace/ContextTab.svelte` | LLM context window visualization (stats, token meter, file refs, turn breakdown) |
 | `v2/src/lib/components/Workspace/CodeEditor.svelte` | CodeMirror 6 wrapper (15 languages, Catppuccin theme, save/blur callbacks) |
-| `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (group name, project count, agent count, cost) |
+| `v2/src/lib/stores/health.svelte.ts` | Project health store (activity state, burn rate, context pressure, attention scoring) |
+| `v2/src/lib/components/StatusBar/StatusBar.svelte` | Mission Control bar (agent states, $/hr burn rate, attention queue, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
 | `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, FilesTab, SshTab, MemoriesTab, CommandPalette, DocsTab, SettingsTab |
 | `v2/src/lib/types/groups.ts` | TypeScript interfaces (ProjectConfig, GroupConfig, GroupsFile) |

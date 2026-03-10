@@ -494,7 +494,19 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Dirty tracking, Ctrl+S save, save-on-blur setting (files_save_on_blur in SettingsTab)
 - [x] write_file_content Rust command (safety: existing files only)
 
+#### Project Health Dashboard (S-3 — Mission Control)
+- [x] health.svelte.ts store: per-project ActivityState (running/idle/stalled), burn rate ($/hr EMA), context pressure (% of model limit), attention scoring
+- [x] StatusBar → Mission Control bar: running/idle/stalled counts, $/hr burn rate, "needs attention" priority queue dropdown
+- [x] ProjectHeader health indicators: status dot (color-coded), context pressure badge, burn rate badge
+- [x] session_metrics SQLite table: per-project historical metrics (100-row retention)
+- [x] Rust commands: session_metric_save, session_metrics_load
+- [x] TypeScript bridge: SessionMetric interface, saveSessionMetric(), loadSessionMetrics()
+- [x] agent-dispatcher wiring: recordActivity, recordToolDone, recordTokenSnapshot, sessionStartTimes, metric persistence on completion
+- [x] ClaudeSession: trackProject() on session create/restore
+- [x] App.svelte: startHealthTick()/stopHealthTick() lifecycle
+- [x] workspace.svelte.ts: clearHealthTracking() on group switch
+
 #### Verification
 - [x] svelte-check: 0 new errors (only pre-existing esrap type errors)
 - [x] vitest: 139/139 tests pass
-- [x] cargo check: compiles cleanly
+- [x] cargo test: 34/34 pass

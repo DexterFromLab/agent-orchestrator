@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ContextTab AST view: per-turn SVG conversation trees showing hierarchical message flow (Turn → Thinking/Response/Tool Calls → File operations), with bezier edges, color-coded nodes, token counts, and detail tooltips (ContextTab.svelte)
 - ContextTab Graph view: bipartite tool→file DAG with tools on left (color-coded by type) and files on right, curved SVG edges showing which tools touched which files, count badges on both sides (ContextTab.svelte)
 - Compaction event detection: `compact_boundary` SDK messages adapted to `CompactionContent` type in sdk-messages.ts, ContextTab shows yellow compaction count pill in stats bar and red boundary nodes in AST view
+- Project health store: per-project activity state (running/idle/stalled), burn rate ($/hr EMA), context pressure (% of model limit), attention scoring with urgency weights (health.svelte.ts)
+- Mission Control status bar: running/idle/stalled agent counts, total $/hr burn rate, "needs attention" dropdown priority queue with click-to-focus cards (StatusBar.svelte)
+- ProjectHeader health indicators: color-coded status dot (green=running, orange=stalled), context pressure badge, burn rate badge (ProjectHeader.svelte)
+- Session metrics SQLite table: per-project historical metrics with 100-row retention, `session_metric_save` and `session_metrics_load` Tauri commands (session.rs, lib.rs)
+- Session metric persistence on agent completion: records peak tokens, turn count, tool call count, cost, model, status (agent-dispatcher.ts)
 
 ### Changed
 - AgentPane UI redesign: sans-serif root font (system-ui), tool calls paired with results in collapsible `<details>` groups, hook messages collapsed into compact labels, context window usage meter in status strip, cost bar made minimal (no background), session summary with translucent background, two-phase scroll anchoring, tool-aware output truncation (Bash 500/Read 50/Glob 20 lines), colors softened via `color-mix()`, responsive margins via container queries (AgentPane.svelte)
