@@ -78,6 +78,31 @@ export async function loadProjectAgentState(projectId: string): Promise<ProjectA
   return invoke('project_agent_state_load', { projectId });
 }
 
+// --- Session metrics ---
+
+export interface SessionMetric {
+  id: number;
+  project_id: string;
+  session_id: string;
+  start_time: number;
+  end_time: number;
+  peak_tokens: number;
+  turn_count: number;
+  tool_call_count: number;
+  cost_usd: number;
+  model: string | null;
+  status: string;
+  error_message: string | null;
+}
+
+export async function saveSessionMetric(metric: Omit<SessionMetric, 'id'>): Promise<void> {
+  return invoke('session_metric_save', { metric: { id: 0, ...metric } });
+}
+
+export async function loadSessionMetrics(projectId: string, limit = 20): Promise<SessionMetric[]> {
+  return invoke('session_metrics_load', { projectId, limit });
+}
+
 // --- CLI arguments ---
 
 export async function getCliGroup(): Promise<string | null> {

@@ -4,6 +4,7 @@
   import { getSetting } from './lib/adapters/settings-bridge';
   import { isDetachedMode, getDetachedConfig } from './lib/utils/detach';
   import { startAgentDispatcher, stopAgentDispatcher } from './lib/agent-dispatcher';
+  import { startHealthTick, stopHealthTick, clearHealthTracking } from './lib/stores/health.svelte';
   import { loadWorkspace, getActiveTab, setActiveTab, setActiveProject, getEnabledProjects } from './lib/stores/workspace.svelte';
 
   // Workspace components
@@ -65,6 +66,7 @@
       if (v) document.documentElement.style.setProperty('--project-max-aspect', v);
     });
     startAgentDispatcher();
+    startHealthTick();
 
     if (!detached) {
       loadWorkspace().then(() => { loaded = true; });
@@ -120,6 +122,7 @@
     return () => {
       window.removeEventListener('keydown', handleKeydown);
       stopAgentDispatcher();
+      stopHealthTick();
     };
   });
 </script>

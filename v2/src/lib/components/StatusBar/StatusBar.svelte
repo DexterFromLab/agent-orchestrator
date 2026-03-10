@@ -1,16 +1,43 @@
 <script lang="ts">
   import { getAgentSessions } from '../../stores/agents.svelte';
-  import { getActiveGroup, getEnabledProjects, getActiveGroupId } from '../../stores/workspace.svelte';
+  import { getActiveGroup, getEnabledProjects, setActiveProject } from '../../stores/workspace.svelte';
+  import { getHealthAggregates, getAttentionQueue, type ProjectHealth } from '../../stores/health.svelte';
 
   let agentSessions = $derived(getAgentSessions());
   let activeGroup = $derived(getActiveGroup());
   let enabledProjects = $derived(getEnabledProjects());
 
-  let activeAgents = $derived(agentSessions.filter(s => s.status === 'running' || s.status === 'starting').length);
   let totalCost = $derived(agentSessions.reduce((sum, s) => sum + s.costUsd, 0));
   let totalTokens = $derived(agentSessions.reduce((sum, s) => sum + s.inputTokens + s.outputTokens, 0));
   let projectCount = $derived(enabledProjects.length);
-  let agentCount = $derived(agentSessions.length);
+
+  // Health-derived signals
+  let health = $derived(getHealthAggregates());
+  let attentionQueue = $derived(getAttentionQueue(5));
+
+  let showAttention = $state(false);
+
+  function projectName(projectId: string): string {
+    return enabledProjects.find(p => p.id === projectId)?.name ?? projectId.slice(0, 8);
+  }
+
+  function focusProject(projectId: string) {
+    setActiveProject(projectId);
+    showAttention = false;
+  }
+
+  function formatRate(rate: number): string {
+    if (rate < 0.01) return '$0/hr';
+    if (rate < 1) return `$${rate.toFixed(2)}/hr`;
+    return `$${rate.toFixed(1)}/hr`;
+  }
+
+  function attentionColor(item: ProjectHealth): string {
+    if (item.attentionScore >= 90) return 'var(--ctp-red)';
+    if (item.attentionScore >= 70) return 'var(--ctp-peach)';
+    if (item.attentionScore >= 40) return 'var(--ctp-yellow)';
+    return 'var(--ctp-overlay1)';
+  }
 </script>
 
 <div class="status-bar">
@@ -21,18 +48,49 @@
     {/if}
     <span class="item" title="Enabled projects">{projectCount} projects</span>
     <span class="sep"></span>
-    <span class="item" title="Agent sessions">{agentCount} agents</span>
-    {#if activeAgents > 0}
-      <span class="sep"></span>
-      <span class="item active">
+
+    <!-- Agent states from health store -->
+    {#if health.running > 0}
+      <span class="item state-running" title="Running agents">
         <span class="pulse"></span>
-        {activeAgents} running
+        {health.running} running
       </span>
+      <span class="sep"></span>
+    {/if}
+    {#if health.idle > 0}
+      <span class="item state-idle" title="Idle agents">{health.idle} idle</span>
+      <span class="sep"></span>
+    {/if}
+    {#if health.stalled > 0}
+      <span class="item state-stalled" title="Stalled agents (>15 min inactive)">
+        {health.stalled} stalled
+      </span>
+      <span class="sep"></span>
+    {/if}
+
+    <!-- Attention queue toggle -->
+    {#if attentionQueue.length > 0}
+      <button
+        class="item attention-btn"
+        class:attention-open={showAttention}
+        onclick={() => showAttention = !showAttention}
+        title="Needs attention — click to expand"
+      >
+        <span class="attention-dot"></span>
+        {attentionQueue.length} need attention
+      </button>
     {/if}
   </div>
+
   <div class="right">
+    {#if health.totalBurnRatePerHour > 0}
+      <span class="item burn-rate" title="Total burn rate across active sessions">
+        {formatRate(health.totalBurnRatePerHour)}
+      </span>
+      <span class="sep"></span>
+    {/if}
     {#if totalTokens > 0}
-      <span class="item tokens">{totalTokens.toLocaleString()} tokens</span>
+      <span class="item tokens">{totalTokens.toLocaleString()} tok</span>
       <span class="sep"></span>
     {/if}
     {#if totalCost > 0}
@@ -42,6 +100,24 @@
     <span class="item version">BTerminal v3</span>
   </div>
 </div>
+
+<!-- Attention queue dropdown -->
+{#if showAttention && attentionQueue.length > 0}
+  <div class="attention-panel">
+    {#each attentionQueue as item (item.projectId)}
+      <button
+        class="attention-card"
+        onclick={() => focusProject(item.projectId)}
+      >
+        <span class="card-name">{projectName(item.projectId)}</span>
+        <span class="card-reason" style="color: {attentionColor(item)}">{item.attentionReason}</span>
+        {#if item.contextPressure !== null && item.contextPressure > 0.5}
+          <span class="card-ctx" title="Context usage">ctx {Math.round(item.contextPressure * 100)}%</span>
+        {/if}
+      </button>
+    {/each}
+  </div>
+{/if}
 
 <style>
   .status-bar {
@@ -57,6 +133,7 @@
     font-family: 'JetBrains Mono', monospace;
     user-select: none;
     flex-shrink: 0;
+    position: relative;
   }
 
   .left, .right {
@@ -82,15 +159,25 @@
     font-weight: 600;
   }
 
-  .active {
-    color: var(--ctp-blue);
+  /* Agent state indicators */
+  .state-running {
+    color: var(--ctp-green);
+  }
+
+  .state-idle {
+    color: var(--ctp-overlay1);
+  }
+
+  .state-stalled {
+    color: var(--ctp-peach);
+    font-weight: 600;
   }
 
   .pulse {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--ctp-blue);
+    background: var(--ctp-green);
     animation: pulse 1.5s ease-in-out infinite;
   }
 
@@ -99,7 +186,101 @@
     50% { opacity: 0.3; }
   }
 
+  /* Attention button */
+  .attention-btn {
+    background: none;
+    border: none;
+    color: var(--ctp-peach);
+    font: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0;
+    font-weight: 600;
+  }
+
+  .attention-btn:hover {
+    color: var(--ctp-red);
+  }
+
+  .attention-btn.attention-open {
+    color: var(--ctp-red);
+  }
+
+  .attention-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ctp-peach);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .attention-btn.attention-open .attention-dot,
+  .attention-btn:hover .attention-dot {
+    background: var(--ctp-red);
+  }
+
+  /* Burn rate */
+  .burn-rate {
+    color: var(--ctp-mauve);
+    font-weight: 600;
+  }
+
   .tokens { color: var(--ctp-overlay1); }
   .cost { color: var(--ctp-yellow); }
   .version { color: var(--ctp-overlay0); }
+
+  /* Attention panel dropdown */
+  .attention-panel {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 0;
+    right: 0;
+    background: var(--ctp-surface0);
+    border-top: 1px solid var(--ctp-surface1);
+    display: flex;
+    gap: 1px;
+    padding: 0.25rem 0.5rem;
+    z-index: 100;
+    overflow-x: auto;
+  }
+
+  .attention-card {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font: inherit;
+    font-size: 0.6875rem;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .attention-card:hover {
+    background: var(--ctp-surface0);
+    border-color: var(--ctp-surface2);
+  }
+
+  .card-name {
+    font-weight: 600;
+    color: var(--ctp-text);
+  }
+
+  .card-reason {
+    font-size: 0.625rem;
+  }
+
+  .card-ctx {
+    font-size: 0.5625rem;
+    color: var(--ctp-overlay0);
+    background: color-mix(in srgb, var(--ctp-yellow) 10%, transparent);
+    padding: 0 0.25rem;
+    border-radius: 0.125rem;
+  }
 </style>

@@ -20,15 +20,20 @@ import { notify } from './stores/notifications.svelte';
 import {
   saveProjectAgentState,
   saveAgentMessages,
+  saveSessionMetric,
   type AgentMessageRecord,
 } from './adapters/groups-bridge';
 import { tel } from './adapters/telemetry-bridge';
+import { recordActivity, recordToolDone, recordTokenSnapshot } from './stores/health.svelte';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
 
 // Map sessionId -> projectId for persistence routing
 const sessionProjectMap = new Map<string, string>();
+
+// Map sessionId -> start timestamp for metrics
+const sessionStartTimes = new Map<string, number>();
 
 // In-flight persistence counter — prevents teardown from racing with async saves
 let pendingPersistCount = 0;
@@ -70,6 +75,7 @@ export async function startAgentDispatcher(): Promise<void> {
     switch (msg.type) {
       case 'agent_started':
         updateAgentStatus(sessionId, 'running');
+        sessionStartTimes.set(sessionId, Date.now());
         tel.info('agent_started', { sessionId });
         break;
 
@@ -172,6 +178,9 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
         if (SUBAGENT_TOOL_NAMES.has(tc.name)) {
           spawnSubagentPane(sessionId, tc);
         }
+        // Health: record tool start
+        const projId = sessionProjectMap.get(sessionId);
+        if (projId) recordActivity(projId, tc.name);
         break;
       }
 
@@ -200,6 +209,12 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
           updateAgentStatus(sessionId, 'done');
           notify('success', `Agent done — $${cost.totalCostUsd.toFixed(4)}, ${cost.numTurns} turns`);
         }
+        // Health: record token snapshot + tool done
+        const costProjId = sessionProjectMap.get(sessionId);
+        if (costProjId) {
+          recordTokenSnapshot(costProjId, cost.inputTokens + cost.outputTokens, cost.totalCostUsd);
+          recordToolDone(costProjId);
+        }
         // Persist session state for project-scoped sessions
         persistSessionForProject(sessionId);
         break;
@@ -207,7 +222,14 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
     }
   }
 
+  // Health: record general activity for non-tool messages (text, thinking)
   if (mainMessages.length > 0) {
+    const actProjId = sessionProjectMap.get(sessionId);
+    if (actProjId) {
+      const hasToolResult = mainMessages.some(m => m.type === 'tool_result');
+      if (hasToolResult) recordToolDone(actProjId);
+      else recordActivity(actProjId);
+    }
     appendAgentMessages(sessionId, mainMessages);
   }
 
@@ -322,6 +344,23 @@ async function persistSessionForProject(sessionId: string): Promise<void> {
     if (records.length > 0) {
       await saveAgentMessages(sessionId, projectId, session.sdkSessionId, records);
     }
+
+    // Persist session metric for historical tracking
+    const toolCallCount = session.messages.filter(m => m.type === 'tool_call').length;
+    const startTime = sessionStartTimes.get(sessionId) ?? Math.floor(Date.now() / 1000);
+    await saveSessionMetric({
+      project_id: projectId,
+      session_id: sessionId,
+      start_time: Math.floor(startTime / 1000),
+      end_time: nowSecs,
+      peak_tokens: session.inputTokens + session.outputTokens,
+      turn_count: session.numTurns,
+      tool_call_count: toolCallCount,
+      cost_usd: session.costUsd,
+      model: session.model ?? null,
+      status: session.status,
+      error_message: session.error ?? null,
+    });
   } catch (e) {
     console.warn('Failed to persist agent session:', e);
   } finally {
@@ -341,4 +380,5 @@ export function stopAgentDispatcher(): void {
   // Clear routing maps to prevent unbounded memory growth
   toolUseToChildPane.clear();
   sessionProjectMap.clear();
+  sessionStartTimes.clear();
 }

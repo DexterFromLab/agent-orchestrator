@@ -11,6 +11,7 @@
   import SshTab from './SshTab.svelte';
   import MemoriesTab from './MemoriesTab.svelte';
   import { getTerminalTabs } from '../../stores/workspace.svelte';
+  import { getProjectHealth } from '../../stores/health.svelte';
 
   interface Props {
     project: ProjectConfig;
@@ -32,6 +33,7 @@
   let everActivated = $state<Record<string, boolean>>({});
 
   let termTabs = $derived(getTerminalTabs(project.id));
+  let projectHealth = $derived(getProjectHealth(project.id));
   let termTabCount = $derived(termTabs.length);
 
   /** Activate a tab — for lazy tabs, mark as ever-activated */
@@ -56,6 +58,7 @@
     {project}
     {slotIndex}
     {active}
+    health={projectHealth}
     onclick={onactivate}
   />
 

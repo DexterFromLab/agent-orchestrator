@@ -448,6 +448,25 @@ fn project_agent_state_load(
     state.session_db.load_project_agent_state(&project_id)
 }
 
+// --- Session metrics commands ---
+
+#[tauri::command]
+fn session_metric_save(
+    state: State<'_, AppState>,
+    metric: session::SessionMetric,
+) -> Result<(), String> {
+    state.session_db.save_session_metric(&metric)
+}
+
+#[tauri::command]
+fn session_metrics_load(
+    state: State<'_, AppState>,
+    project_id: String,
+    limit: i64,
+) -> Result<Vec<session::SessionMetric>, String> {
+    state.session_db.load_session_metrics(&project_id, limit)
+}
+
 // --- File browser commands (Files tab) ---
 
 #[derive(serde::Serialize)]
@@ -761,6 +780,8 @@ pub fn run() {
             agent_messages_load,
             project_agent_state_save,
             project_agent_state_load,
+            session_metric_save,
+            session_metrics_load,
             cli_get_group,
             pick_directory,
             open_url,

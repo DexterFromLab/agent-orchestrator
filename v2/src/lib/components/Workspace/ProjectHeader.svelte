@@ -1,15 +1,17 @@
 <script lang="ts">
   import type { ProjectConfig } from '../../types/groups';
   import { PROJECT_ACCENTS } from '../../types/groups';
+  import type { ProjectHealth } from '../../stores/health.svelte';
 
   interface Props {
     project: ProjectConfig;
     slotIndex: number;
     active: boolean;
+    health: ProjectHealth | null;
     onclick: () => void;
   }
 
-  let { project, slotIndex, active, onclick }: Props = $props();
+  let { project, slotIndex, active, health, onclick }: Props = $props();
 
   let accentVar = $derived(PROJECT_ACCENTS[slotIndex % PROJECT_ACCENTS.length]);
 
@@ -25,6 +27,44 @@
     }
     return cwd;
   });
+
+  let statusDotClass = $derived(() => {
+    if (!health) return 'dot-inactive';
+    switch (health.activityState) {
+      case 'running': return 'dot-running';
+      case 'idle': return 'dot-idle';
+      case 'stalled': return 'dot-stalled';
+      default: return 'dot-inactive';
+    }
+  });
+
+  let statusTooltip = $derived(() => {
+    if (!health) return 'No active session';
+    switch (health.activityState) {
+      case 'running': return health.activeTool ? `Running: ${health.activeTool}` : 'Running';
+      case 'idle': {
+        const secs = Math.floor(health.idleDurationMs / 1000);
+        return secs < 60 ? `Idle (${secs}s)` : `Idle (${Math.floor(secs / 60)}m ${secs % 60}s)`;
+      }
+      case 'stalled': {
+        const mins = Math.floor(health.idleDurationMs / 60_000);
+        return `Stalled — ${mins} min since last activity`;
+      }
+      default: return 'Inactive';
+    }
+  });
+
+  let contextPct = $derived(health?.contextPressure !== null && health?.contextPressure !== undefined
+    ? Math.round(health.contextPressure * 100)
+    : null);
+
+  let ctxColor = $derived(() => {
+    if (contextPct === null) return '';
+    if (contextPct > 90) return 'var(--ctp-red)';
+    if (contextPct > 75) return 'var(--ctp-peach)';
+    if (contextPct > 50) return 'var(--ctp-yellow)';
+    return 'var(--ctp-overlay0)';
+  });
 </script>
 
 <button
@@ -34,11 +74,22 @@
   {onclick}
 >
   <div class="header-main">
+    <span class="status-dot {statusDotClass()}" title={statusTooltip()}></span>
     <span class="project-icon">{project.icon || '📁'}</span>
     <span class="project-name">{project.name}</span>
     <span class="project-id">({project.identifier})</span>
   </div>
   <div class="header-info">
+    {#if contextPct !== null && contextPct > 0}
+      <span class="info-ctx" style="color: {ctxColor()}" title="Context window usage">ctx {contextPct}%</span>
+      <span class="info-sep">·</span>
+    {/if}
+    {#if health && health.burnRatePerHour > 0.01}
+      <span class="info-rate" title="Burn rate">
+        ${health.burnRatePerHour < 1 ? health.burnRatePerHour.toFixed(2) : health.burnRatePerHour.toFixed(1)}/hr
+      </span>
+      <span class="info-sep">·</span>
+    {/if}
     <span class="info-cwd" title={project.cwd}>{displayCwd()}</span>
     {#if project.profile}
       <span class="info-sep">·</span>
@@ -83,6 +134,37 @@
     flex-shrink: 0;
   }
 
+  /* Status dot */
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-inactive {
+    background: var(--ctp-surface2);
+  }
+
+  .dot-running {
+    background: var(--ctp-green);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .dot-idle {
+    background: var(--ctp-overlay0);
+  }
+
+  .dot-stalled {
+    background: var(--ctp-peach);
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
   .project-icon {
     font-size: 0.85rem;
     line-height: 1;
@@ -107,6 +189,20 @@
     min-width: 0;
     flex-shrink: 1;
     overflow: hidden;
+  }
+
+  .info-ctx {
+    font-size: 0.6rem;
+    font-weight: 600;
+    font-family: var(--font-mono, monospace);
+    white-space: nowrap;
+  }
+
+  .info-rate {
+    font-size: 0.6rem;
+    color: var(--ctp-mauve);
+    font-family: var(--font-mono, monospace);
+    white-space: nowrap;
   }
 
   .info-cwd {

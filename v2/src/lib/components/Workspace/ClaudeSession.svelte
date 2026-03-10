@@ -7,6 +7,7 @@
     type AgentMessageRecord,
   } from '../../adapters/groups-bridge';
   import { registerSessionProject } from '../../agent-dispatcher';
+  import { trackProject, updateProjectSession } from '../../stores/health.svelte';
   import {
     createAgentSession,
     appendAgentMessages,
@@ -35,6 +36,7 @@
     hasRestoredHistory = false;
     lastState = null;
     registerSessionProject(sessionId, project.id);
+    trackProject(project.id, sessionId);
     onsessionid?.(sessionId);
   }
 
@@ -67,8 +69,9 @@
       sessionId = crypto.randomUUID();
     } finally {
       loading = false;
-      // Register session -> project mapping for persistence
+      // Register session -> project mapping for persistence + health tracking
       registerSessionProject(sessionId, project.id);
+      trackProject(project.id, sessionId);
       onsessionid?.(sessionId);
     }
   }
