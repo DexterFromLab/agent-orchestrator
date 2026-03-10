@@ -14,9 +14,11 @@
 - [ ] **Agent provider adapter pattern** -- Abstract model interface (ProviderConfig, ProviderCapabilities) for multi-model support (Claude, Codex, Ollama). Rename agent-runner.mjs → claude-runner.mjs, capability gates in UI.
 - [ ] **S-1 Phase 2 — filesystem write detection** -- inotify-based file change detection (already have notify crate). PID attribution to distinguish BTerminal-managed vs external writes. Always-on red "write conflict" cards.
 - [ ] **S-2 — session anchors** -- Preserve first 5 turns / 2K tokens verbatim through checkpoint chains. Pin additional turns via AST conversation tree action.
+- [ ] **Worktree spawning per project** -- useWorktrees field exists on ProjectConfig. Need UI toggle in SettingsTab and wiring to auto-spawn agents in git worktrees via Agent SDK isolation:"worktree".
 
 ## Completed
 
+- [x] **Conflict Detection Enhancements (S-1 Phase 1.5)** -- Bash write detection (>, >>, sed -i, tee, cp, mv). Acknowledge/dismiss conflicts (clickable badge). Worktree-aware conflict suppression. useWorktrees ProjectConfig field. 194/194 tests. | Done: 2026-03-11
 - [x] **File Overlap Conflict Detection (S-1 Phase 1)** -- conflicts.svelte.ts store tracks per-session Write/Edit file paths. Detects 2+ agents writing same file. Health attention score=70. Toast on conflict. Red badge in ProjectHeader + StatusBar. Shared tool-files.ts utility. 170/170 tests. | Done: 2026-03-10
 - [x] **Project Health Dashboard (S-3)** -- health.svelte.ts store (activity state, burn rate, context pressure, attention scoring). Mission Control status bar (running/idle/stalled counts, $/hr, attention queue). ProjectHeader indicators (status dot, ctx%, $/hr). session_metrics SQLite table (100-row retention). Metric persistence on agent completion. | Done: 2026-03-10
 - [x] **Context tab repurpose** -- Replaced ContextPane (ctx database viewer) with ContextTab (LLM context window visualization). Stats bar, segmented token meter, file references, turn breakdown. Tribunal debate (S-1-R4 at 82%). Token estimation via ~4 chars/token heuristic. | Done: 2026-03-10

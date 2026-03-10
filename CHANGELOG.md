@@ -42,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared tool-files utility: extractFilePaths() and extractWritePaths() extracted from ContextTab to reusable module (tool-files.ts)
 - File conflict indicators: red "⚠ N conflicts" badge in ProjectHeader, conflict count in StatusBar, toast notification on new conflict, conflict cards in attention queue (ProjectHeader.svelte, StatusBar.svelte)
 - Health tick auto-stop/auto-start: tick timer self-stops when no running/starting sessions, auto-restarts on recordActivity() (health.svelte.ts)
+- Bash write detection in tool-files.ts: BASH_WRITE_PATTERNS regex array covering >, >>, sed -i, tee, cp, mv, chmod/chown — conflict detection now catches shell-based file writes (tool-files.ts)
+- Worktree-aware conflict suppression: sessions in different git worktrees don't trigger conflicts, sessionWorktrees tracking map, setSessionWorktree() API, extractWorktreePath() detects Agent/Task isolation:"worktree" and EnterWorktree tool calls (conflicts.svelte.ts, tool-files.ts, agent-dispatcher.ts)
+- Acknowledge/dismiss conflicts: acknowledgeConflicts(projectId) suppresses badge until new session writes, acknowledgedFiles state map, auto-clear on new session write to acknowledged file (conflicts.svelte.ts)
+- Clickable conflict badge in ProjectHeader: red button with ✕ calls acknowledgeConflicts() on click with stopPropagation, hover darkens background (ProjectHeader.svelte)
+- `useWorktrees` optional boolean field on ProjectConfig for future per-project worktree spawning setting (groups.ts)
 
 ### Changed
 - AgentPane UI redesign: sans-serif root font (system-ui), tool calls paired with results in collapsible `<details>` groups, hook messages collapsed into compact labels, context window usage meter in status strip, cost bar made minimal (no background), session summary with translucent background, two-phase scroll anchoring, tool-aware output truncation (Bash 500/Read 50/Glob 20 lines), colors softened via `color-mix()`, responsive margins via container queries (AgentPane.svelte)

@@ -510,3 +510,29 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] svelte-check: 0 new errors (only pre-existing esrap type errors)
 - [x] vitest: 139/139 tests pass
 - [x] cargo test: 34/34 pass
+
+### Session: 2026-03-11 — S-1 Phase 1.5: Conflict Detection Enhancements
+
+#### Bash Write Detection
+- [x] BASH_WRITE_PATTERNS regex array in tool-files.ts: >, >>, sed -i, tee [-a], cp dest, mv dest, chmod/chown
+- [x] extractBashWritePaths() helper with /dev/null and flag-target filtering
+- [x] Write detection prioritized over read detection for ambiguous commands (cat file > out)
+- [x] extractWritePaths() now captures Bash writes alongside Write/Edit
+
+#### Acknowledge/Dismiss Conflicts
+- [x] acknowledgeConflicts(projectId) API in conflicts.svelte.ts — marks current conflicts as acknowledged
+- [x] acknowledgedFiles Map state — suppresses badge until new session writes to acknowledged file
+- [x] ProjectHeader conflict badge → clickable button with ✕ (stopPropagation, hover darkens)
+- [x] Ack auto-cleared when new session writes to previously-acknowledged file
+
+#### Worktree-Aware Conflict Suppression
+- [x] sessionWorktrees Map in conflicts store — tracks worktree path per session (null = main tree)
+- [x] setSessionWorktree(sessionId, path) API
+- [x] areInDifferentWorktrees() / hasRealConflict() — suppresses conflicts between sessions in different worktrees
+- [x] extractWorktreePath(tc) in tool-files.ts — detects Agent/Task isolation:"worktree" and EnterWorktree
+- [x] agent-dispatcher.ts wiring: registers worktree paths from tool_call events
+- [x] useWorktrees?: boolean field on ProjectConfig (groups.ts) for future per-project setting
+
+#### Verification
+- [x] vitest: 194/194 tests pass (+24 new: 5 extractWorktreePath, 10 bash write, 9 acknowledge/worktree)
+- [x] cargo test: 34/34 pass

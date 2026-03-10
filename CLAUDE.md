@@ -78,8 +78,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Workspace/ContextTab.svelte` | LLM context window visualization (stats, token meter, file refs, turn breakdown) |
 | `v2/src/lib/components/Workspace/CodeEditor.svelte` | CodeMirror 6 wrapper (15 languages, Catppuccin theme, save/blur callbacks) |
 | `v2/src/lib/stores/health.svelte.ts` | Project health store (activity state, burn rate, context pressure, file conflicts, attention scoring) |
-| `v2/src/lib/stores/conflicts.svelte.ts` | File overlap conflict detection (per-project, session-scoped) |
-| `v2/src/lib/utils/tool-files.ts` | Shared file path extraction from tool_call inputs (extractFilePaths, extractWritePaths) |
+| `v2/src/lib/stores/conflicts.svelte.ts` | File overlap conflict detection (per-project, session-scoped, worktree-aware, dismissible) |
+| `v2/src/lib/utils/tool-files.ts` | Shared file path extraction from tool_call inputs (extractFilePaths, extractWritePaths, extractWorktreePath) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Mission Control bar (agent states, $/hr burn rate, attention queue, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
 | `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, FilesTab, SshTab, MemoriesTab, CommandPalette, DocsTab, SettingsTab |
@@ -92,8 +92,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/sdk-messages.test.ts` | Vitest tests for SDK message adapter (25 tests) |
 | `v2/src/lib/adapters/agent-bridge.test.ts` | Vitest tests for agent IPC bridge (11 tests) |
 | `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (29 tests) |
-| `v2/src/lib/stores/conflicts.test.ts` | Vitest tests for conflict detection (19 tests) |
-| `v2/src/lib/utils/tool-files.test.ts` | Vitest tests for tool file extraction (12 tests) |
+| `v2/src/lib/stores/conflicts.test.ts` | Vitest tests for conflict detection (28 tests) |
+| `v2/src/lib/utils/tool-files.test.ts` | Vitest tests for tool file extraction (27 tests) |
 | `v2/src/lib/stores/layout.test.ts` | Vitest tests for layout store (30 tests) |
 | `v2/src/lib/utils/agent-tree.test.ts` | Vitest tests for agent tree builder (20 tests) |
 | `v2/src/lib/stores/workspace.test.ts` | Vitest tests for workspace store (24 tests) |
