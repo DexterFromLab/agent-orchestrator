@@ -51,7 +51,7 @@
       const state = await loadProjectAgentState(projectId);
       lastState = state;
       if (state?.last_session_id) {
-        sessionId = state.last_session_id;
+        sessionId = state.last_session_id as ReturnType<typeof crypto.randomUUID>;
 
         // Restore cached messages into the agent store
         const records = await loadAgentMessages(projectId);
@@ -92,6 +92,7 @@
       type: r.message_type as AgentMessage['type'],
       content: JSON.parse(r.content),
       parentId: r.parent_id ?? undefined,
+      timestamp: r.created_at ?? Date.now(),
     }));
 
     appendAgentMessages(sid, messages);
