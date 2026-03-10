@@ -234,29 +234,31 @@
   });
 
   // When content prop changes externally (different file loaded), replace editor content
-  let lastContent = content;
+  let lastContent = $state(content);
   $effect(() => {
-    if (view && content !== lastContent) {
+    const c = content;
+    if (view && c !== lastContent) {
       const currentDoc = view.state.doc.toString();
-      if (content !== currentDoc) {
+      if (c !== currentDoc) {
         view.dispatch({
-          changes: { from: 0, to: view.state.doc.length, insert: content },
+          changes: { from: 0, to: view.state.doc.length, insert: c },
         });
       }
-      lastContent = content;
+      lastContent = c;
     }
   });
 
   // When lang changes, recreate editor
-  let lastLang = lang;
+  let lastLang = $state(lang);
   $effect(() => {
-    if (lang !== lastLang && view) {
-      lastLang = lang;
+    const l = lang;
+    if (l !== lastLang && view) {
+      lastLang = l;
       const currentContent = view.state.doc.toString();
       view.destroy();
       // Small delay to let DOM settle
       queueMicrotask(async () => {
-        const langExt = await getLangExtension(lang);
+        const langExt = await getLangExtension(l);
         const extensions = [
           lineNumbers(),
           highlightActiveLineGutter(),
