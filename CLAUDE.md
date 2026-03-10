@@ -60,6 +60,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/claude-bridge.ts` | Claude profiles + skills IPC wrapper |
 | `v2/src/lib/adapters/groups-bridge.ts` | Groups config IPC wrapper (load/save) |
 | `v2/src/lib/adapters/remote-bridge.ts` | Remote machine management IPC wrapper |
+| `v2/src/lib/adapters/files-bridge.ts` | File browser IPC wrapper (list_directory_children, read_file_content) |
+| `v2/src/lib/adapters/memory-adapter.ts` | Pluggable memory adapter interface (MemoryAdapter, registry) |
 | `v2/src/lib/adapters/telemetry-bridge.ts` | Frontend telemetry bridge (routes events to Rust tracing via IPC) |
 | `docker/tempo/` | Docker compose: Tempo + Grafana for trace visualization (port 9715) |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
@@ -75,7 +77,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Context/ContextPane.svelte` | ctx database viewer (projects, entries, search) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Global status bar (group name, project count, agent count, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
-| `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, CommandPalette, DocsTab, SettingsTab |
+| `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, FilesTab, SshTab, MemoriesTab, CommandPalette, DocsTab, SettingsTab |
 | `v2/src/lib/types/groups.ts` | TypeScript interfaces (ProjectConfig, GroupConfig, GroupsFile) |
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |

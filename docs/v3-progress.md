@@ -446,3 +446,32 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Fixed keyboard focus: `browser.execute(() => document.body.focus())` before sending shortcuts
 - [x] Removed old individual spec files (smoke.test.ts, keyboard.test.ts, settings.test.ts, workspace.test.ts)
 - [x] All 25 E2E tests pass (9s runtime after build)
+
+### Session: 2026-03-10 — Tab System Overhaul
+
+#### Tab Renames + New Tabs
+- [x] Renamed Claude → Model, Files → Docs in ProjectBox
+- [x] Added 3 new tabs: Files (directory browser), SSH (connection manager), Memory (knowledge explorer)
+- [x] Implemented PERSISTED-EAGER (Model/Docs/Context — display:flex/none) vs PERSISTED-LAZY (Files/SSH/Memory — {#if everActivated} + display:flex/none) mount strategy
+- [x] Tab type union: 'model' | 'docs' | 'context' | 'files' | 'ssh' | 'memories'
+
+#### Files Tab (FilesTab.svelte)
+- [x] VSCode-style tree sidebar (14rem) + content viewer
+- [x] Rust list_directory_children command: lazy expansion, hidden files skipped, dirs-first sort
+- [x] Rust read_file_content command: FileContent tagged union (Text/Binary/TooLarge), 10MB gate, 30+ language mappings
+- [x] Frontend files-bridge.ts adapter (DirEntry, FileContent types)
+- [x] Shiki syntax highlighting for code files, image display via convertFileSrc, emoji file icons
+
+#### SSH Tab (SshTab.svelte)
+- [x] CRUD panel for SSH connections using existing ssh-bridge.ts/SshSession model
+- [x] Launch button spawns terminal tab in Model tab's TerminalTabs section via addTerminalTab()
+
+#### Memory Tab (MemoriesTab.svelte)
+- [x] Pluggable MemoryAdapter interface (memory-adapter.ts): name, available, list(), search(), get()
+- [x] Adapter registry: registerMemoryAdapter(), getDefaultAdapter(), getAvailableAdapters()
+- [x] UI: search bar, tag display, expandable cards, adapter switcher, placeholder when no adapter
+
+#### Verification
+- [x] svelte-check: 0 new errors
+- [x] vitest: 139/139 tests pass
+- [x] cargo check: compiles cleanly

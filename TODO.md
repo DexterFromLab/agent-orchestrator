@@ -3,6 +3,9 @@
 ## Active
 
 ### v2/v3 Remaining
+- [ ] **Register Memora adapter** -- MemoryAdapter interface exists but no concrete adapter registered at app init. Need to create a MemoraAdapter that bridges to Memora MCP/CLI and register it on startup.
+- [ ] **Files tab PDF viewer** -- FilesTab marks PDFs as Binary. Add pdfjs-dist Canvas 2D rendering for inline PDF viewing.
+- [ ] **Files tab CSV table view** -- CSV files render as plain text. Add structured table rendering with column headers.
 - [ ] **E2E testing — expand coverage** -- 48 tests passing across 8 describe blocks (WebdriverIO v9.24 + tauri-driver, single spec file, ~23s). Add tests for agent sessions, terminal interaction.
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
@@ -10,6 +13,7 @@
 
 ## Completed
 
+- [x] **Tab system overhaul** -- Renamed Claude→Model, Files→Docs. Added Files (VSCode-style tree+viewer), SSH (CRUD+launch), Memory (pluggable adapter) tabs. PERSISTED-EAGER/LAZY mount strategies. Rust list_directory_children + read_file_content commands. | Done: 2026-03-10
 - [x] **AgentPane collapsibles + aspect ratio** -- Text messages collapsible (open by default), cost summary collapsed by default. Project max aspect ratio setting (0.3–3.0, default 1.0) with CSS var + SettingsTab stepper. No-implicit-push rule 52. Desktop StartupWMClass. | Done: 2026-03-09
 - [x] **AgentPane + MarkdownPane UI redesign** -- AgentPane: sans-serif font, tool call/result pairing via $derived.by, hook message collapsing, context meter, muted colors via color-mix(), responsive margins via container queries. MarkdownPane: container query wrapper, shared responsive padding variable. Tribunal-elected design (S-3-R4, 88% confidence). 139/139 tests pass. | Done: 2026-03-09
 - [x] **E2E testing — consolidated & expanded** -- Consolidated 4 spec files into single bterminal.test.ts (Tauri single-session requirement). 25 tests across 4 describe blocks: Smoke(6), Workspace(8), Settings(6), Keyboard(5). Fixed WebDriver clicks on Svelte components via browser.execute(), removed tauri-plugin-log (redundant with telemetry::init()). | Done: 2026-03-08

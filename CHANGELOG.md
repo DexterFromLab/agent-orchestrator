@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `StartupWMClass=bterminal` in install-v2.sh .desktop template for GNOME auto-move extension compatibility
 - MarkdownPane link navigation: relative file links open in Files tab, external URLs open in system browser via `xdg-open`, anchor links scroll in-page (MarkdownPane.svelte, ProjectFiles.svelte, lib.rs)
 - `open_url` Tauri command for opening http/https URLs in system browser (lib.rs)
+- Tab system overhaul: renamed Claude→Model, Files→Docs, added 3 new tabs (Files, SSH, Memory) with PERSISTED-EAGER/LAZY mount strategies (ProjectBox.svelte)
+- FilesTab: VSCode-style directory tree sidebar + content viewer with shiki syntax highlighting, image display via convertFileSrc, 10MB file size gate (FilesTab.svelte)
+- SshTab: SSH connection CRUD panel with launch-to-terminal button, reuses existing ssh-bridge.ts model (SshTab.svelte)
+- MemoriesTab: pluggable knowledge explorer with MemoryAdapter interface, adapter registry, search, tag display, expandable cards (MemoriesTab.svelte, memory-adapter.ts)
+- Rust `list_directory_children` command: lazy tree expansion, hidden files skipped, dirs-first alphabetical sort (lib.rs)
+- Rust `read_file_content` command: FileContent tagged union (Text/Binary/TooLarge), 30+ language mappings (lib.rs)
+- Frontend `files-bridge.ts` adapter: DirEntry and FileContent TypeScript types + IPC wrappers
 
 ### Changed
 - AgentPane UI redesign: sans-serif root font (system-ui), tool calls paired with results in collapsible `<details>` groups, hook messages collapsed into compact labels, context window usage meter in status strip, cost bar made minimal (no background), session summary with translucent background, two-phase scroll anchoring, tool-aware output truncation (Bash 500/Read 50/Glob 20 lines), colors softened via `color-mix()`, responsive margins via container queries (AgentPane.svelte)
