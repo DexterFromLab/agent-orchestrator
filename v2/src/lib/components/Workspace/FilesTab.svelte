@@ -111,12 +111,15 @@
     }
     activeTabPath = node.path;
 
-    // Load content
+    // Load content — must look up from reactive array, not local reference
     fileLoading = true;
     try {
-      tab.content = await readFileContent(node.path);
+      const content = await readFileContent(node.path);
+      const target = fileTabs.find(t => t.path === node.path);
+      if (target) target.content = content;
     } catch (e) {
-      tab.content = { type: 'Binary', message: `Error: ${e}` };
+      const target = fileTabs.find(t => t.path === node.path);
+      if (target) target.content = { type: 'Binary', message: `Error: ${e}` };
     } finally {
       fileLoading = false;
     }
