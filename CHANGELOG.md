@@ -38,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProjectHeader health indicators: color-coded status dot (green=running, orange=stalled), context pressure badge, burn rate badge (ProjectHeader.svelte)
 - Session metrics SQLite table: per-project historical metrics with 100-row retention, `session_metric_save` and `session_metrics_load` Tauri commands (session.rs, lib.rs)
 - Session metric persistence on agent completion: records peak tokens, turn count, tool call count, cost, model, status (agent-dispatcher.ts)
+- File overlap conflict detection store: per-project tracking of Write/Edit tool file paths across agent sessions, detects when 2+ sessions write same file, SCORE_FILE_CONFLICT=70 attention signal (conflicts.svelte.ts)
+- Shared tool-files utility: extractFilePaths() and extractWritePaths() extracted from ContextTab to reusable module (tool-files.ts)
+- File conflict indicators: red "⚠ N conflicts" badge in ProjectHeader, conflict count in StatusBar, toast notification on new conflict, conflict cards in attention queue (ProjectHeader.svelte, StatusBar.svelte)
+- Health tick auto-stop/auto-start: tick timer self-stops when no running/starting sessions, auto-restarts on recordActivity() (health.svelte.ts)
 
 ### Changed
 - AgentPane UI redesign: sans-serif root font (system-ui), tool calls paired with results in collapsible `<details>` groups, hook messages collapsed into compact labels, context window usage meter in status strip, cost bar made minimal (no background), session summary with translucent background, two-phase scroll anchoring, tool-aware output truncation (Bash 500/Read 50/Glob 20 lines), colors softened via `color-mix()`, responsive margins via container queries (AgentPane.svelte)
