@@ -11,13 +11,7 @@ import type {
   ErrorContent,
 } from './claude-messages';
 
-function str(v: unknown, fallback = ''): string {
-  return typeof v === 'string' ? v : fallback;
-}
-
-function num(v: unknown, fallback = 0): number {
-  return typeof v === 'number' ? v : fallback;
-}
+import { str, num } from '../utils/type-guards';
 
 /**
  * Adapt a raw Ollama runner event to AgentMessage[].

@@ -72,15 +72,7 @@ export interface ErrorContent {
   message: string;
 }
 
-/** Runtime guard — returns value if it's a string, fallback otherwise */
-function str(v: unknown, fallback = ''): string {
-  return typeof v === 'string' ? v : fallback;
-}
-
-/** Runtime guard — returns value if it's a number, fallback otherwise */
-function num(v: unknown, fallback = 0): number {
-  return typeof v === 'number' ? v : fallback;
-}
+import { str, num } from '../utils/type-guards';
 
 /**
  * Adapt a raw SDK stream-json message to our internal format.

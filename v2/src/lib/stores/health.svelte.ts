@@ -3,6 +3,7 @@
 
 import { getAgentSession, type AgentSession } from './agents.svelte';
 import { getProjectConflicts } from './conflicts.svelte';
+import { scoreAttention } from '../utils/attention-scorer';
 
 // --- Types ---
 
@@ -51,13 +52,6 @@ const MODEL_CONTEXT_LIMITS: Record<string, number> = {
 };
 const DEFAULT_CONTEXT_LIMIT = 200_000;
 
-// Attention score weights (higher = more urgent)
-const SCORE_STALLED = 100;
-const SCORE_CONTEXT_CRITICAL = 80; // >90% context
-const SCORE_CONTEXT_HIGH = 40; // >75% context
-const SCORE_ERROR = 90;
-const SCORE_FILE_CONFLICT = 70; // 2+ agents writing same file
-const SCORE_IDLE_LONG = 20; // >2x stall threshold but not stalled (shouldn't happen, safety)
 
 // --- State ---
 
@@ -251,28 +245,16 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
   const fileConflictCount = conflicts.conflictCount;
   const externalConflictCount = conflicts.externalConflictCount;
 
-  // Attention scoring — highest-priority signal wins
-  let attentionScore = 0;
-  let attentionReason: string | null = null;
-
-  if (session?.status === 'error') {
-    attentionScore = SCORE_ERROR;
-    attentionReason = `Error: ${session.error?.slice(0, 60) ?? 'Unknown'}`;
-  } else if (activityState === 'stalled') {
-    attentionScore = SCORE_STALLED;
-    const mins = Math.floor(idleDurationMs / 60_000);
-    attentionReason = `Stalled — ${mins} min since last activity`;
-  } else if (contextPressure !== null && contextPressure > 0.9) {
-    attentionScore = SCORE_CONTEXT_CRITICAL;
-    attentionReason = `Context ${Math.round(contextPressure * 100)}% — near limit`;
-  } else if (fileConflictCount > 0) {
-    attentionScore = SCORE_FILE_CONFLICT;
-    const extNote = externalConflictCount > 0 ? ` (${externalConflictCount} external)` : '';
-    attentionReason = `${fileConflictCount} file conflict${fileConflictCount > 1 ? 's' : ''}${extNote}`;
-  } else if (contextPressure !== null && contextPressure > 0.75) {
-    attentionScore = SCORE_CONTEXT_HIGH;
-    attentionReason = `Context ${Math.round(contextPressure * 100)}%`;
-  }
+  // Attention scoring — delegated to pure function
+  const attention = scoreAttention({
+    sessionStatus: session?.status,
+    sessionError: session?.error,
+    activityState,
+    idleDurationMs,
+    contextPressure,
+    fileConflictCount,
+    externalConflictCount,
+  });
 
   return {
     projectId: tracker.projectId,
@@ -284,8 +266,8 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
     contextPressure,
     fileConflictCount,
     externalConflictCount,
-    attentionScore,
-    attentionReason,
+    attentionScore: attention.score,
+    attentionReason: attention.reason,
   };
 }
 
