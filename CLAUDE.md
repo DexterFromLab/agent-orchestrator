@@ -40,7 +40,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |
 | `v2/src-tauri/src/remote.rs` | RemoteManager (WebSocket client connections to relays) |
-| `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions + agent_messages + project_agent_state) |
+| `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions + agent_messages + project_agent_state + session_anchors) |
 | `v2/src-tauri/src/watcher.rs` | FileWatcherManager (notify crate, file change events) |
 | `v2/src-tauri/src/ctx.rs` | CtxDb (read-only access to ~/.claude-context/context.db) |
 | `v2/src-tauri/src/telemetry.rs` | OTEL telemetry (TelemetryGuard, tracing + OTLP export, BTERMINAL_OTLP_ENDPOINT) |
@@ -69,6 +69,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/files-bridge.ts` | File browser IPC wrapper (list_directory_children, read_file_content) |
 | `v2/src/lib/adapters/memory-adapter.ts` | Pluggable memory adapter interface (MemoryAdapter, registry) |
 | `v2/src/lib/adapters/fs-watcher-bridge.ts` | Filesystem watcher IPC wrapper (project CWD write detection) |
+| `v2/src/lib/adapters/anchors-bridge.ts` | Session anchors IPC wrapper (save, load, delete, clear, updateType) |
 | `v2/src/lib/adapters/telemetry-bridge.ts` | Frontend telemetry bridge (routes events to Rust tracing via IPC) |
 | `docker/tempo/` | Docker compose: Tempo + Grafana for trace visualization (port 9715) |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
@@ -88,6 +89,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Workspace/CsvTable.svelte` | CSV table viewer (RFC 4180 parser, delimiter auto-detect, sortable columns) |
 | `v2/src/lib/stores/health.svelte.ts` | Project health store (activity state, burn rate, context pressure, file conflicts, attention scoring) |
 | `v2/src/lib/stores/conflicts.svelte.ts` | File overlap + external write conflict detection (per-project, session-scoped, worktree-aware, dismissible, inotify-backed) |
+| `v2/src/lib/stores/anchors.svelte.ts` | Session anchor store (per-project anchors, auto-anchor tracking, re-injection support) |
+| `v2/src/lib/types/anchors.ts` | Anchor types (AnchorType, SessionAnchor, AnchorSettings, SessionAnchorRecord) |
+| `v2/src/lib/utils/anchor-serializer.ts` | Anchor serialization (turn grouping, observation masking, token estimation) |
 | `v2/src/lib/utils/tool-files.ts` | Shared file path extraction from tool_call inputs (extractFilePaths, extractWritePaths, extractWorktreePath) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Mission Control bar (agent states, $/hr burn rate, attention queue, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
