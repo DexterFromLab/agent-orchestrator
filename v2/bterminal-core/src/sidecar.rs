@@ -26,6 +26,8 @@ pub struct AgentQueryOptions {
     pub model: Option<String>,
     pub claude_config_dir: Option<String>,
     pub additional_directories: Option<Vec<String>>,
+    /// When set, agent runs in a git worktree for isolation (passed as --worktree <name> CLI flag)
+    pub worktree_name: Option<String>,
     /// Provider-specific configuration blob (passed through to sidecar as-is)
     #[serde(default)]
     pub provider_config: serde_json::Value,
@@ -216,6 +218,7 @@ impl SidecarManager {
             "model": options.model,
             "claudeConfigDir": options.claude_config_dir,
             "additionalDirectories": options.additional_directories,
+            "worktreeName": options.worktree_name,
             "providerConfig": options.provider_config,
         });
 

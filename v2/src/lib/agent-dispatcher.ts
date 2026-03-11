@@ -182,6 +182,14 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
         const init = msg.content as InitContent;
         setAgentSdkSessionId(sessionId, init.sessionId);
         setAgentModel(sessionId, init.model);
+        // CWD-based worktree detection: if init CWD contains a worktree path pattern,
+        // register it for conflict suppression (agents in different worktrees don't conflict)
+        if (init.cwd) {
+          const wtPath = detectWorktreeFromCwd(init.cwd);
+          if (wtPath) {
+            setSessionWorktree(sessionId, wtPath);
+          }
+        }
         break;
       }
 
@@ -452,6 +460,22 @@ function triggerAutoAnchor(
     totalTokens,
   });
   notify('info', `Anchored ${anchors.length} turns (${totalTokens} tokens) for context preservation`);
+}
+
+// Worktree path patterns for various providers
+const WORKTREE_CWD_PATTERNS = [
+  /\/\.claude\/worktrees\/([^/]+)/,    // Claude Code: <repo>/.claude/worktrees/<name>/
+  /\/\.codex\/worktrees\/([^/]+)/,     // Codex
+  /\/\.cursor\/worktrees\/([^/]+)/,    // Cursor
+];
+
+/** Extract worktree path from CWD if it matches a known worktree pattern */
+export function detectWorktreeFromCwd(cwd: string): string | null {
+  for (const pattern of WORKTREE_CWD_PATTERNS) {
+    const match = cwd.match(pattern);
+    if (match) return match[0]; // Return the full worktree path segment
+  }
+  return null;
 }
 
 export function stopAgentDispatcher(): void {

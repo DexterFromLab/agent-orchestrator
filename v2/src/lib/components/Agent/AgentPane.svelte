@@ -53,10 +53,11 @@
     profile?: string;
     provider?: ProviderId;
     capabilities?: ProviderCapabilities;
+    useWorktrees?: boolean;
     onExit?: () => void;
   }
 
-  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, onExit }: Props = $props();
+  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, useWorktrees = false, onExit }: Props = $props();
 
   let session = $derived(getAgentSession(sessionId));
   let inputPrompt = $state(initialPrompt);
@@ -184,6 +185,7 @@
       setting_sources: ['user', 'project'],
       claude_config_dir: profile?.config_dir,
       system_prompt: systemPrompt,
+      worktree_name: useWorktrees ? sessionId : undefined,
     });
     inputPrompt = '';
     if (promptRef) {

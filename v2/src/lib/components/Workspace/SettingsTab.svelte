@@ -793,6 +793,21 @@
               </div>
             </div>
 
+            <div class="card-field card-field-row">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><path d="M18 9a3 3 0 0 0-3-3H7"/><path d="M18 9v12"/></svg>
+                Worktree Isolation
+              </span>
+              <label class="card-toggle" title={project.useWorktrees ? 'Worktrees enabled' : 'Worktrees disabled'}>
+                <input
+                  type="checkbox"
+                  checked={project.useWorktrees ?? false}
+                  onchange={e => updateProject(activeGroupId, project.id, { useWorktrees: (e.target as HTMLInputElement).checked })}
+                />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+
             <div class="card-footer">
               <button class="btn-remove" onclick={() => removeProject(activeGroupId, project.id)}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
@@ -1198,6 +1213,12 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+  }
+
+  .card-field.card-field-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .card-field-label {

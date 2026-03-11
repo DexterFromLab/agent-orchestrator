@@ -48,6 +48,7 @@ interface QueryMessage {
   model?: string;
   claudeConfigDir?: string;
   additionalDirectories?: string[];
+  worktreeName?: string;
 }
 
 interface StopMessage {
@@ -72,7 +73,7 @@ async function handleMessage(msg: Record<string, unknown>) {
 }
 
 async function handleQuery(msg: QueryMessage) {
-  const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId, permissionMode, settingSources, systemPrompt, model, claudeConfigDir, additionalDirectories } = msg;
+  const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId, permissionMode, settingSources, systemPrompt, model, claudeConfigDir, additionalDirectories, worktreeName } = msg;
 
   if (sessions.has(sessionId)) {
     send({ type: 'error', sessionId, message: 'Session already running' });
@@ -126,6 +127,7 @@ async function handleQuery(msg: QueryMessage) {
           : { type: 'preset' as const, preset: 'claude_code' as const },
         model: model ?? undefined,
         additionalDirectories: additionalDirectories ?? undefined,
+        extraArgs: worktreeName ? { worktree: worktreeName } : undefined,
       },
     });
 

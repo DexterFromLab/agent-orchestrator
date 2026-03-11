@@ -20,6 +20,8 @@ export interface AgentQueryOptions {
   model?: string;
   claude_config_dir?: string;
   additional_directories?: string[];
+  /** When set, agent runs in a git worktree for isolation */
+  worktree_name?: string;
   provider_config?: Record<string, unknown>;
   remote_machine_id?: string;
 }

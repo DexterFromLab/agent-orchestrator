@@ -130,6 +130,7 @@
       profile={project.profile || undefined}
       provider={providerId}
       capabilities={providerMeta?.capabilities}
+      useWorktrees={project.useWorktrees ?? false}
       onExit={handleNewSession}
     />
   {/if}
