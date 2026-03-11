@@ -9,6 +9,8 @@
   import { CLAUDE_PROVIDER } from './lib/providers/claude';
   import { CODEX_PROVIDER } from './lib/providers/codex';
   import { OLLAMA_PROVIDER } from './lib/providers/ollama';
+  import { registerMemoryAdapter } from './lib/adapters/memory-adapter';
+  import { MemoraAdapter } from './lib/adapters/memora-bridge';
   import { loadWorkspace, getActiveTab, setActiveTab, setActiveProject, getEnabledProjects } from './lib/stores/workspace.svelte';
 
   // Workspace components
@@ -72,6 +74,9 @@
     registerProvider(CLAUDE_PROVIDER);
     registerProvider(CODEX_PROVIDER);
     registerProvider(OLLAMA_PROVIDER);
+    const memora = new MemoraAdapter();
+    registerMemoryAdapter(memora);
+    memora.checkAvailability();
     startAgentDispatcher();
     startHealthTick();
 

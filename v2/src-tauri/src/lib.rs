@@ -2,6 +2,7 @@ mod ctx;
 mod event_sink;
 mod fs_watcher;
 mod groups;
+mod memora;
 mod pty;
 mod remote;
 mod sidecar;
@@ -28,6 +29,7 @@ struct AppState {
     file_watcher: Arc<FileWatcherManager>,
     fs_watcher: Arc<ProjectFsWatcher>,
     ctx_db: Arc<CtxDb>,
+    memora_db: Arc<memora::MemoraDb>,
     remote_manager: Arc<RemoteManager>,
     _telemetry: telemetry::TelemetryGuard,
 }
@@ -242,6 +244,38 @@ fn ctx_get_summaries(state: State<'_, AppState>, project: String, limit: i64) ->
 #[tauri::command]
 fn ctx_search(state: State<'_, AppState>, query: String) -> Result<Vec<ctx::CtxEntry>, String> {
     state.ctx_db.search(&query)
+}
+
+// --- Memora commands (read-only) ---
+
+#[tauri::command]
+fn memora_available(state: State<'_, AppState>) -> bool {
+    state.memora_db.is_available()
+}
+
+#[tauri::command]
+fn memora_list(
+    state: State<'_, AppState>,
+    tags: Option<Vec<String>>,
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<memora::MemoraSearchResult, String> {
+    state.memora_db.list(tags, limit.unwrap_or(50), offset.unwrap_or(0))
+}
+
+#[tauri::command]
+fn memora_search(
+    state: State<'_, AppState>,
+    query: String,
+    tags: Option<Vec<String>>,
+    limit: Option<i64>,
+) -> Result<memora::MemoraSearchResult, String> {
+    state.memora_db.search(&query, tags, limit.unwrap_or(50))
+}
+
+#[tauri::command]
+fn memora_get(state: State<'_, AppState>, id: i64) -> Result<Option<memora::MemoraNode>, String> {
+    state.memora_db.get(id)
 }
 
 // --- Claude profile commands (switcher-claude integration) ---
@@ -827,6 +861,10 @@ pub fn run() {
             ctx_get_shared,
             ctx_get_summaries,
             ctx_search,
+            memora_available,
+            memora_list,
+            memora_search,
+            memora_get,
             remote_list,
             remote_add,
             remote_remove,
@@ -909,6 +947,7 @@ pub fn run() {
             let file_watcher = Arc::new(FileWatcherManager::new());
             let fs_watcher = Arc::new(ProjectFsWatcher::new());
             let ctx_db = Arc::new(CtxDb::new());
+            let memora_db = Arc::new(memora::MemoraDb::new());
             let remote_manager = Arc::new(RemoteManager::new());
 
             // Start local sidecar
@@ -924,6 +963,7 @@ pub fn run() {
                 file_watcher,
                 fs_watcher,
                 ctx_db,
+                memora_db,
                 remote_manager,
                 _telemetry: telemetry_guard,
             });
