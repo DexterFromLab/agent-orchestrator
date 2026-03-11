@@ -104,6 +104,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Workspace/CodeEditor.svelte` | CodeMirror 6 wrapper (15 languages, Catppuccin theme, save/blur callbacks) |
 | `v2/src/lib/components/Workspace/PdfViewer.svelte` | PDF viewer (pdfjs-dist, canvas multi-page, zoom 0.5x–3x, HiDPI) |
 | `v2/src/lib/components/Workspace/CsvTable.svelte` | CSV table viewer (RFC 4180 parser, delimiter auto-detect, sortable columns) |
+| `v2/src/lib/components/Workspace/MetricsPanel.svelte` | Dashboard metrics panel (live health + task counts + history sparklines, 25 tests) |
 | `v2/src/lib/stores/health.svelte.ts` | Project health store (activity state, burn rate, context pressure, file conflicts, attention scoring) |
 | `v2/src/lib/stores/conflicts.svelte.ts` | File overlap + external write conflict detection (per-project, session-scoped, worktree-aware, dismissible, inotify-backed) |
 | `v2/src/lib/stores/anchors.svelte.ts` | Session anchor store (per-project anchors, auto-anchor tracking, re-injection support) |
