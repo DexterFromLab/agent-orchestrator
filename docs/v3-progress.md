@@ -902,3 +902,24 @@ Reviewed and integrated Dexter's multi-agent orchestration branch (dexter_change
 #### Verification
 - [x] cargo check: clean
 - [x] svelte-check: 0 project errors (2 pre-existing in node_modules/esrap)
+
+### Regression Tests + Sidecar Security Session (2026-03-11 night, continued)
+
+#### Regression Tests (49 new tests total)
+- [x] **btmsg.rs cargo tests (8)**: In-memory SQLite with full schema, verifies named column access returns status (not system_prompt), unread counts, JOIN alias disambiguation (all_feed, unread_messages, channel_messages), serde camelCase serialization
+- [x] **bttask.rs cargo tests (7)**: Named column access (list_tasks, task_comments), serde camelCase serialization, status validation
+- [x] **sidecar strip_provider_env_var tests (8)**: All prefix combinations (CLAUDE, CODEX, OLLAMA, ANTHROPIC stripped; CLAUDE_CODE_EXPERIMENTAL whitelisted; OPENAI kept), integration test with full env simulation
+- [x] **btmsg-bridge.test.ts (17)**: camelCase field verification for all 5 interfaces, IPC command names, error propagation
+- [x] **bttask-bridge.test.ts (10)**: camelCase field verification (Task, TaskComment), IPC command names
+- [x] **plantuml-encode.test.ts (7)**: ~h hex prefix, ASCII/Unicode encoding, URL safety, plantuml.com URL generation
+- [x] Fixed pre-existing groups.rs test (missing `agents` field from Dexter's schema change)
+
+#### Security: Sidecar Env Allowlist
+- [x] Added ANTHROPIC_* to Rust-level strip_provider_env_var() — defense-in-depth (Claude CLI uses credentials file, not env var for auth)
+- [x] OPENAI_* intentionally NOT stripped at Rust level (Codex runner needs OPENAI_API_KEY from env)
+- [x] Documented dual-layer stripping design in code comments
+
+#### Test Counts
+- Vitest: 327 passed (was 286, +41)
+- Cargo src-tauri: 64 passed (was 49, +15)
+- Cargo bterminal-core: 8 passed (was 0, +8)

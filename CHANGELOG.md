@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (commands/claude.rs)
+- **Sidecar env allowlist hardening** — added `ANTHROPIC_*` to Rust-level `strip_provider_env_var()` as defense-in-depth (Claude CLI uses credentials file, not env for auth). Dual-layer stripping documented: Rust layer (first checkpoint) + JS runner layer (per-provider)
 
 ### Fixed
 - **btmsg.rs column index mismatch** — `get_agents()` used `SELECT a.*` with positional index 7 for `status`, but column 7 is actually `system_prompt`. Converted all query functions in btmsg.rs and bttask.rs from positional to named column access (`row.get("column_name")`). Added SQL aliases for JOIN columns
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **btmsg/bttask WAL mode** — added SQLite WAL journal mode + 5s busy_timeout to both `btmsg.rs` and `bttask.rs` `open_db()` for safe concurrent access from Python CLIs + Rust backend
 
 ### Added
+- **Regression tests for btmsg/bttask bug fixes** — 49 new tests: btmsg.rs (8, in-memory SQLite with named column access regression for status vs system_prompt), bttask.rs (7, named column access + serde camelCase), sidecar strip_provider_env_var (8, all prefix combinations), btmsg-bridge.test.ts (17, camelCase fields + IPC commands), bttask-bridge.test.ts (10, camelCase + IPC), plantuml-encode.test.ts (7, hex encoding algorithm). Total: 327 vitest + 72 cargo
 - **Configurable stall threshold** — per-project range slider (5–60 min, step 5) in SettingsTab. `stallThresholdMin` in `ProjectConfig` (groups.json), `setStallThreshold()` API in health store with `stallThresholds` Map and `DEFAULT_STALL_THRESHOLD_MS` fallback. ProjectBox `$effect` syncs config → store on mount/change
 - **Memora adapter** — `MemoraAdapter` (memora-bridge.ts) implements `MemoryAdapter` interface, bridging to Memora's SQLite database (`~/.local/share/memora/memories.db`) via read-only Rust backend (`memora.rs`). FTS5 text search, tag filtering via `json_each()`. 4 Tauri commands (memora_available, memora_list, memora_search, memora_get). Registered in App.svelte onMount. 16 vitest + 7 cargo tests. MemoriesTab now shows Memora memories on startup
 - **Codex provider runner** — `sidecar/codex-runner.ts` wraps `@openai/codex-sdk` (dynamic import, graceful failure if not installed). Maps Codex ThreadEvents (agent_message, reasoning, command_execution, file_change, mcp_tool_call, web_search) to common AgentMessage format via `codex-messages.ts` adapter. Sandbox/approval mode mapping from BTerminal permission modes. Session resume via thread ID. `providers/codex.ts` ProviderMeta (gpt-5.4 default, hasSandbox, supportsResume). 19 adapter tests

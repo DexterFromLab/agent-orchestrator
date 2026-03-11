@@ -125,6 +125,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/codex-messages.test.ts` | Vitest tests for Codex message adapter (19 tests) |
 | `v2/src/lib/adapters/ollama-messages.test.ts` | Vitest tests for Ollama message adapter (11 tests) |
 | `v2/src/lib/adapters/memora-bridge.test.ts` | Vitest tests for Memora bridge + adapter (16 tests) |
+| `v2/src/lib/adapters/btmsg-bridge.test.ts` | Vitest tests for btmsg bridge (17 tests: camelCase, IPC commands) |
+| `v2/src/lib/adapters/bttask-bridge.test.ts` | Vitest tests for bttask bridge (10 tests: camelCase, IPC commands) |
 | `v2/src/lib/adapters/agent-bridge.test.ts` | Vitest tests for agent IPC bridge (11 tests) |
 | `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (29 tests) |
 | `v2/src/lib/stores/conflicts.test.ts` | Vitest tests for conflict detection (28 tests) |
