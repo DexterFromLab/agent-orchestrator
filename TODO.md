@@ -4,8 +4,6 @@
 
 ### v2/v3 Remaining
 - [ ] **Register Memora adapter** -- MemoryAdapter interface exists but no concrete adapter registered at app init. Need to create a MemoraAdapter that bridges to Memora MCP/CLI and register it on startup.
-- [ ] **Files tab PDF viewer** -- FilesTab marks PDFs as Binary. Add pdfjs-dist Canvas 2D rendering for inline PDF viewing.
-- [ ] **Files tab CSV table view** -- CSV files render as plain text. Add structured table rendering with column headers.
 - [ ] **E2E testing — expand coverage** -- 48 tests passing across 8 describe blocks (WebdriverIO v9.24 + tauri-driver, single spec file, ~23s). Add tests for agent sessions, terminal interaction.
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
@@ -17,6 +15,7 @@
 
 ## Completed
 
+- [x] **Files tab PDF viewer + CSV table** -- PdfViewer.svelte (pdfjs-dist 5.5.207, canvas multi-page, zoom 0.5x–3x, HiDPI). CsvTable.svelte (RFC 4180 parser, delimiter auto-detect, sortable columns, sticky header). FilesTab routing: Binary+pdf→PdfViewer, Text+csv→CsvTable. | Done: 2026-03-11
 - [x] **Filesystem Write Detection (S-1 Phase 2)** -- inotify-based file change detection via notify crate (fs_watcher.rs). Timing heuristic (2s grace) for PID attribution — suppresses agent's own writes, surfaces external edits. EXTERNAL_SESSION_ID sentinel, recordExternalWrite(), externalConflictCount. Orange "ext write" badge + red "agent conflict" badge in ProjectHeader. ProjectBox $effect starts/stops per-project. Inotify watch limit sensing: reads /proc/sys max_user_watches, counts watched dirs, warns at >75% usage with fix command. 202/202 vitest + 42/42 cargo tests. | Done: 2026-03-11
 - [x] **Conflict Detection Enhancements (S-1 Phase 1.5)** -- Bash write detection (>, >>, sed -i, tee, cp, mv). Acknowledge/dismiss conflicts (clickable badge). Worktree-aware conflict suppression. useWorktrees ProjectConfig field. 194/194 tests. | Done: 2026-03-11
 - [x] **File Overlap Conflict Detection (S-1 Phase 1)** -- conflicts.svelte.ts store tracks per-session Write/Edit file paths. Detects 2+ agents writing same file. Health attention score=70. Toast on conflict. Red badge in ProjectHeader + StatusBar. Shared tool-files.ts utility. 170/170 tests. | Done: 2026-03-10

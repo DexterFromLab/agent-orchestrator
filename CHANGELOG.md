@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
 ### Added
+- **PDF viewer** in Files tab: `PdfViewer.svelte` using pdfjs-dist (v5.5.207). Canvas-based multi-page rendering, zoom controls (0.5x–3x, 25% steps), HiDPI-aware via devicePixelRatio. Reads PDF via `convertFileSrc()` — no new Rust commands needed
+- **CSV table view** in Files tab: `CsvTable.svelte` with RFC 4180 CSV parser (no external dependency). Auto-detects delimiter (comma, semicolon, tab). Sortable columns (numeric-aware), sticky header, row numbers, text truncation at 20rem
+- FilesTab routing update: Binary+pdf → PdfViewer, Text+csv → CsvTable. Updated file icons (📕 PDF, 📊 CSV)
 - **S-1 Phase 2: Filesystem write detection** — inotify-based real-time file change detection via `ProjectFsWatcher` (fs_watcher.rs). Watches project CWDs recursively, filters .git/node_modules/target, debounces 100ms per-file (fs_watcher.rs, lib.rs)
 - External write conflict detection: timing heuristic (2s grace window) distinguishes agent writes from external edits. `EXTERNAL_SESSION_ID` sentinel, `recordExternalWrite()`, `getExternalConflictCount()`, `FileConflict.isExternal` flag (conflicts.svelte.ts)
 - Separate external write badge (orange ⚡) and agent conflict badge (red ⚠) in ProjectHeader (ProjectHeader.svelte)

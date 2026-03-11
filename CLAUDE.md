@@ -79,6 +79,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Context/ContextPane.svelte` | ctx database viewer (projects, entries, search) — replaced by ContextTab in ProjectBox |
 | `v2/src/lib/components/Workspace/ContextTab.svelte` | LLM context window visualization (stats, token meter, file refs, turn breakdown) |
 | `v2/src/lib/components/Workspace/CodeEditor.svelte` | CodeMirror 6 wrapper (15 languages, Catppuccin theme, save/blur callbacks) |
+| `v2/src/lib/components/Workspace/PdfViewer.svelte` | PDF viewer (pdfjs-dist, canvas multi-page, zoom 0.5x–3x, HiDPI) |
+| `v2/src/lib/components/Workspace/CsvTable.svelte` | CSV table viewer (RFC 4180 parser, delimiter auto-detect, sortable columns) |
 | `v2/src/lib/stores/health.svelte.ts` | Project health store (activity state, burn rate, context pressure, file conflicts, attention scoring) |
 | `v2/src/lib/stores/conflicts.svelte.ts` | File overlap + external write conflict detection (per-project, session-scoped, worktree-aware, dismissible, inotify-backed) |
 | `v2/src/lib/utils/tool-files.ts` | Shared file path extraction from tool_call inputs (extractFilePaths, extractWritePaths, extractWorktreePath) |
@@ -122,7 +124,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - Rust deps (src-tauri): tauri, bterminal-core (path), rusqlite (bundled), dirs, notify, serde, tokio, tokio-tungstenite, futures-util, tracing, tracing-subscriber, opentelemetry, opentelemetry_sdk, opentelemetry-otlp, tracing-opentelemetry, tauri-plugin-updater, tauri-plugin-dialog
 - Rust deps (bterminal-core): portable-pty, uuid, serde, serde_json, log
 - Rust deps (bterminal-relay): bterminal-core, tokio, tokio-tungstenite, clap, env_logger, futures-util
-- npm deps: @anthropic-ai/claude-agent-sdk, @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, @tauri-apps/plugin-dialog, marked, shiki, vitest (dev)
+- npm deps: @anthropic-ai/claude-agent-sdk, @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, @tauri-apps/plugin-dialog, marked, shiki, pdfjs-dist, vitest (dev)
 - Source: `v2/` directory
 
 ## Build / Run

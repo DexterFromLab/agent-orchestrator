@@ -570,3 +570,29 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 #### Verification
 - [x] vitest: 202/202 tests pass (+8 new external write tests)
 - [x] cargo test: 39/39 pass (+5 new fs_watcher tests)
+
+### Session: 2026-03-11 — Files Tab: PDF Viewer + CSV Table View
+
+#### PDF Viewer
+- [x] Added pdfjs-dist@5.5.207 dependency (WebKit2GTK has no built-in PDF viewer)
+- [x] Created PdfViewer.svelte — canvas-based multi-page renderer
+- [x] Zoom controls (0.5x–3x, 25% steps), HiDPI-aware (devicePixelRatio scaling)
+- [x] Reads PDF via convertFileSrc() → pdfjs (no new Rust commands needed)
+- [x] Page shadow, themed toolbar, error handling
+
+#### CSV Table View
+- [x] Created CsvTable.svelte — RFC 4180 CSV parser (no external dependency)
+- [x] Auto-detects delimiter (comma, semicolon, tab)
+- [x] Sortable columns (numeric-aware), sticky header, row numbers
+- [x] Row hover, text truncation at 20rem, themed via --ctp-* vars
+
+#### FilesTab Routing
+- [x] Binary+pdf → PdfViewer (via isPdfExt check)
+- [x] Text+csv → CsvTable (via isCsvLang check)
+- [x] Updated file icons: 📕 PDF, 📊 CSV
+- [x] Both viewers are read-only
+
+#### Verification
+- [x] vitest: 202/202 tests pass (no regressions)
+- [x] Vite build: clean
+- [x] cargo check: clean
