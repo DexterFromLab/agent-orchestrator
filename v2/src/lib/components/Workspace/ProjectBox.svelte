@@ -14,6 +14,7 @@
   import TaskBoardTab from './TaskBoardTab.svelte';
   import ArchitectureTab from './ArchitectureTab.svelte';
   import TestingTab from './TestingTab.svelte';
+  import MetricsPanel from './MetricsPanel.svelte';
   import { getTerminalTabs, getActiveGroup } from '../../stores/workspace.svelte';
   import { getProjectHealth, setStallThreshold } from '../../stores/health.svelte';
   import { fsWatchProject, fsUnwatchProject, onFsWriteDetected, fsWatcherStatus } from '../../adapters/fs-watcher-bridge';
@@ -34,7 +35,7 @@
   let mainSessionId = $state<string | null>(null);
   let terminalExpanded = $state(false);
 
-  type ProjectTab = 'model' | 'docs' | 'context' | 'files' | 'ssh' | 'memories' | 'tasks' | 'architecture' | 'selenium' | 'tests';
+  type ProjectTab = 'model' | 'docs' | 'context' | 'files' | 'ssh' | 'memories' | 'metrics' | 'tasks' | 'architecture' | 'selenium' | 'tests';
   let activeTab = $state<ProjectTab>('model');
 
   let activeGroup = $derived(getActiveGroup());
@@ -156,6 +157,11 @@
       class:active={activeTab === 'memories'}
       onclick={() => switchTab('memories')}
     >Memory</button>
+    <button
+      class="ptab"
+      class:active={activeTab === 'metrics'}
+      onclick={() => switchTab('metrics')}
+    >Metrics</button>
     {#if isAgent && agentRole === 'manager'}
       <button class="ptab ptab-role" class:active={activeTab === 'tasks'} onclick={() => switchTab('tasks')}>Tasks</button>
     {/if}
@@ -197,6 +203,11 @@
     {#if everActivated['memories']}
       <div class="content-pane" style:display={activeTab === 'memories' ? 'flex' : 'none'}>
         <MemoriesTab />
+      </div>
+    {/if}
+    {#if everActivated['metrics']}
+      <div class="content-pane" style:display={activeTab === 'metrics' ? 'flex' : 'none'}>
+        <MetricsPanel {project} groupId={activeGroup?.id} />
       </div>
     {/if}
     {#if everActivated['tasks'] && activeGroup}
