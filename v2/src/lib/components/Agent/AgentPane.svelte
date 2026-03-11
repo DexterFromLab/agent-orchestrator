@@ -11,6 +11,10 @@
   import { focusPane } from '../../stores/layout.svelte';
   import { isSidecarAlive, setSidecarAlive } from '../../agent-dispatcher';
   import { listProfiles, listSkills, readSkill, type ClaudeProfile, type ClaudeSkill } from '../../adapters/claude-bridge';
+  import { getInjectableAnchors, getProjectAnchors, addAnchors, removeAnchor } from '../../stores/anchors.svelte';
+  import { estimateTokens } from '../../utils/anchor-serializer';
+  import type { SessionAnchor } from '../../types/anchors';
+  import { notify } from '../../stores/notifications.svelte';
   import AgentTree from './AgentTree.svelte';
   import { getHighlighter, highlightCode, escapeHtml } from '../../utils/highlight';
   import type {
@@ -43,6 +47,7 @@
 
   interface Props {
     sessionId: string;
+    projectId?: string;
     prompt?: string;
     cwd?: string;
     profile?: string;
@@ -51,7 +56,7 @@
     onExit?: () => void;
   }
 
-  let { sessionId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, onExit }: Props = $props();
+  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, onExit }: Props = $props();
 
   let session = $derived(getAgentSession(sessionId));
   let inputPrompt = $state(initialPrompt);
@@ -158,6 +163,23 @@
     }
 
     const profile = profileName ? profiles.find(p => p.name === profileName) : undefined;
+
+    // Build system prompt with anchor re-injection if available
+    let systemPrompt: string | undefined;
+    if (projectId) {
+      const anchors = getInjectableAnchors(projectId);
+      if (anchors.length > 0) {
+        // Anchors store pre-serialized content — join them directly
+        systemPrompt = anchors.map(a => a.content).join('\n');
+
+        // Warn if Ollama provider — default context windows (2K-4K) may be too small
+        if (providerId === 'ollama') {
+          const anchorTokens = anchors.reduce((sum, a) => sum + a.estimatedTokens, 0);
+          notify('warning', `Ollama: injecting ~${anchorTokens} anchor tokens into system prompt. Ensure num_ctx >= 8192 to avoid truncation.`);
+        }
+      }
+    }
+
     await queryAgent({
       provider: providerId,
       session_id: sessionId,
@@ -167,6 +189,7 @@
       resume_session_id: resumeId,
       setting_sources: ['user', 'project'],
       claude_config_dir: profile?.config_dir,
+      system_prompt: systemPrompt,
     });
     inputPrompt = '';
     if (promptRef) {
@@ -256,6 +279,36 @@
       scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
     }
   });
+
+  // --- Anchor pinning ---
+  let projectAnchorIds = $derived(
+    projectId ? new Set(getProjectAnchors(projectId).map(a => a.messageId)) : new Set<string>()
+  );
+
+  function isMessagePinned(msgId: string): boolean {
+    return projectAnchorIds.has(msgId);
+  }
+
+  async function togglePin(msgId: string, content: string) {
+    if (!projectId) return;
+    if (isMessagePinned(msgId)) {
+      const anchors = getProjectAnchors(projectId);
+      const anchor = anchors.find(a => a.messageId === msgId);
+      if (anchor) await removeAnchor(projectId, anchor.id);
+    } else {
+      const anchor: SessionAnchor = {
+        id: crypto.randomUUID(),
+        projectId,
+        messageId: msgId,
+        anchorType: 'pinned',
+        content,
+        estimatedTokens: estimateTokens(content),
+        turnIndex: -1, // Manual pins don't track turn index
+        createdAt: Math.floor(Date.now() / 1000),
+      };
+      await addAnchors(projectId, [anchor]);
+    }
+  }
 
   function formatToolInput(input: unknown): string {
     if (typeof input === 'string') return input;
@@ -360,6 +413,19 @@
               <summary>
                 <span class="chevron" aria-hidden="true">▶</span>
                 <span class="text-preview">{firstLine}{firstLine.length >= 120 ? '...' : ''}</span>
+                {#if projectId}
+                  <button
+                    class="pin-btn"
+                    class:pinned={isMessagePinned(msg.id)}
+                    title={isMessagePinned(msg.id) ? 'Unpin message' : 'Pin as anchor'}
+                    onclick={(e: MouseEvent) => { e.stopPropagation(); togglePin(msg.id, textContent); }}
+                    aria-label={isMessagePinned(msg.id) ? 'Unpin message' : 'Pin as anchor'}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill={isMessagePinned(msg.id) ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2">
+                      <path d="M12 2L12 12M12 12L8 8M12 12L16 8M5 21L12 15L19 21" />
+                    </svg>
+                  </button>
+                {/if}
               </summary>
               <div class="msg-text markdown-body">{@html renderMarkdown(textContent)}</div>
             </details>
@@ -761,6 +827,33 @@
 
   .msg-text-collapsible[open] > summary .text-preview {
     display: none;
+  }
+
+  /* === Pin button === */
+  .pin-btn {
+    opacity: 0;
+    background: none;
+    border: none;
+    padding: 0.125em 0.25em;
+    cursor: pointer;
+    color: var(--ctp-overlay0);
+    transition: opacity 0.15s, color 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .pin-btn.pinned {
+    opacity: 1;
+    color: var(--ctp-yellow);
+  }
+
+  .msg-text-collapsible summary:hover .pin-btn,
+  .pin-btn:focus-visible {
+    opacity: 1;
+  }
+
+  .pin-btn:hover {
+    color: var(--ctp-yellow);
   }
 
   /* === Text messages (markdown) === */

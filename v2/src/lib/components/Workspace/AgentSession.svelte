@@ -18,6 +18,7 @@
   } from '../../stores/agents.svelte';
   import type { AgentMessage } from '../../adapters/claude-messages';
   import { getProvider, getDefaultProviderId } from '../../providers/registry.svelte';
+  import { loadAnchorsForProject } from '../../stores/anchors.svelte';
   import AgentPane from '../Agent/AgentPane.svelte';
 
   interface Props {
@@ -73,6 +74,8 @@
       sessionId = crypto.randomUUID();
     } finally {
       loading = false;
+      // Load persisted anchors for this project
+      loadAnchorsForProject(project.id);
       // Register session -> project mapping for persistence + health tracking
       registerSessionProject(sessionId, project.id, providerId);
       trackProject(project.id, sessionId);
@@ -122,6 +125,7 @@
   {:else}
     <AgentPane
       {sessionId}
+      projectId={project.id}
       cwd={project.cwd}
       profile={project.profile || undefined}
       provider={providerId}

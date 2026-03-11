@@ -2,12 +2,22 @@
   import { getAgentSession, getTotalCost, type AgentSession } from '../../stores/agents.svelte';
   import type { AgentMessage, ToolCallContent, CostContent, CompactionContent } from '../../adapters/claude-messages';
   import { extractFilePaths } from '../../utils/tool-files';
+  import {
+    getProjectAnchors,
+    getInjectableAnchors,
+    getInjectableTokenCount,
+    removeAnchor,
+    changeAnchorType,
+  } from '../../stores/anchors.svelte';
+  import { DEFAULT_ANCHOR_SETTINGS, MAX_ANCHOR_TOKEN_BUDGET } from '../../types/anchors';
+  import type { SessionAnchor, AnchorType } from '../../types/anchors';
 
   interface Props {
     sessionId: string | null;
+    projectId?: string;
   }
 
-  let { sessionId }: Props = $props();
+  let { sessionId, projectId }: Props = $props();
 
   // Reactive session data
   let session = $derived(sessionId ? getAgentSession(sessionId) : undefined);
@@ -178,6 +188,40 @@
     }
     return Array.from(refs.values()).sort((a, b) => b.count - a.count);
   });
+
+  // --- Anchors ---
+  let anchors = $derived(projectId ? getProjectAnchors(projectId) : []);
+  let injectableAnchors = $derived(projectId ? getInjectableAnchors(projectId) : []);
+  let anchorTokens = $derived(projectId ? getInjectableTokenCount(projectId) : 0);
+  let anchorBudget = $derived(DEFAULT_ANCHOR_SETTINGS.anchorTokenBudget);
+  let anchorBudgetPct = $derived(anchorBudget > 0 ? Math.min((anchorTokens / anchorBudget) * 100, 100) : 0);
+
+  function anchorTypeLabel(t: AnchorType): string {
+    switch (t) {
+      case 'auto': return 'Auto';
+      case 'pinned': return 'Pinned';
+      case 'promoted': return 'Promoted';
+    }
+  }
+
+  function anchorTypeColor(t: AnchorType): string {
+    switch (t) {
+      case 'auto': return 'var(--ctp-blue)';
+      case 'pinned': return 'var(--ctp-yellow)';
+      case 'promoted': return 'var(--ctp-green)';
+    }
+  }
+
+  async function handlePromote(anchor: SessionAnchor) {
+    if (!projectId) return;
+    const newType: AnchorType = anchor.anchorType === 'pinned' ? 'promoted' : 'pinned';
+    await changeAnchorType(projectId, anchor.id, newType);
+  }
+
+  async function handleRemoveAnchor(anchor: SessionAnchor) {
+    if (!projectId) return;
+    await removeAnchor(projectId, anchor.id);
+  }
 
   // --- Helpers ---
   function estimateTokens(msg: AgentMessage): number {
@@ -670,6 +714,81 @@
         {/each}
       </div>
     </div>
+
+    <!-- Session Anchors -->
+    {#if anchors.length > 0}
+      <div class="anchors-section">
+        <div class="section-header">
+          <span class="section-title">Session Anchors</span>
+          <span class="section-count">{anchors.length}</span>
+          {#if injectableAnchors.length > 0}
+            <span class="anchor-injectable-badge" title="Re-injected into system prompt on next query">
+              {injectableAnchors.length} injectable
+            </span>
+          {/if}
+        </div>
+
+        <!-- Budget meter -->
+        <div class="anchor-budget">
+          <div class="anchor-budget-header">
+            <span class="anchor-budget-label">Anchor Budget</span>
+            <span class="anchor-budget-usage">{formatTokens(anchorTokens)} / {formatTokens(anchorBudget)}</span>
+          </div>
+          <div class="anchor-budget-bar">
+            <div
+              class="anchor-budget-fill"
+              class:warn={anchorBudgetPct > 75}
+              class:full={anchorBudgetPct >= 100}
+              style="width: {anchorBudgetPct}%"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Anchor list -->
+        <div class="anchor-list">
+          {#each anchors as anchor (anchor.id)}
+            <div class="anchor-item">
+              <span class="anchor-type-dot" style="background: {anchorTypeColor(anchor.anchorType)}"></span>
+              <span class="anchor-type-label" style="color: {anchorTypeColor(anchor.anchorType)}">{anchorTypeLabel(anchor.anchorType)}</span>
+              <span class="anchor-content" title={anchor.content}>{anchor.content.split('\n')[0].slice(0, 60)}{anchor.content.length > 60 ? '...' : ''}</span>
+              <span class="anchor-tokens">{formatTokens(anchor.estimatedTokens)}</span>
+              <div class="anchor-actions">
+                {#if anchor.anchorType === 'pinned'}
+                  <button
+                    class="anchor-action-btn"
+                    title="Promote to injectable (re-injected on next query)"
+                    onclick={() => handlePromote(anchor)}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--ctp-green)" stroke-width="2">
+                      <path d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                  </button>
+                {:else if anchor.anchorType === 'promoted'}
+                  <button
+                    class="anchor-action-btn"
+                    title="Demote to pinned (display only)"
+                    onclick={() => handlePromote(anchor)}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--ctp-yellow)" stroke-width="2">
+                      <path d="M12 5v14M5 12l7 7 7-7"/>
+                    </svg>
+                  </button>
+                {/if}
+                <button
+                  class="anchor-action-btn anchor-remove-btn"
+                  title="Remove anchor"
+                  onclick={() => handleRemoveAnchor(anchor)}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- File References -->
     {#if fileRefs.length > 0}
@@ -1431,5 +1550,153 @@
 
   .graph-scroll svg {
     display: block;
+  }
+
+  /* Session Anchors */
+  .anchors-section {
+    padding: 0.375rem 0.625rem;
+    border-bottom: 1px solid var(--ctp-surface0);
+    flex-shrink: 0;
+  }
+
+  .anchor-injectable-badge {
+    font-size: 0.525rem;
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.625rem;
+    background: color-mix(in srgb, var(--ctp-green) 15%, transparent);
+    color: var(--ctp-green);
+    font-family: var(--term-font-family, monospace);
+    margin-left: auto;
+  }
+
+  .anchor-budget {
+    margin-bottom: 0.375rem;
+  }
+
+  .anchor-budget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+  }
+
+  .anchor-budget-label {
+    font-size: 0.6rem;
+    color: var(--ctp-overlay1);
+  }
+
+  .anchor-budget-usage {
+    font-size: 0.575rem;
+    font-family: var(--term-font-family, monospace);
+    color: var(--ctp-overlay1);
+  }
+
+  .anchor-budget-bar {
+    height: 0.375rem;
+    border-radius: 0.1875rem;
+    background: var(--ctp-surface0);
+    overflow: hidden;
+  }
+
+  .anchor-budget-fill {
+    height: 100%;
+    border-radius: 0.1875rem;
+    background: var(--ctp-blue);
+    transition: width 0.3s ease;
+  }
+
+  .anchor-budget-fill.warn {
+    background: var(--ctp-yellow);
+  }
+
+  .anchor-budget-fill.full {
+    background: var(--ctp-red);
+  }
+
+  .anchor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-height: 10rem;
+    overflow-y: auto;
+  }
+
+  .anchor-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.1875rem 0.375rem;
+    border-radius: 0.1875rem;
+    transition: background 0.1s;
+  }
+
+  .anchor-item:hover {
+    background: var(--ctp-surface0);
+  }
+
+  .anchor-type-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .anchor-type-label {
+    font-size: 0.525rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+    min-width: 3.25rem;
+  }
+
+  .anchor-content {
+    font-size: 0.6rem;
+    color: var(--ctp-subtext0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .anchor-tokens {
+    font-size: 0.55rem;
+    font-family: var(--term-font-family, monospace);
+    color: var(--ctp-overlay0);
+    flex-shrink: 0;
+  }
+
+  .anchor-actions {
+    display: flex;
+    gap: 0.125rem;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .anchor-item:hover .anchor-actions {
+    opacity: 1;
+  }
+
+  .anchor-action-btn {
+    background: none;
+    border: none;
+    padding: 0.125rem;
+    cursor: pointer;
+    color: var(--ctp-overlay0);
+    border-radius: 0.125rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+  }
+
+  .anchor-action-btn:hover {
+    background: var(--ctp-surface1);
+  }
+
+  .anchor-remove-btn:hover {
+    color: var(--ctp-red);
   }
 </style>
