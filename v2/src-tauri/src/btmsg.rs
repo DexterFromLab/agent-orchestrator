@@ -1,4 +1,4 @@
-// btmsg — Read-only access to btmsg SQLite database
+// btmsg — Access to btmsg SQLite database
 // Database at ~/.local/share/bterminal/btmsg.db (created by btmsg CLI)
 
 use rusqlite::{params, Connection, OpenFlags};
@@ -17,8 +17,13 @@ fn open_db() -> Result<Connection, String> {
     if !path.exists() {
         return Err("btmsg database not found. Run 'btmsg register' first.".into());
     }
-    Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)
-        .map_err(|e| format!("Failed to open btmsg.db: {e}"))
+    let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)
+        .map_err(|e| format!("Failed to open btmsg.db: {e}"))?;
+    conn.pragma_update(None, "journal_mode", "WAL")
+        .map_err(|e| format!("Failed to set WAL mode: {e}"))?;
+    conn.pragma_update(None, "busy_timeout", 5000)
+        .map_err(|e| format!("Failed to set busy_timeout: {e}"))?;
+    Ok(conn)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -95,13 +100,13 @@ pub fn get_agents(group_id: &str) -> Result<Vec<BtmsgAgent>, String> {
 
     let agents = stmt.query_map(params![group_id], |row| {
         Ok(BtmsgAgent {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            role: row.get(2)?,
-            group_id: row.get(3)?,
-            tier: row.get(4)?,
-            model: row.get(5)?,
-            status: row.get::<_, Option<String>>(7)?.unwrap_or_else(|| "stopped".into()),
+            id: row.get("id")?,
+            name: row.get("name")?,
+            role: row.get("role")?,
+            group_id: row.get("group_id")?,
+            tier: row.get("tier")?,
+            model: row.get("model")?,
+            status: row.get::<_, Option<String>>("status")?.unwrap_or_else(|| "stopped".into()),
             unread_count: row.get("unread_count")?,
         })
     }).map_err(|e| format!("Query error: {e}"))?;
@@ -122,22 +127,22 @@ pub fn unread_messages(agent_id: &str) -> Result<Vec<BtmsgMessage>, String> {
     let db = open_db()?;
     let mut stmt = db.prepare(
         "SELECT m.id, m.from_agent, m.to_agent, m.content, m.read, m.reply_to, m.created_at, \
-         a.name, a.role \
+         a.name AS sender_name, a.role AS sender_role \
          FROM messages m JOIN agents a ON m.from_agent = a.id \
          WHERE m.to_agent = ? AND m.read = 0 ORDER BY m.created_at ASC"
     ).map_err(|e| format!("Query error: {e}"))?;
 
     let msgs = stmt.query_map(params![agent_id], |row| {
         Ok(BtmsgMessage {
-            id: row.get(0)?,
-            from_agent: row.get(1)?,
-            to_agent: row.get(2)?,
-            content: row.get(3)?,
-            read: row.get::<_, i32>(4)? != 0,
-            reply_to: row.get(5)?,
-            created_at: row.get(6)?,
-            sender_name: row.get(7)?,
-            sender_role: row.get(8)?,
+            id: row.get("id")?,
+            from_agent: row.get("from_agent")?,
+            to_agent: row.get("to_agent")?,
+            content: row.get("content")?,
+            read: row.get::<_, i32>("read")? != 0,
+            reply_to: row.get("reply_to")?,
+            created_at: row.get("created_at")?,
+            sender_name: row.get("sender_name")?,
+            sender_role: row.get("sender_role")?,
         })
     }).map_err(|e| format!("Query error: {e}"))?;
 
@@ -148,7 +153,7 @@ pub fn history(agent_id: &str, other_id: &str, limit: i32) -> Result<Vec<BtmsgMe
     let db = open_db()?;
     let mut stmt = db.prepare(
         "SELECT m.id, m.from_agent, m.to_agent, m.content, m.read, m.reply_to, m.created_at, \
-         a.name, a.role \
+         a.name AS sender_name, a.role AS sender_role \
          FROM messages m JOIN agents a ON m.from_agent = a.id \
          WHERE (m.from_agent = ?1 AND m.to_agent = ?2) OR (m.from_agent = ?2 AND m.to_agent = ?1) \
          ORDER BY m.created_at ASC LIMIT ?3"
@@ -156,15 +161,15 @@ pub fn history(agent_id: &str, other_id: &str, limit: i32) -> Result<Vec<BtmsgMe
 
     let msgs = stmt.query_map(params![agent_id, other_id, limit], |row| {
         Ok(BtmsgMessage {
-            id: row.get(0)?,
-            from_agent: row.get(1)?,
-            to_agent: row.get(2)?,
-            content: row.get(3)?,
-            read: row.get::<_, i32>(4)? != 0,
-            reply_to: row.get(5)?,
-            created_at: row.get(6)?,
-            sender_name: row.get(7)?,
-            sender_role: row.get(8)?,
+            id: row.get("id")?,
+            from_agent: row.get("from_agent")?,
+            to_agent: row.get("to_agent")?,
+            content: row.get("content")?,
+            read: row.get::<_, i32>("read")? != 0,
+            reply_to: row.get("reply_to")?,
+            created_at: row.get("created_at")?,
+            sender_name: row.get("sender_name")?,
+            sender_role: row.get("sender_role")?,
         })
     }).map_err(|e| format!("Query error: {e}"))?;
 
@@ -257,7 +262,8 @@ pub fn all_feed(group_id: &str, limit: i32) -> Result<Vec<BtmsgFeedMessage>, Str
     let db = open_db()?;
     let mut stmt = db.prepare(
         "SELECT m.id, m.from_agent, m.to_agent, m.content, m.created_at, m.reply_to, \
-         a1.name, a1.role, a2.name, a2.role \
+         a1.name AS sender_name, a1.role AS sender_role, \
+         a2.name AS recipient_name, a2.role AS recipient_role \
          FROM messages m \
          JOIN agents a1 ON m.from_agent = a1.id \
          JOIN agents a2 ON m.to_agent = a2.id \
@@ -267,16 +273,16 @@ pub fn all_feed(group_id: &str, limit: i32) -> Result<Vec<BtmsgFeedMessage>, Str
 
     let msgs = stmt.query_map(params![group_id, limit], |row| {
         Ok(BtmsgFeedMessage {
-            id: row.get(0)?,
-            from_agent: row.get(1)?,
-            to_agent: row.get(2)?,
-            content: row.get(3)?,
-            created_at: row.get(4)?,
-            reply_to: row.get(5)?,
-            sender_name: row.get(6)?,
-            sender_role: row.get(7)?,
-            recipient_name: row.get(8)?,
-            recipient_role: row.get(9)?,
+            id: row.get("id")?,
+            from_agent: row.get("from_agent")?,
+            to_agent: row.get("to_agent")?,
+            content: row.get("content")?,
+            created_at: row.get("created_at")?,
+            reply_to: row.get("reply_to")?,
+            sender_name: row.get("sender_name")?,
+            sender_role: row.get("sender_role")?,
+            recipient_name: row.get("recipient_name")?,
+            recipient_role: row.get("recipient_role")?,
         })
     }).map_err(|e| format!("Query error: {e}"))?;
 
@@ -296,19 +302,19 @@ pub fn get_channels(group_id: &str) -> Result<Vec<BtmsgChannel>, String> {
     let db = open_db()?;
     let mut stmt = db.prepare(
         "SELECT c.id, c.name, c.group_id, c.created_by, \
-         (SELECT COUNT(*) FROM channel_members cm WHERE cm.channel_id = c.id), \
+         (SELECT COUNT(*) FROM channel_members cm WHERE cm.channel_id = c.id) AS member_count, \
          c.created_at \
          FROM channels c WHERE c.group_id = ? ORDER BY c.name"
     ).map_err(|e| format!("Query error: {e}"))?;
 
     let channels = stmt.query_map(params![group_id], |row| {
         Ok(BtmsgChannel {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            group_id: row.get(2)?,
-            created_by: row.get(3)?,
-            member_count: row.get(4)?,
-            created_at: row.get(5)?,
+            id: row.get("id")?,
+            name: row.get("name")?,
+            group_id: row.get("group_id")?,
+            created_by: row.get("created_by")?,
+            member_count: row.get("member_count")?,
+            created_at: row.get("created_at")?,
         })
     }).map_err(|e| format!("Query error: {e}"))?;
 
@@ -319,20 +325,20 @@ pub fn get_channel_messages(channel_id: &str, limit: i32) -> Result<Vec<BtmsgCha
     let db = open_db()?;
     let mut stmt = db.prepare(
         "SELECT cm.id, cm.channel_id, cm.from_agent, cm.content, cm.created_at, \
-         a.name, a.role \
+         a.name AS sender_name, a.role AS sender_role \
          FROM channel_messages cm JOIN agents a ON cm.from_agent = a.id \
          WHERE cm.channel_id = ? ORDER BY cm.created_at ASC LIMIT ?"
     ).map_err(|e| format!("Query error: {e}"))?;
 
     let msgs = stmt.query_map(params![channel_id, limit], |row| {
         Ok(BtmsgChannelMessage {
-            id: row.get(0)?,
-            channel_id: row.get(1)?,
-            from_agent: row.get(2)?,
-            content: row.get(3)?,
-            created_at: row.get(4)?,
-            sender_name: row.get(5)?,
-            sender_role: row.get(6)?,
+            id: row.get("id")?,
+            channel_id: row.get("channel_id")?,
+            from_agent: row.get("from_agent")?,
+            content: row.get("content")?,
+            created_at: row.get("created_at")?,
+            sender_name: row.get("sender_name")?,
+            sender_role: row.get("sender_role")?,
         })
     }).map_err(|e| format!("Query error: {e}"))?;
 

@@ -17,8 +17,13 @@ fn open_db() -> Result<Connection, String> {
     if !path.exists() {
         return Err("btmsg database not found".into());
     }
-    Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)
-        .map_err(|e| format!("Failed to open btmsg.db: {e}"))
+    let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)
+        .map_err(|e| format!("Failed to open btmsg.db: {e}"))?;
+    conn.pragma_update(None, "journal_mode", "WAL")
+        .map_err(|e| format!("Failed to set WAL mode: {e}"))?;
+    conn.pragma_update(None, "busy_timeout", 5000)
+        .map_err(|e| format!("Failed to set busy_timeout: {e}"))?;
+    Ok(conn)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -64,18 +69,18 @@ pub fn list_tasks(group_id: &str) -> Result<Vec<Task>, String> {
     let rows = stmt
         .query_map(params![group_id], |row| {
             Ok(Task {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                description: row.get::<_, String>(2).unwrap_or_default(),
-                status: row.get::<_, String>(3).unwrap_or_else(|_| "todo".into()),
-                priority: row.get::<_, String>(4).unwrap_or_else(|_| "medium".into()),
-                assigned_to: row.get(5)?,
-                created_by: row.get(6)?,
-                group_id: row.get(7)?,
-                parent_task_id: row.get(8)?,
-                sort_order: row.get::<_, i32>(9).unwrap_or(0),
-                created_at: row.get::<_, String>(10).unwrap_or_default(),
-                updated_at: row.get::<_, String>(11).unwrap_or_default(),
+                id: row.get("id")?,
+                title: row.get("title")?,
+                description: row.get::<_, String>("description").unwrap_or_default(),
+                status: row.get::<_, String>("status").unwrap_or_else(|_| "todo".into()),
+                priority: row.get::<_, String>("priority").unwrap_or_else(|_| "medium".into()),
+                assigned_to: row.get("assigned_to")?,
+                created_by: row.get("created_by")?,
+                group_id: row.get("group_id")?,
+                parent_task_id: row.get("parent_task_id")?,
+                sort_order: row.get::<_, i32>("sort_order").unwrap_or(0),
+                created_at: row.get::<_, String>("created_at").unwrap_or_default(),
+                updated_at: row.get::<_, String>("updated_at").unwrap_or_default(),
             })
         })
         .map_err(|e| format!("Query error: {e}"))?;
@@ -98,11 +103,11 @@ pub fn task_comments(task_id: &str) -> Result<Vec<TaskComment>, String> {
     let rows = stmt
         .query_map(params![task_id], |row| {
             Ok(TaskComment {
-                id: row.get(0)?,
-                task_id: row.get(1)?,
-                agent_id: row.get(2)?,
-                content: row.get(3)?,
-                created_at: row.get::<_, String>(4).unwrap_or_default(),
+                id: row.get("id")?,
+                task_id: row.get("task_id")?,
+                agent_id: row.get("agent_id")?,
+                content: row.get("content")?,
+                created_at: row.get::<_, String>("created_at").unwrap_or_default(),
             })
         })
         .map_err(|e| format!("Query error: {e}"))?;

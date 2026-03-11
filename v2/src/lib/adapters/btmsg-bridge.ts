@@ -10,23 +10,23 @@ export interface BtmsgAgent {
   id: string;
   name: string;
   role: string;
-  group_id: string;
+  groupId: string;
   tier: number;
   model: string | null;
   status: string;
-  unread_count: number;
+  unreadCount: number;
 }
 
 export interface BtmsgMessage {
   id: string;
-  from_agent: string;
-  to_agent: string;
+  fromAgent: string;
+  toAgent: string;
   content: string;
   read: boolean;
-  reply_to: string | null;
-  created_at: string;
-  sender_name?: string;
-  sender_role?: string;
+  replyTo: string | null;
+  createdAt: string;
+  senderName?: string;
+  senderRole?: string;
 }
 
 export interface BtmsgFeedMessage {

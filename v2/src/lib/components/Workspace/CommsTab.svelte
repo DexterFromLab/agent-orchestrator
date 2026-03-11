@@ -257,8 +257,8 @@
         <span class="conv-icon">{getAgentIcon(agent.role)}</span>
         <span class="conv-name">{agent.name}</span>
         <span class="status-dot {statusClass}"></span>
-        {#if agent.unread_count > 0}
-          <span class="unread-badge">{agent.unread_count}</span>
+        {#if agent.unreadCount > 0}
+          <span class="unread-badge">{agent.unreadCount}</span>
         {/if}
       </button>
     {/each}
@@ -301,11 +301,11 @@
           <div class="empty-state">No messages yet. Start the conversation!</div>
         {:else}
           {#each dmMessages as msg (msg.id)}
-            {@const isMe = msg.from_agent === ADMIN_ID}
+            {@const isMe = msg.fromAgent === ADMIN_ID}
             <div class="message" class:own={isMe}>
               <div class="msg-header">
-                <span class="msg-sender">{isMe ? 'You' : (msg.sender_name ?? msg.from_agent)}</span>
-                <span class="msg-time">{formatTime(msg.created_at)}</span>
+                <span class="msg-sender">{isMe ? 'You' : (msg.senderName ?? msg.fromAgent)}</span>
+                <span class="msg-time">{formatTime(msg.createdAt)}</span>
               </div>
               <div class="msg-content">{msg.content}</div>
             </div>
