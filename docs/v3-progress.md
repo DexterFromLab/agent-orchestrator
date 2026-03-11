@@ -707,3 +707,21 @@ Registered a concrete MemoraAdapter that bridges the MemoryAdapter interface to 
 #### Results
 - [x] vitest: 272/272 tests pass
 - [x] cargo test: 49/49 pass
+
+### 2026-03-11 — Configurable Stall Threshold
+
+**Duration:** ~10 min
+
+**What happened:**
+Made the hardcoded 15-minute stall threshold configurable per-project via a range slider in SettingsTab (5–60 min, step 5).
+
+#### Changes
+- [x] groups.ts — Added `stallThresholdMin?: number` to ProjectConfig
+- [x] health.svelte.ts — Replaced hardcoded constant with per-project `stallThresholds` Map + `setStallThreshold()` API, fallback to DEFAULT_STALL_THRESHOLD_MS (15 min)
+- [x] SettingsTab.svelte — Range slider per project card (5–60 min, step 5, default 15)
+- [x] ProjectBox.svelte — `$effect` syncs `project.stallThresholdMin` → `setStallThreshold()` on mount/change
+
+#### Results
+- [x] No test changes — UI/config wiring only
+- [x] vitest: 272/272 tests pass
+- [x] cargo test: 49/49 pass

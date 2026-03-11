@@ -7,9 +7,9 @@
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Env var whitelist fix done. 3 test sessions ran ($1.10, $0.69, $1.70) but model didn't spawn subagents — needs complex multi-part prompts to trigger delegation. Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
-- [ ] **Configurable stall threshold** -- health.yaml per-project config for stall threshold (currently hardcoded 15 min). Adaptive suggestions after 50 sessions from session_metrics data.
 ## Completed
 
+- [x] **Configurable stall threshold** -- Per-project range slider (5–60 min, step 5) in SettingsTab. `stallThresholdMin` in ProjectConfig, `setStallThreshold()` API in health store, ProjectBox $effect sync. Adaptive suggestions deferred (needs 50+ sessions in session_metrics). | Done: 2026-03-11
 - [x] **Register Memora adapter** -- MemoraAdapter (memora-bridge.ts) implements MemoryAdapter, reads ~/.local/share/memora/memories.db via Rust memora.rs (read-only SQLite, FTS5 search). 4 Tauri commands, 16 vitest + 7 cargo tests. 272 vitest + 49 cargo total. | Done: 2026-03-11
 - [x] **Add Codex/Ollama provider runners** -- Full provider stack for both: ProviderMeta constants, message adapters (codex-messages.ts, ollama-messages.ts), sidecar runners (codex-runner.ts uses @openai/codex-sdk dynamic import, ollama-runner.ts uses direct HTTP). 30 new tests, 256 vitest total. | Done: 2026-03-11
 - [x] **Worktree isolation per project (S-1 Phase 3)** -- UI toggle in SettingsTab, spawn with --worktree via sidecar extraArgs, CWD-based worktree detection in agent-dispatcher (matches .claude/.codex/.cursor patterns). 8 files, +125 lines. 226 vitest + 42 cargo tests. | Done: 2026-03-11
