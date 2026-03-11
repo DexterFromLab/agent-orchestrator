@@ -58,6 +58,10 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/providers/types.ts` | Provider abstraction types (ProviderId, ProviderCapabilities, ProviderMeta, ProviderSettings) |
 | `v2/src/lib/providers/registry.svelte.ts` | Svelte 5 rune-based provider registry (registerProvider, getProviders) |
 | `v2/src/lib/providers/claude.ts` | Claude provider metadata constant (CLAUDE_PROVIDER) |
+| `v2/src/lib/providers/codex.ts` | Codex provider metadata constant (CODEX_PROVIDER, gpt-5.4 default) |
+| `v2/src/lib/providers/ollama.ts` | Ollama provider metadata constant (OLLAMA_PROVIDER, qwen3:8b default) |
+| `v2/src/lib/adapters/codex-messages.ts` | Codex message adapter (ThreadEvent parser) |
+| `v2/src/lib/adapters/ollama-messages.ts` | Ollama message adapter (streaming chunk parser) |
 | `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + subagent routing + session persistence + toast notifications + CWD-based worktree detection |
 | `v2/src/lib/adapters/file-bridge.ts` | File watcher IPC wrapper |
 | `v2/src/lib/adapters/settings-bridge.ts` | Settings IPC wrapper (get/set/list) |
@@ -100,9 +104,13 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |
 | `v2/sidecar/claude-runner.ts` | Claude sidecar source (compiled to .mjs by esbuild, includes findClaudeCli()) |
+| `v2/sidecar/codex-runner.ts` | Codex sidecar source (@openai/codex-sdk dynamic import, sandbox/approval mapping) |
+| `v2/sidecar/ollama-runner.ts` | Ollama sidecar source (direct HTTP to localhost:11434, zero external deps) |
 | `v2/sidecar/agent-runner-deno.ts` | Standalone Deno sidecar runner (not used by SidecarManager, alternative) |
 | `v2/sidecar/dist/claude-runner.mjs` | Bundled Claude sidecar (runs on both Deno and Node.js) |
 | `v2/src/lib/adapters/claude-messages.test.ts` | Vitest tests for Claude message adapter (25 tests) |
+| `v2/src/lib/adapters/codex-messages.test.ts` | Vitest tests for Codex message adapter (19 tests) |
+| `v2/src/lib/adapters/ollama-messages.test.ts` | Vitest tests for Ollama message adapter (11 tests) |
 | `v2/src/lib/adapters/agent-bridge.test.ts` | Vitest tests for agent IPC bridge (11 tests) |
 | `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (29 tests) |
 | `v2/src/lib/stores/conflicts.test.ts` | Vitest tests for conflict detection (28 tests) |

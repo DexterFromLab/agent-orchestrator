@@ -61,3 +61,35 @@
 3. Extracted strip_provider_env_var() — strips CLAUDE*/CODEX*/OLLAMA* env vars (whitelists CLAUDE_CODE_EXPERIMENTAL_*)
 
 **Status:** All 3 phases complete. 202 vitest + 42 cargo tests pass. Zero regression.
+
+### 2026-03-11 — Provider Runners (Codex + Ollama)
+
+**Duration:** ~45 min
+
+**What happened:**
+
+**Research:**
+1. Researched OpenAI Codex CLI programmatic interface (SDK, NDJSON stream format, thread events, sandbox/approval modes, session resume)
+2. Researched Ollama REST API (/api/chat, NDJSON streaming, tool calling, token counts, health check)
+
+**Codex Provider (3 files):**
+1. Created providers/codex.ts — ProviderMeta (gpt-5.4 default, hasSandbox=true, supportsResume=true, no profiles/skills/cost)
+2. Created adapters/codex-messages.ts — adaptCodexMessage() maps ThreadEvents to AgentMessage[] (agent_message→text, reasoning→thinking, command_execution→Bash tool pair, file_change→Write/Edit/Bash per change, mcp_tool_call→server:tool, web_search→WebSearch, turn.completed→cost with tokens)
+3. Created sidecar/codex-runner.ts — @openai/codex-sdk wrapper (dynamic import, graceful failure, sandbox/approval mapping, CODEX_API_KEY auth, session resume via thread ID)
+
+**Ollama Provider (3 files):**
+1. Created providers/ollama.ts — ProviderMeta (qwen3:8b default, hasModelSelection only, all other capabilities false)
+2. Created adapters/ollama-messages.ts — adaptOllamaMessage() maps synthesized chunk events (text, thinking from Qwen3, done→cost with eval_duration/token counts, always $0)
+3. Created sidecar/ollama-runner.ts — Direct HTTP to localhost:11434/api/chat (zero deps, health check, NDJSON stream parsing, configurable host/model/num_ctx/think)
+
+**Registration + Build:**
+1. Registered CODEX_PROVIDER + OLLAMA_PROVIDER in App.svelte onMount
+2. Registered adaptCodexMessage + adaptOllamaMessage in message-adapters.ts
+3. Updated build:sidecar script to build all 3 runners via esbuild
+
+**Tests:**
+- 19 new tests for codex-messages.ts (all event types)
+- 11 new tests for ollama-messages.ts (all event types)
+- 256 vitest + 42 cargo tests pass. Zero regression.
+
+**Status:** Provider runners complete. Both providers infrastructure-ready (will work when CLI/server installed).

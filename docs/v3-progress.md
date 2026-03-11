@@ -662,3 +662,24 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] Added 7 new tests to agent-dispatcher.test.ts (detectWorktreeFromCwd unit tests + init CWD integration)
 - [x] vitest: 226/226 tests pass
 - [x] cargo test: 42/42 pass
+
+### Session: 2026-03-11 — Provider Runners (Codex + Ollama)
+
+#### Codex Provider
+- [x] providers/codex.ts — ProviderMeta (gpt-5.4, hasSandbox, supportsResume)
+- [x] adapters/codex-messages.ts — adaptCodexMessage (ThreadEvents → AgentMessage[])
+- [x] sidecar/codex-runner.ts — @openai/codex-sdk wrapper (dynamic import, graceful failure)
+- [x] adapters/codex-messages.test.ts — 19 tests
+
+#### Ollama Provider
+- [x] providers/ollama.ts — ProviderMeta (qwen3:8b, modelSelection only)
+- [x] adapters/ollama-messages.ts — adaptOllamaMessage (streaming chunks → AgentMessage[])
+- [x] sidecar/ollama-runner.ts — Direct HTTP to localhost:11434 (zero deps)
+- [x] adapters/ollama-messages.test.ts — 11 tests
+
+#### Registration + Build
+- [x] App.svelte: register CODEX_PROVIDER + OLLAMA_PROVIDER
+- [x] message-adapters.ts: register codex + ollama adapters
+- [x] package.json: build:sidecar builds all 3 runners
+- [x] vitest: 256/256 tests pass
+- [x] cargo test: 42/42 pass

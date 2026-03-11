@@ -9,10 +9,9 @@
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Env var whitelist fix done. 3 test sessions ran ($1.10, $0.69, $1.70) but model didn't spawn subagents — needs complex multi-part prompts to trigger delegation. Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 - [ ] **Configurable stall threshold** -- health.yaml per-project config for stall threshold (currently hardcoded 15 min). Adaptive suggestions after 50 sessions from session_metrics data.
-- [ ] **Add Codex/Ollama provider runners** -- Provider adapter pattern implemented (all 3 phases). Need to create codex-runner.ts and ollama-runner.ts sidecar runners + corresponding message adapters (codex-messages.ts, ollama-messages.ts) + register providers in App.svelte.
-
 ## Completed
 
+- [x] **Add Codex/Ollama provider runners** -- Full provider stack for both: ProviderMeta constants, message adapters (codex-messages.ts, ollama-messages.ts), sidecar runners (codex-runner.ts uses @openai/codex-sdk dynamic import, ollama-runner.ts uses direct HTTP). 30 new tests, 256 vitest total. | Done: 2026-03-11
 - [x] **Worktree isolation per project (S-1 Phase 3)** -- UI toggle in SettingsTab, spawn with --worktree via sidecar extraArgs, CWD-based worktree detection in agent-dispatcher (matches .claude/.codex/.cursor patterns). 8 files, +125 lines. 226 vitest + 42 cargo tests. | Done: 2026-03-11
 - [x] **S-2 — Session Anchors + Configurable Budget** -- Preserves important turns through compaction chains. Auto-anchors first 3 turns (observation-masked — reasoning preserved in full per research). Configurable budget via AnchorBudgetScale slider (Small=2K, Medium=6K, Large=12K, Full=20K) in SettingsTab per-project. Manual pin, promote/demote in ContextTab. Re-injection via system_prompt. 219 vitest + 42 cargo tests. | Done: 2026-03-11
 - [x] **Agent provider adapter pattern** -- Multi-provider support (Claude, Codex, Ollama) via 3-phase adapter pattern. Core abstraction, Settings UI, Sidecar routing. 5 new files, 4 renames, 20+ modified. 202 vitest + 42 cargo tests. | Done: 2026-03-11
