@@ -147,6 +147,7 @@ pub fn run() {
             commands::bttask::bttask_add_comment,
             commands::bttask::bttask_create,
             commands::bttask::bttask_delete,
+            commands::bttask::bttask_review_queue_count,
             // Misc
             commands::misc::cli_get_group,
             commands::misc::open_url,

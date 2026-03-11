@@ -66,6 +66,8 @@ interface ProjectTracker {
   tokenSnapshots: Array<[number, number]>;
   /** Cost snapshots for $/hr: [timestamp, costUsd] */
   costSnapshots: Array<[number, number]>;
+  /** Number of tasks in 'review' status (for reviewer agents) */
+  reviewQueueDepth: number;
 }
 
 let trackers = $state<Map<ProjectIdType, ProjectTracker>>(new Map());
@@ -90,6 +92,7 @@ export function trackProject(projectId: ProjectIdType, sessionId: SessionIdType 
     toolInFlight: false,
     tokenSnapshots: [],
     costSnapshots: [],
+    reviewQueueDepth: 0,
   });
 }
 
@@ -179,6 +182,12 @@ export function stopHealthTick(): void {
   }
 }
 
+/** Set review queue depth for a project (used by reviewer agents) */
+export function setReviewQueueDepth(projectId: ProjectIdType, depth: number): void {
+  const t = trackers.get(projectId);
+  if (t) t.reviewQueueDepth = depth;
+}
+
 /** Clear all tracked projects */
 export function clearHealthTracking(): void {
   trackers = new Map();
@@ -255,6 +264,7 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
     contextPressure,
     fileConflictCount,
     externalConflictCount,
+    reviewQueueDepth: tracker.reviewQueueDepth,
   });
 
   return {

@@ -194,6 +194,29 @@ ${roleDesc}
   parts.push(BTMSG_DOCS);
   if (role === 'manager' || role === 'architect') {
     parts.push(BTTASK_DOCS);
+  } else if (role === 'reviewer') {
+    // Reviewer gets full read + status update + comment access
+    parts.push(`
+## Tool: bttask — Task Board (review access)
+
+You have full read access plus the ability to update task status and add comments.
+You CANNOT create, assign, or delete tasks (Manager only).
+
+\`\`\`bash
+bttask board                         # Kanban board view
+bttask show <task-id>                # Full task details + comments
+bttask list                          # List all tasks
+bttask status <task-id> done         # Approve — mark as done
+bttask status <task-id> progress     # Request changes — send back
+bttask status <task-id> blocked      # Block — explain in comment!
+bttask comment <task-id> "verdict"   # Add review verdict/feedback
+\`\`\`
+
+### Review workflow with bttask
+- Tasks in the **review** column are waiting for YOUR review
+- After reviewing, either move to **done** (approved) or **progress** (needs changes)
+- ALWAYS add a comment with your verdict before changing status
+- When a task moves to review, a notification is auto-posted to \`#review-queue\``);
   } else {
     // Other agents get read-only bttask info
     parts.push(`
@@ -327,6 +350,29 @@ If the Operator sends a message, it's your TOP PRIORITY.`;
 4. **Run tests:** Execute and collect results
 5. **Report:** Send bug reports to Manager via btmsg, update task status
 6. **Verify fixes:** Re-test when developers say a bug is fixed`;
+  }
+
+  if (role === 'reviewer') {
+    return `## Your Workflow
+
+1. **Check inbox:** \`btmsg inbox\` — read review requests and messages
+2. **Check review queue:** \`btmsg channel history review-queue\` — see newly submitted reviews
+3. **Review tasks:** \`bttask board\` — find tasks in the **review** column
+4. **Analyze:** For each review task:
+   a. Read the task description and comments (\`bttask show <id>\`)
+   b. Read the relevant code changes
+   c. Check for security issues, bugs, style violations, and test coverage
+5. **Verdict:** Add your review as a comment (\`bttask comment <id> "APPROVED: ..."\` or \`"CHANGES REQUESTED: ..."\`)
+6. **Update status:** Move task to **done** (approved) or **progress** (needs changes)
+7. **Log verdict:** Post summary to \`btmsg channel send review-log "Task <id>: APPROVED/REJECTED — reason"\`
+8. **Report:** Notify the Manager of review outcomes if significant
+
+**Review standards:**
+- Code quality: readability, naming, structure
+- Security: input validation, auth checks, injection risks
+- Error handling: all errors caught and handled visibly
+- Tests: adequate coverage for new/changed code
+- Performance: no N+1 queries, unbounded fetches, or memory leaks`;
   }
 
   return `## Your Workflow

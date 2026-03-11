@@ -56,3 +56,8 @@ export async function createTask(
 export async function deleteTask(taskId: string): Promise<void> {
   return invoke('bttask_delete', { taskId });
 }
+
+/** Count tasks currently in 'review' status for a group */
+export async function reviewQueueCount(groupId: GroupId): Promise<number> {
+  return invoke<number>('bttask_review_queue_count', { groupId });
+}

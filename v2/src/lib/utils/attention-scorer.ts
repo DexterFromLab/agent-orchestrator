@@ -10,6 +10,10 @@ const SCORE_CONTEXT_CRITICAL = 80; // >90% context
 const SCORE_FILE_CONFLICT = 70;
 const SCORE_CONTEXT_HIGH = 40; // >75% context
 
+// Review queue scoring: 10pts per stale review, capped at 50
+const SCORE_REVIEW_PER_TASK = 10;
+const SCORE_REVIEW_CAP = 50;
+
 export interface AttentionInput {
   sessionStatus: string | undefined;
   sessionError: string | undefined;
@@ -18,6 +22,8 @@ export interface AttentionInput {
   contextPressure: number | null;
   fileConflictCount: number;
   externalConflictCount: number;
+  /** Number of tasks in 'review' status (for reviewer agents) */
+  reviewQueueDepth?: number;
 }
 
 export interface AttentionResult {
@@ -54,6 +60,14 @@ export function scoreAttention(input: AttentionInput): AttentionResult {
     return {
       score: SCORE_FILE_CONFLICT,
       reason: `${input.fileConflictCount} file conflict${input.fileConflictCount > 1 ? 's' : ''}${extNote}`,
+    };
+  }
+
+  if (input.reviewQueueDepth && input.reviewQueueDepth > 0) {
+    const score = Math.min(input.reviewQueueDepth * SCORE_REVIEW_PER_TASK, SCORE_REVIEW_CAP);
+    return {
+      score,
+      reason: `${input.reviewQueueDepth} task${input.reviewQueueDepth > 1 ? 's' : ''} awaiting review`,
     };
   }
 

@@ -117,18 +117,108 @@ pub fn task_comments(task_id: &str) -> Result<Vec<TaskComment>, String> {
 }
 
 /// Update task status
+/// When transitioning to 'review', auto-posts to #review-queue channel if it exists
 pub fn update_task_status(task_id: &str, status: &str) -> Result<(), String> {
     let valid = ["todo", "progress", "review", "done", "blocked"];
     if !valid.contains(&status) {
         return Err(format!("Invalid status '{}'. Valid: {:?}", status, valid));
     }
     let db = open_db()?;
+
+    // Fetch task info before update (for channel notification)
+    let task_title: Option<(String, String)> = if status == "review" {
+        db.query_row(
+            "SELECT title, group_id FROM tasks WHERE id = ?1",
+            params![task_id],
+            |row| Ok((row.get::<_, String>("title")?, row.get::<_, String>("group_id")?)),
+        ).ok()
+    } else {
+        None
+    };
+
     db.execute(
         "UPDATE tasks SET status = ?1, updated_at = datetime('now') WHERE id = ?2",
         params![status, task_id],
     )
     .map_err(|e| format!("Update error: {e}"))?;
+
+    // Auto-post to #review-queue channel on review transition
+    if let Some((title, group_id)) = task_title {
+        notify_review_channel(&db, &group_id, task_id, &title);
+    }
+
     Ok(())
+}
+
+/// Post a notification to #review-queue channel (best-effort, never fails the parent operation)
+fn notify_review_channel(db: &Connection, group_id: &str, task_id: &str, title: &str) {
+    // Find #review-queue channel for this group
+    let channel_id: Option<String> = db
+        .query_row(
+            "SELECT id FROM channels WHERE name = 'review-queue' AND group_id = ?1",
+            params![group_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let channel_id = match channel_id {
+        Some(id) => id,
+        None => {
+            // Auto-create #review-queue channel
+            match ensure_review_channels(db, group_id) {
+                Some(id) => id,
+                None => return, // Give up silently
+            }
+        }
+    };
+
+    let msg_id = uuid::Uuid::new_v4().to_string();
+    let content = format!("📋 Task ready for review: **{}** (`{}`)", title, task_id);
+    let _ = db.execute(
+        "INSERT INTO channel_messages (id, channel_id, from_agent, content) VALUES (?1, ?2, 'system', ?3)",
+        params![msg_id, channel_id, content],
+    );
+}
+
+/// Ensure #review-queue and #review-log channels exist for a group.
+/// Returns the review-queue channel ID if created/found.
+fn ensure_review_channels(db: &Connection, group_id: &str) -> Option<String> {
+    // Create channels only if they don't already exist
+    for name in &["review-queue", "review-log"] {
+        let exists: bool = db
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM channels WHERE name = ?1 AND group_id = ?2",
+                params![name, group_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(false);
+        if !exists {
+            let id = uuid::Uuid::new_v4().to_string();
+            let _ = db.execute(
+                "INSERT INTO channels (id, name, group_id, created_by) VALUES (?1, ?2, ?3, 'system')",
+                params![id, name, group_id],
+            );
+        }
+    }
+
+    // Return the review-queue channel ID
+    db.query_row(
+        "SELECT id FROM channels WHERE name = 'review-queue' AND group_id = ?1",
+        params![group_id],
+        |row| row.get(0),
+    )
+    .ok()
+}
+
+/// Count tasks in 'review' status for a group
+pub fn review_queue_count(group_id: &str) -> Result<i64, String> {
+    let db = open_db()?;
+    db.query_row(
+        "SELECT COUNT(*) FROM tasks WHERE group_id = ?1 AND status = 'review'",
+        params![group_id],
+        |row| row.get(0),
+    )
+    .map_err(|e| format!("Query error: {e}"))
 }
 
 /// Add a comment to a task
@@ -199,6 +289,20 @@ mod tests {
                 id TEXT PRIMARY KEY,
                 task_id TEXT NOT NULL,
                 agent_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE channels (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                group_id TEXT NOT NULL,
+                created_by TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE channel_messages (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL,
+                from_agent TEXT NOT NULL,
                 content TEXT NOT NULL,
                 created_at TEXT DEFAULT (datetime('now'))
             );",
@@ -361,5 +465,133 @@ mod tests {
         assert!(valid.contains(&"done"));
         assert!(!valid.contains(&"invalid"));
         assert!(!valid.contains(&"cancelled"));
+    }
+
+    // ---- Review channel auto-creation ----
+
+    #[test]
+    fn test_ensure_review_channels_creates_both() {
+        let conn = test_db();
+        let result = ensure_review_channels(&conn, "g1");
+        assert!(result.is_some(), "should return review-queue channel ID");
+
+        // Verify both channels exist
+        let queue_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM channels WHERE name = 'review-queue' AND group_id = 'g1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(queue_count, 1);
+
+        let log_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM channels WHERE name = 'review-log' AND group_id = 'g1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(log_count, 1);
+    }
+
+    #[test]
+    fn test_ensure_review_channels_idempotent() {
+        let conn = test_db();
+        let id1 = ensure_review_channels(&conn, "g1").unwrap();
+        let id2 = ensure_review_channels(&conn, "g1").unwrap();
+        assert_eq!(id1, id2, "should return same channel ID on repeated calls");
+
+        // Verify no duplicates
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM channels WHERE name = 'review-queue' AND group_id = 'g1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_notify_review_channel_posts_message() {
+        let conn = test_db();
+        // Insert a task
+        conn.execute(
+            "INSERT INTO tasks (id, title, created_by, group_id) VALUES ('t1', 'Fix login bug', 'admin', 'g1')",
+            [],
+        ).unwrap();
+
+        // Trigger notification (should auto-create channel)
+        notify_review_channel(&conn, "g1", "t1", "Fix login bug");
+
+        // Verify message was posted
+        let msg_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM channel_messages cm
+                 JOIN channels c ON cm.channel_id = c.id
+                 WHERE c.name = 'review-queue' AND c.group_id = 'g1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(msg_count, 1);
+
+        // Verify message content
+        let content: String = conn
+            .query_row(
+                "SELECT cm.content FROM channel_messages cm
+                 JOIN channels c ON cm.channel_id = c.id
+                 WHERE c.name = 'review-queue'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(content.contains("Fix login bug"));
+        assert!(content.contains("t1"));
+    }
+
+    // ---- Review queue count ----
+
+    #[test]
+    fn test_review_queue_count_via_sql() {
+        let conn = test_db();
+        // Insert tasks with various statuses
+        conn.execute(
+            "INSERT INTO tasks (id, title, status, created_by, group_id) VALUES ('t1', 'A', 'review', 'admin', 'g1')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO tasks (id, title, status, created_by, group_id) VALUES ('t2', 'B', 'review', 'admin', 'g1')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO tasks (id, title, status, created_by, group_id) VALUES ('t3', 'C', 'progress', 'admin', 'g1')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO tasks (id, title, status, created_by, group_id) VALUES ('t4', 'D', 'review', 'admin', 'g2')",
+            [],
+        ).unwrap();
+
+        // Count review tasks for g1
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE group_id = ?1 AND status = 'review'",
+                params!["g1"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 2, "should count only review tasks in g1");
+
+        // Count review tasks for g2
+        let count_g2: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE group_id = ?1 AND status = 'review'",
+                params!["g2"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count_g2, 1, "should count only review tasks in g2");
     }
 }

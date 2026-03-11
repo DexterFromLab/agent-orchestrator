@@ -22,6 +22,8 @@
   import { ProjectId, type AgentId, type GroupId } from '../../types/ids';
   import { notify, dismissNotification } from '../../stores/notifications.svelte';
   import { registerManager, unregisterManager, updateManagerConfig } from '../../stores/wake-scheduler.svelte';
+  import { setReviewQueueDepth } from '../../stores/health.svelte';
+  import { reviewQueueCount } from '../../adapters/bttask-bridge';
 
   interface Props {
     project: ProjectConfig;
@@ -91,6 +93,23 @@
     return () => {
       unregisterManager(project.id);
     };
+  });
+
+  // Poll review queue depth for reviewer agents (feeds into attention scoring)
+  $effect(() => {
+    if (!(project.isAgent && project.agentRole === 'reviewer')) return;
+    const groupId = activeGroup?.id;
+    if (!groupId) return;
+
+    const pollReviewQueue = () => {
+      reviewQueueCount(groupId)
+        .then(count => setReviewQueueDepth(project.id, count))
+        .catch(() => {}); // best-effort
+    };
+
+    pollReviewQueue(); // immediate first poll
+    const timer = setInterval(pollReviewQueue, 10_000); // 10s poll
+    return () => clearInterval(timer);
   });
 
   // S-1 Phase 2: start filesystem watcher for this project's CWD
@@ -194,6 +213,9 @@
     {/if}
     {#if isAgent && agentRole === 'architect'}
       <button class="ptab ptab-role" class:active={activeTab === 'architecture'} onclick={() => switchTab('architecture')}>Arch</button>
+    {/if}
+    {#if isAgent && agentRole === 'reviewer'}
+      <button class="ptab ptab-role" class:active={activeTab === 'tasks'} onclick={() => switchTab('tasks')}>Tasks</button>
     {/if}
     {#if isAgent && agentRole === 'tester'}
       <button class="ptab ptab-role" class:active={activeTab === 'selenium'} onclick={() => switchTab('selenium')}>Selenium</button>

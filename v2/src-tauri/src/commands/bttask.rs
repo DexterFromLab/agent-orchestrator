@@ -36,3 +36,8 @@ pub fn bttask_create(
 pub fn bttask_delete(task_id: String) -> Result<(), String> {
     bttask::delete_task(&task_id)
 }
+
+#[tauri::command]
+pub fn bttask_review_queue_count(group_id: String) -> Result<i64, String> {
+    bttask::review_queue_count(&group_id)
+}

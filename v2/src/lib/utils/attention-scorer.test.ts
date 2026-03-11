@@ -136,4 +136,66 @@ describe('scoreAttention', () => {
     }));
     expect(result.reason).toContain('Unknown');
   });
+
+  // --- Review queue depth scoring ---
+
+  it('scores review queue depth at 10 per task', () => {
+    const result = scoreAttention(makeInput({
+      activityState: 'running',
+      reviewQueueDepth: 3,
+    }));
+    expect(result.score).toBe(30);
+    expect(result.reason).toContain('3 tasks awaiting review');
+  });
+
+  it('caps review queue score at 50', () => {
+    const result = scoreAttention(makeInput({
+      activityState: 'running',
+      reviewQueueDepth: 8,
+    }));
+    expect(result.score).toBe(50);
+    expect(result.reason).toContain('8 tasks');
+  });
+
+  it('uses singular grammar for 1 review task', () => {
+    const result = scoreAttention(makeInput({
+      activityState: 'running',
+      reviewQueueDepth: 1,
+    }));
+    expect(result.score).toBe(10);
+    expect(result.reason).toBe('1 task awaiting review');
+  });
+
+  it('review queue has lower priority than file conflicts', () => {
+    const result = scoreAttention(makeInput({
+      activityState: 'running',
+      fileConflictCount: 2,
+      reviewQueueDepth: 5,
+    }));
+    expect(result.score).toBe(70); // file conflicts win
+  });
+
+  it('review queue has higher priority than context high', () => {
+    const result = scoreAttention(makeInput({
+      activityState: 'running',
+      contextPressure: 0.80,
+      reviewQueueDepth: 2,
+    }));
+    expect(result.score).toBe(20); // review queue wins over context high (40)
+  });
+
+  it('ignores review queue when depth is 0', () => {
+    const result = scoreAttention(makeInput({
+      activityState: 'running',
+      reviewQueueDepth: 0,
+    }));
+    expect(result.score).toBe(0);
+  });
+
+  it('ignores review queue when undefined', () => {
+    const result = scoreAttention(makeInput({
+      activityState: 'running',
+    }));
+    expect(result.score).toBe(0);
+  });
 });
