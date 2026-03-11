@@ -28,6 +28,9 @@ import { tel } from './adapters/telemetry-bridge';
 import { recordActivity, recordToolDone, recordTokenSnapshot } from './stores/health.svelte';
 import { recordFileWrite, clearSessionWrites, setSessionWorktree } from './stores/conflicts.svelte';
 import { extractWritePaths, extractWorktreePath } from './utils/tool-files';
+import { hasAutoAnchored, markAutoAnchored, addAnchors, getAnchorSettings } from './stores/anchors.svelte';
+import { selectAutoAnchors, serializeAnchorsForInjection } from './utils/anchor-serializer';
+import type { SessionAnchor } from './types/anchors';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
@@ -204,6 +207,18 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
               const shortName = filePath.split('/').pop() ?? filePath;
               notify('warning', `File conflict: ${shortName} — multiple agents writing`);
             }
+          }
+        }
+        break;
+      }
+
+      case 'compaction': {
+        // Auto-anchor on first compaction for this project
+        const compactProjId = sessionProjectMap.get(sessionId);
+        if (compactProjId && !hasAutoAnchored(compactProjId)) {
+          const session = getAgentSession(sessionId);
+          if (session) {
+            triggerAutoAnchor(compactProjId, session.messages, session.prompt);
           }
         }
         break;
@@ -393,6 +408,48 @@ async function persistSessionForProject(sessionId: string): Promise<void> {
   } finally {
     pendingPersistCount--;
   }
+}
+
+/** Auto-anchor first N turns on first compaction event for a project */
+function triggerAutoAnchor(
+  projectId: string,
+  messages: import('./adapters/claude-messages').AgentMessage[],
+  sessionPrompt: string,
+): void {
+  markAutoAnchored(projectId);
+
+  const settings = getAnchorSettings(projectId);
+  const { turns, totalTokens } = selectAutoAnchors(
+    messages,
+    sessionPrompt,
+    settings.anchorTurns,
+    settings.anchorTokenBudget,
+  );
+
+  if (turns.length === 0) return;
+
+  const nowSecs = Math.floor(Date.now() / 1000);
+  const anchors: SessionAnchor[] = turns.map((turn, i) => {
+    const content = serializeAnchorsForInjection([turn], settings.anchorTokenBudget);
+    return {
+      id: crypto.randomUUID(),
+      projectId,
+      messageId: `turn-${turn.index}`,
+      anchorType: 'auto' as const,
+      content: content,
+      estimatedTokens: turn.estimatedTokens,
+      turnIndex: turn.index,
+      createdAt: nowSecs,
+    };
+  });
+
+  addAnchors(projectId, anchors);
+  tel.info('auto_anchor_created', {
+    projectId,
+    anchorCount: anchors.length,
+    totalTokens,
+  });
+  notify('info', `Anchored ${anchors.length} turns (${totalTokens} tokens) for context preservation`);
 }
 
 export function stopAgentDispatcher(): void {

@@ -492,6 +492,49 @@ fn session_metrics_load(
     state.session_db.load_session_metrics(&project_id, limit)
 }
 
+// --- Session anchor commands ---
+
+#[tauri::command]
+fn session_anchors_save(
+    state: State<'_, AppState>,
+    anchors: Vec<session::SessionAnchorRecord>,
+) -> Result<(), String> {
+    state.session_db.save_session_anchors(&anchors)
+}
+
+#[tauri::command]
+fn session_anchors_load(
+    state: State<'_, AppState>,
+    project_id: String,
+) -> Result<Vec<session::SessionAnchorRecord>, String> {
+    state.session_db.load_session_anchors(&project_id)
+}
+
+#[tauri::command]
+fn session_anchor_delete(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    state.session_db.delete_session_anchor(&id)
+}
+
+#[tauri::command]
+fn session_anchors_clear(
+    state: State<'_, AppState>,
+    project_id: String,
+) -> Result<(), String> {
+    state.session_db.delete_project_anchors(&project_id)
+}
+
+#[tauri::command]
+fn session_anchor_update_type(
+    state: State<'_, AppState>,
+    id: String,
+    anchor_type: String,
+) -> Result<(), String> {
+    state.session_db.update_anchor_type(&id, &anchor_type)
+}
+
 // --- File browser commands (Files tab) ---
 
 #[derive(serde::Serialize)]
@@ -810,6 +853,11 @@ pub fn run() {
             project_agent_state_load,
             session_metric_save,
             session_metrics_load,
+            session_anchors_save,
+            session_anchors_load,
+            session_anchor_delete,
+            session_anchors_clear,
+            session_anchor_update_type,
             cli_get_group,
             pick_directory,
             open_url,
