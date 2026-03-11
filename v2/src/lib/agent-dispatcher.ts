@@ -1,10 +1,9 @@
 // Agent Dispatcher — connects sidecar bridge events to agent store
-// Single listener that routes sidecar messages to the correct agent session
+// Thin coordinator that routes sidecar messages to specialized modules
 
 import { onSidecarMessage, onSidecarExited, restartAgent, type SidecarMessage } from './adapters/agent-bridge';
 import { adaptMessage } from './adapters/message-adapters';
 import type { InitContent, CostContent, ToolCallContent } from './adapters/claude-messages';
-import type { ProviderId } from './providers/types';
 import {
   updateAgentStatus,
   setAgentSdkSessionId,
@@ -13,45 +12,35 @@ import {
   updateAgentCost,
   getAgentSessions,
   getAgentSession,
-  createAgentSession,
-  findChildByToolUseId,
 } from './stores/agents.svelte';
-import { addPane, getPanes } from './stores/layout.svelte';
 import { notify } from './stores/notifications.svelte';
-import {
-  saveProjectAgentState,
-  saveAgentMessages,
-  saveSessionMetric,
-  type AgentMessageRecord,
-} from './adapters/groups-bridge';
 import { tel } from './adapters/telemetry-bridge';
 import { recordActivity, recordToolDone, recordTokenSnapshot } from './stores/health.svelte';
 import { recordFileWrite, clearSessionWrites, setSessionWorktree } from './stores/conflicts.svelte';
 import { extractWritePaths, extractWorktreePath } from './utils/tool-files';
-import { hasAutoAnchored, markAutoAnchored, addAnchors, getAnchorSettings } from './stores/anchors.svelte';
-import { selectAutoAnchors, serializeAnchorsForInjection } from './utils/anchor-serializer';
-import type { SessionAnchor } from './types/anchors';
-import { getEnabledProjects } from './stores/workspace.svelte';
+import { hasAutoAnchored, markAutoAnchored } from './stores/anchors.svelte';
+import { detectWorktreeFromCwd } from './utils/worktree-detection';
+import {
+  getSessionProjectId,
+  getSessionProvider,
+  recordSessionStart,
+  persistSessionForProject,
+  clearSessionMaps,
+} from './utils/session-persistence';
+import { triggerAutoAnchor } from './utils/auto-anchoring';
+import {
+  isSubagentToolCall,
+  getChildPaneId,
+  spawnSubagentPane,
+  clearSubagentRoutes,
+} from './utils/subagent-router';
+
+// Re-export public API consumed by other modules
+export { registerSessionProject, waitForPendingPersistence } from './utils/session-persistence';
+export { detectWorktreeFromCwd } from './utils/worktree-detection';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
-
-// Map sessionId -> projectId for persistence routing
-const sessionProjectMap = new Map<string, string>();
-
-// Map sessionId -> provider for message adapter routing
-const sessionProviderMap = new Map<string, ProviderId>();
-
-// Map sessionId -> start timestamp for metrics
-const sessionStartTimes = new Map<string, number>();
-
-// In-flight persistence counter — prevents teardown from racing with async saves
-let pendingPersistCount = 0;
-
-export function registerSessionProject(sessionId: string, projectId: string, provider: ProviderId = 'claude'): void {
-  sessionProjectMap.set(sessionId, projectId);
-  sessionProviderMap.set(sessionId, provider);
-}
 
 // Sidecar liveness — checked by UI components
 let sidecarAlive = true;
@@ -86,7 +75,7 @@ export async function startAgentDispatcher(): Promise<void> {
     switch (msg.type) {
       case 'agent_started':
         updateAgentStatus(sessionId, 'running');
-        sessionStartTimes.set(sessionId, Date.now());
+        recordSessionStart(sessionId);
         tel.info('agent_started', { sessionId });
         break;
 
@@ -151,14 +140,8 @@ export async function startAgentDispatcher(): Promise<void> {
   });
 }
 
-// Tool names that indicate a subagent spawn
-const SUBAGENT_TOOL_NAMES = new Set(['Agent', 'Task', 'dispatch_agent']);
-
-// Map toolUseId -> child session pane id for routing
-const toolUseToChildPane = new Map<string, string>();
-
 function handleAgentEvent(sessionId: string, event: Record<string, unknown>): void {
-  const provider = sessionProviderMap.get(sessionId) ?? 'claude';
+  const provider = getSessionProvider(sessionId);
   const messages = adaptMessage(provider, event);
 
   // Route messages with parentId to the appropriate child pane
@@ -166,8 +149,8 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
   const childBuckets = new Map<string, typeof messages>();
 
   for (const msg of messages) {
-    if (msg.parentId && toolUseToChildPane.has(msg.parentId)) {
-      const childPaneId = toolUseToChildPane.get(msg.parentId)!;
+    const childPaneId = msg.parentId ? getChildPaneId(msg.parentId) : undefined;
+    if (childPaneId) {
       if (!childBuckets.has(childPaneId)) childBuckets.set(childPaneId, []);
       childBuckets.get(childPaneId)!.push(msg);
     } else {
@@ -182,8 +165,7 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
         const init = msg.content as InitContent;
         setAgentSdkSessionId(sessionId, init.sessionId);
         setAgentModel(sessionId, init.model);
-        // CWD-based worktree detection: if init CWD contains a worktree path pattern,
-        // register it for conflict suppression (agents in different worktrees don't conflict)
+        // CWD-based worktree detection for conflict suppression
         if (init.cwd) {
           const wtPath = detectWorktreeFromCwd(init.cwd);
           if (wtPath) {
@@ -195,17 +177,16 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
 
       case 'tool_call': {
         const tc = msg.content as ToolCallContent;
-        if (SUBAGENT_TOOL_NAMES.has(tc.name)) {
+        if (isSubagentToolCall(tc.name)) {
           spawnSubagentPane(sessionId, tc);
         }
         // Health: record tool start
-        const projId = sessionProjectMap.get(sessionId);
+        const projId = getSessionProjectId(sessionId);
         if (projId) {
           recordActivity(projId, tc.name);
-          // Worktree tracking: detect worktree isolation on Agent/Task calls or EnterWorktree
+          // Worktree tracking
           const wtPath = extractWorktreePath(tc);
           if (wtPath) {
-            // The child session (or this session) is entering a worktree
             setSessionWorktree(sessionId, wtPath);
           }
           // Conflict detection: track file writes
@@ -223,8 +204,9 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
 
       case 'compaction': {
         // Auto-anchor on first compaction for this project
-        const compactProjId = sessionProjectMap.get(sessionId);
+        const compactProjId = getSessionProjectId(sessionId);
         if (compactProjId && !hasAutoAnchored(compactProjId)) {
+          markAutoAnchored(compactProjId);
           const session = getAgentSession(sessionId);
           if (session) {
             triggerAutoAnchor(compactProjId, session.messages, session.prompt);
@@ -259,7 +241,7 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
           notify('success', `Agent done — $${cost.totalCostUsd.toFixed(4)}, ${cost.numTurns} turns`);
         }
         // Health: record token snapshot + tool done
-        const costProjId = sessionProjectMap.get(sessionId);
+        const costProjId = getSessionProjectId(sessionId);
         if (costProjId) {
           recordTokenSnapshot(costProjId, cost.inputTokens + cost.outputTokens, cost.totalCostUsd);
           recordToolDone(costProjId);
@@ -275,7 +257,7 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
 
   // Health: record general activity for non-tool messages (text, thinking)
   if (mainMessages.length > 0) {
-    const actProjId = sessionProjectMap.get(sessionId);
+    const actProjId = getSessionProjectId(sessionId);
     if (actProjId) {
       const hasToolResult = mainMessages.some(m => m.type === 'tool_result');
       if (hasToolResult) recordToolDone(actProjId);
@@ -308,176 +290,6 @@ function handleAgentEvent(sessionId: string, event: Record<string, unknown>): vo
   }
 }
 
-function spawnSubagentPane(parentSessionId: string, tc: ToolCallContent): void {
-  // Don't create duplicate pane for same tool_use
-  if (toolUseToChildPane.has(tc.toolUseId)) return;
-  const existing = findChildByToolUseId(parentSessionId, tc.toolUseId);
-  if (existing) {
-    toolUseToChildPane.set(tc.toolUseId, existing.id);
-    return;
-  }
-
-  const childId = crypto.randomUUID();
-  const prompt = typeof tc.input === 'object' && tc.input !== null
-    ? (tc.input as Record<string, unknown>).prompt as string ?? tc.name
-    : tc.name;
-  const label = typeof tc.input === 'object' && tc.input !== null
-    ? (tc.input as Record<string, unknown>).name as string ?? tc.name
-    : tc.name;
-
-  // Register routing
-  toolUseToChildPane.set(tc.toolUseId, childId);
-
-  // Create agent session with parent link
-  createAgentSession(childId, prompt, {
-    sessionId: parentSessionId,
-    toolUseId: tc.toolUseId,
-  });
-  updateAgentStatus(childId, 'running');
-
-  // For project-scoped sessions, subagents render in TeamAgentsPanel (no layout pane)
-  // For non-project sessions (detached mode), create a layout pane
-  if (!sessionProjectMap.has(parentSessionId)) {
-    const parentPane = getPanes().find(p => p.id === parentSessionId);
-    const groupName = parentPane?.title ?? `Agent ${parentSessionId.slice(0, 8)}`;
-    addPane({
-      id: childId,
-      type: 'agent',
-      title: `Sub: ${label}`,
-      group: groupName,
-    });
-  }
-}
-
-/** Wait until all in-flight persistence operations complete */
-export async function waitForPendingPersistence(): Promise<void> {
-  while (pendingPersistCount > 0) {
-    await new Promise(r => setTimeout(r, 10));
-  }
-}
-
-/** Persist session state + messages to SQLite for the project that owns this session */
-async function persistSessionForProject(sessionId: string): Promise<void> {
-  const projectId = sessionProjectMap.get(sessionId);
-  if (!projectId) return; // Not a project-scoped session
-
-  const session = getAgentSession(sessionId);
-  if (!session) return;
-
-  pendingPersistCount++;
-  try {
-    // Save agent state
-    await saveProjectAgentState({
-      project_id: projectId,
-      last_session_id: sessionId,
-      sdk_session_id: session.sdkSessionId ?? null,
-      status: session.status,
-      cost_usd: session.costUsd,
-      input_tokens: session.inputTokens,
-      output_tokens: session.outputTokens,
-      last_prompt: session.prompt,
-      updated_at: Math.floor(Date.now() / 1000),
-    });
-
-    // Save messages (use seconds to match session.rs convention)
-    const nowSecs = Math.floor(Date.now() / 1000);
-    const records: AgentMessageRecord[] = session.messages.map((m, i) => ({
-      id: i,
-      session_id: sessionId,
-      project_id: projectId,
-      sdk_session_id: session.sdkSessionId ?? null,
-      message_type: m.type,
-      content: JSON.stringify(m.content),
-      parent_id: m.parentId ?? null,
-      created_at: nowSecs,
-    }));
-
-    if (records.length > 0) {
-      await saveAgentMessages(sessionId, projectId, session.sdkSessionId, records);
-    }
-
-    // Persist session metric for historical tracking
-    const toolCallCount = session.messages.filter(m => m.type === 'tool_call').length;
-    const startTime = sessionStartTimes.get(sessionId) ?? Math.floor(Date.now() / 1000);
-    await saveSessionMetric({
-      project_id: projectId,
-      session_id: sessionId,
-      start_time: Math.floor(startTime / 1000),
-      end_time: nowSecs,
-      peak_tokens: session.inputTokens + session.outputTokens,
-      turn_count: session.numTurns,
-      tool_call_count: toolCallCount,
-      cost_usd: session.costUsd,
-      model: session.model ?? null,
-      status: session.status,
-      error_message: session.error ?? null,
-    });
-  } catch (e) {
-    console.warn('Failed to persist agent session:', e);
-  } finally {
-    pendingPersistCount--;
-  }
-}
-
-/** Auto-anchor first N turns on first compaction event for a project */
-function triggerAutoAnchor(
-  projectId: string,
-  messages: import('./adapters/claude-messages').AgentMessage[],
-  sessionPrompt: string,
-): void {
-  markAutoAnchored(projectId);
-
-  const project = getEnabledProjects().find(p => p.id === projectId);
-  const settings = getAnchorSettings(project?.anchorBudgetScale);
-  const { turns, totalTokens } = selectAutoAnchors(
-    messages,
-    sessionPrompt,
-    settings.anchorTurns,
-    settings.anchorTokenBudget,
-  );
-
-  if (turns.length === 0) return;
-
-  const nowSecs = Math.floor(Date.now() / 1000);
-  const anchors: SessionAnchor[] = turns.map((turn, i) => {
-    const content = serializeAnchorsForInjection([turn], settings.anchorTokenBudget);
-    return {
-      id: crypto.randomUUID(),
-      projectId,
-      messageId: `turn-${turn.index}`,
-      anchorType: 'auto' as const,
-      content: content,
-      estimatedTokens: turn.estimatedTokens,
-      turnIndex: turn.index,
-      createdAt: nowSecs,
-    };
-  });
-
-  addAnchors(projectId, anchors);
-  tel.info('auto_anchor_created', {
-    projectId,
-    anchorCount: anchors.length,
-    totalTokens,
-  });
-  notify('info', `Anchored ${anchors.length} turns (${totalTokens} tokens) for context preservation`);
-}
-
-// Worktree path patterns for various providers
-const WORKTREE_CWD_PATTERNS = [
-  /\/\.claude\/worktrees\/([^/]+)/,    // Claude Code: <repo>/.claude/worktrees/<name>/
-  /\/\.codex\/worktrees\/([^/]+)/,     // Codex
-  /\/\.cursor\/worktrees\/([^/]+)/,    // Cursor
-];
-
-/** Extract worktree path from CWD if it matches a known worktree pattern */
-export function detectWorktreeFromCwd(cwd: string): string | null {
-  for (const pattern of WORKTREE_CWD_PATTERNS) {
-    const match = cwd.match(pattern);
-    if (match) return match[0]; // Return the full worktree path segment
-  }
-  return null;
-}
-
 export function stopAgentDispatcher(): void {
   if (unlistenMsg) {
     unlistenMsg();
@@ -488,8 +300,6 @@ export function stopAgentDispatcher(): void {
     unlistenExit = null;
   }
   // Clear routing maps to prevent unbounded memory growth
-  toolUseToChildPane.clear();
-  sessionProjectMap.clear();
-  sessionProviderMap.clear();
-  sessionStartTimes.clear();
+  clearSubagentRoutes();
+  clearSessionMaps();
 }
