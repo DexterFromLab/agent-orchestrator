@@ -7,10 +7,9 @@
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Env var whitelist fix done. 3 test sessions ran ($1.10, $0.69, $1.70) but model didn't spawn subagents — needs complex multi-part prompts to trigger delegation. Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
-- [ ] **SOLID Phase 3 — Primitive obsession** -- SessionId, ProjectId, FilePath as raw strings across 15+ files. Introduce value objects.
-
 ## Completed
 
+- [x] **SOLID Phase 3 — Primitive obsession** -- Branded types SessionId/ProjectId in types/ids.ts. Applied to ~130 sites: Map/Set keys in conflicts.svelte.ts (4 maps, 12 functions), health.svelte.ts (2 maps, 10 functions), session-persistence.ts (3 maps, 6 functions), auto-anchoring.ts, agent-dispatcher.ts. Boundary branding at sidecar entry. Deferred: Svelte props (75), IPC interfaces, Rust newtypes. 293 vitest + 49 cargo tests. | Done: 2026-03-11
 - [x] **SOLID Phase 2 — agent-dispatcher.ts split** -- 496→260 lines. Extracted 4 modules: utils/worktree-detection.ts (pure function, 5 tests), utils/session-persistence.ts (session maps + persist), utils/auto-anchoring.ts (compaction anchor), utils/subagent-router.ts (spawn + route). Dispatcher is thin coordinator. 286 vitest + 49 cargo tests. | Done: 2026-03-11
 - [x] **SOLID Phase 2 — session.rs split** -- 1008→7 sub-modules under session/ directory (mod.rs, sessions.rs, layout.rs, settings.rs, ssh.rs, agents.rs, metrics.rs, anchors.rs). pub(in crate::session) conn visibility. 21 new cargo tests. 49 cargo tests total. | Done: 2026-03-11
 - [x] **SOLID Phase 1 Refactoring** -- Extracted AttentionScorer pure function (14 tests), shared str()/num() type guards, split lib.rs (976→170 lines, 11 command modules). 286 vitest + 49 cargo tests. | Done: 2026-03-11
