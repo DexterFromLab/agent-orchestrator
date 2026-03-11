@@ -13,7 +13,7 @@
   import MemoriesTab from './MemoriesTab.svelte';
   import { getTerminalTabs } from '../../stores/workspace.svelte';
   import { getProjectHealth } from '../../stores/health.svelte';
-  import { fsWatchProject, fsUnwatchProject, onFsWriteDetected } from '../../adapters/fs-watcher-bridge';
+  import { fsWatchProject, fsUnwatchProject, onFsWriteDetected, fsWatcherStatus } from '../../adapters/fs-watcher-bridge';
   import { recordExternalWrite } from '../../stores/conflicts.svelte';
   import { notify } from '../../stores/notifications.svelte';
 
@@ -58,10 +58,17 @@
     const projectId = project.id;
     if (!cwd) return;
 
-    // Start watching
-    fsWatchProject(projectId, cwd).catch(e =>
-      console.warn(`Failed to start fs watcher for ${projectId}:`, e)
-    );
+    // Start watching, then check inotify capacity
+    fsWatchProject(projectId, cwd)
+      .then(() => fsWatcherStatus())
+      .then((status) => {
+        if (status.warning) {
+          notify('warning', status.warning);
+        }
+      })
+      .catch(e =>
+        console.warn(`Failed to start fs watcher for ${projectId}:`, e)
+      );
 
     // Listen for fs write events (filter to this project)
     let unlisten: (() => void) | null = null;

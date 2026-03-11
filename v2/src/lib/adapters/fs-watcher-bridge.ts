@@ -26,3 +26,16 @@ export function onFsWriteDetected(
 ): Promise<UnlistenFn> {
   return listen<FsWriteEvent>('fs-write-detected', (e) => callback(e.payload));
 }
+
+export interface FsWatcherStatus {
+  max_watches: number;
+  estimated_watches: number;
+  usage_ratio: number;
+  active_projects: number;
+  warning: string | null;
+}
+
+/** Get inotify watcher status including kernel limit check */
+export function fsWatcherStatus(): Promise<FsWatcherStatus> {
+  return invoke('fs_watcher_status');
+}

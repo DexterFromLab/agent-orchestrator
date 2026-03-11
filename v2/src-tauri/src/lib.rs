@@ -16,7 +16,7 @@ use pty::{PtyManager, PtyOptions};
 use remote::{RemoteManager, RemoteMachineConfig};
 use session::{Session, SessionDb, LayoutState, SshSession, AgentMessageRecord, ProjectAgentState};
 use sidecar::{AgentQueryOptions, SidecarConfig, SidecarManager};
-use fs_watcher::ProjectFsWatcher;
+use fs_watcher::{FsWatcherStatus, ProjectFsWatcher};
 use watcher::FileWatcherManager;
 use std::sync::Arc;
 use tauri::{Manager, State};
@@ -129,6 +129,11 @@ fn fs_watch_project(
 #[tauri::command]
 fn fs_unwatch_project(state: State<'_, AppState>, project_id: String) {
     state.fs_watcher.unwatch_project(&project_id);
+}
+
+#[tauri::command]
+fn fs_watcher_status(state: State<'_, AppState>) -> FsWatcherStatus {
+    state.fs_watcher.status()
 }
 
 // --- Session persistence commands ---
@@ -758,6 +763,7 @@ pub fn run() {
             file_read,
             fs_watch_project,
             fs_unwatch_project,
+            fs_watcher_status,
             session_list,
             session_save,
             session_delete,
