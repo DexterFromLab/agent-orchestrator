@@ -1,4 +1,5 @@
 mod btmsg;
+mod bttask;
 mod commands;
 mod ctx;
 mod event_sink;
@@ -139,6 +140,13 @@ pub fn run() {
             commands::btmsg::btmsg_channel_send,
             commands::btmsg::btmsg_create_channel,
             commands::btmsg::btmsg_add_channel_member,
+            // bttask (task board)
+            commands::bttask::bttask_list,
+            commands::bttask::bttask_comments,
+            commands::bttask::bttask_update_status,
+            commands::bttask::bttask_add_comment,
+            commands::bttask::bttask_create,
+            commands::bttask::bttask_delete,
             // Misc
             commands::misc::cli_get_group,
             commands::misc::open_url,

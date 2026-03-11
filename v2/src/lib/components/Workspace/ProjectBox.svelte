@@ -11,7 +11,10 @@
   import FilesTab from './FilesTab.svelte';
   import SshTab from './SshTab.svelte';
   import MemoriesTab from './MemoriesTab.svelte';
-  import { getTerminalTabs } from '../../stores/workspace.svelte';
+  import TaskBoardTab from './TaskBoardTab.svelte';
+  import ArchitectureTab from './ArchitectureTab.svelte';
+  import TestingTab from './TestingTab.svelte';
+  import { getTerminalTabs, getActiveGroup } from '../../stores/workspace.svelte';
   import { getProjectHealth, setStallThreshold } from '../../stores/health.svelte';
   import { fsWatchProject, fsUnwatchProject, onFsWriteDetected, fsWatcherStatus } from '../../adapters/fs-watcher-bridge';
   import { recordExternalWrite } from '../../stores/conflicts.svelte';
@@ -31,8 +34,12 @@
   let mainSessionId = $state<string | null>(null);
   let terminalExpanded = $state(false);
 
-  type ProjectTab = 'model' | 'docs' | 'context' | 'files' | 'ssh' | 'memories';
+  type ProjectTab = 'model' | 'docs' | 'context' | 'files' | 'ssh' | 'memories' | 'tasks' | 'architecture' | 'selenium' | 'tests';
   let activeTab = $state<ProjectTab>('model');
+
+  let activeGroup = $derived(getActiveGroup());
+  let agentRole = $derived(project.agentRole);
+  let isAgent = $derived(project.isAgent ?? false);
 
   // PERSISTED-LAZY: track which tabs have been activated at least once
   let everActivated = $state<Record<string, boolean>>({});
@@ -149,6 +156,16 @@
       class:active={activeTab === 'memories'}
       onclick={() => switchTab('memories')}
     >Memory</button>
+    {#if isAgent && agentRole === 'manager'}
+      <button class="ptab ptab-role" class:active={activeTab === 'tasks'} onclick={() => switchTab('tasks')}>Tasks</button>
+    {/if}
+    {#if isAgent && agentRole === 'architect'}
+      <button class="ptab ptab-role" class:active={activeTab === 'architecture'} onclick={() => switchTab('architecture')}>Arch</button>
+    {/if}
+    {#if isAgent && agentRole === 'tester'}
+      <button class="ptab ptab-role" class:active={activeTab === 'selenium'} onclick={() => switchTab('selenium')}>Selenium</button>
+      <button class="ptab ptab-role" class:active={activeTab === 'tests'} onclick={() => switchTab('tests')}>Tests</button>
+    {/if}
   </div>
 
   <div class="project-content-area">
@@ -180,6 +197,26 @@
     {#if everActivated['memories']}
       <div class="content-pane" style:display={activeTab === 'memories' ? 'flex' : 'none'}>
         <MemoriesTab />
+      </div>
+    {/if}
+    {#if everActivated['tasks'] && activeGroup}
+      <div class="content-pane" style:display={activeTab === 'tasks' ? 'flex' : 'none'}>
+        <TaskBoardTab groupId={activeGroup.id} projectId={project.id} />
+      </div>
+    {/if}
+    {#if everActivated['architecture']}
+      <div class="content-pane" style:display={activeTab === 'architecture' ? 'flex' : 'none'}>
+        <ArchitectureTab cwd={project.cwd} />
+      </div>
+    {/if}
+    {#if everActivated['selenium']}
+      <div class="content-pane" style:display={activeTab === 'selenium' ? 'flex' : 'none'}>
+        <TestingTab cwd={project.cwd} mode="selenium" />
+      </div>
+    {/if}
+    {#if everActivated['tests']}
+      <div class="content-pane" style:display={activeTab === 'tests' ? 'flex' : 'none'}>
+        <TestingTab cwd={project.cwd} mode="tests" />
       </div>
     {/if}
   </div>
@@ -265,6 +302,14 @@
     font-weight: 600;
     border-bottom-color: var(--accent);
     margin-bottom: -1px;
+  }
+
+  .ptab-role {
+    color: var(--ctp-mauve);
+  }
+
+  .ptab-role:hover {
+    color: var(--ctp-text);
   }
 
   .project-content-area {
