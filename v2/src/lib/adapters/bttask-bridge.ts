@@ -1,6 +1,7 @@
 // bttask Bridge — Tauri IPC adapter for task board
 
 import { invoke } from '@tauri-apps/api/core';
+import type { GroupId, AgentId } from '../types/ids';
 
 export interface Task {
   id: string;
@@ -8,9 +9,9 @@ export interface Task {
   description: string;
   status: 'todo' | 'progress' | 'review' | 'done' | 'blocked';
   priority: 'low' | 'medium' | 'high' | 'critical';
-  assignedTo: string | null;
-  createdBy: string;
-  groupId: string;
+  assignedTo: AgentId | null;
+  createdBy: AgentId;
+  groupId: GroupId;
   parentTaskId: string | null;
   sortOrder: number;
   createdAt: string;
@@ -20,12 +21,12 @@ export interface Task {
 export interface TaskComment {
   id: string;
   taskId: string;
-  agentId: string;
+  agentId: AgentId;
   content: string;
   createdAt: string;
 }
 
-export async function listTasks(groupId: string): Promise<Task[]> {
+export async function listTasks(groupId: GroupId): Promise<Task[]> {
   return invoke<Task[]>('bttask_list', { groupId });
 }
 
@@ -37,7 +38,7 @@ export async function updateTaskStatus(taskId: string, status: string): Promise<
   return invoke('bttask_update_status', { taskId, status });
 }
 
-export async function addTaskComment(taskId: string, agentId: string, content: string): Promise<string> {
+export async function addTaskComment(taskId: string, agentId: AgentId, content: string): Promise<string> {
   return invoke<string>('bttask_add_comment', { taskId, agentId, content });
 }
 
@@ -45,9 +46,9 @@ export async function createTask(
   title: string,
   description: string,
   priority: string,
-  groupId: string,
-  createdBy: string,
-  assignedTo?: string,
+  groupId: GroupId,
+  createdBy: AgentId,
+  assignedTo?: AgentId,
 ): Promise<string> {
   return invoke<string>('bttask_create', { title, description, priority, groupId, createdBy, assignedTo });
 }

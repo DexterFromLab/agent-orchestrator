@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { GroupsFile, ProjectConfig, GroupConfig } from '../types/groups';
+import type { SessionId, ProjectId } from '../types/ids';
 
 export type { GroupsFile, ProjectConfig, GroupConfig };
 
@@ -11,8 +12,8 @@ export interface MdFileEntry {
 
 export interface AgentMessageRecord {
   id: number;
-  session_id: string;
-  project_id: string;
+  session_id: SessionId;
+  project_id: ProjectId;
   sdk_session_id: string | null;
   message_type: string;
   content: string;
@@ -21,8 +22,8 @@ export interface AgentMessageRecord {
 }
 
 export interface ProjectAgentState {
-  project_id: string;
-  last_session_id: string;
+  project_id: ProjectId;
+  last_session_id: SessionId;
   sdk_session_id: string | null;
   status: string;
   cost_usd: number;
@@ -51,8 +52,8 @@ export async function discoverMarkdownFiles(cwd: string): Promise<MdFileEntry[]>
 // --- Agent message persistence ---
 
 export async function saveAgentMessages(
-  sessionId: string,
-  projectId: string,
+  sessionId: SessionId,
+  projectId: ProjectId,
   sdkSessionId: string | undefined,
   messages: AgentMessageRecord[],
 ): Promise<void> {
@@ -64,7 +65,7 @@ export async function saveAgentMessages(
   });
 }
 
-export async function loadAgentMessages(projectId: string): Promise<AgentMessageRecord[]> {
+export async function loadAgentMessages(projectId: ProjectId): Promise<AgentMessageRecord[]> {
   return invoke('agent_messages_load', { projectId });
 }
 
@@ -74,7 +75,7 @@ export async function saveProjectAgentState(state: ProjectAgentState): Promise<v
   return invoke('project_agent_state_save', { state });
 }
 
-export async function loadProjectAgentState(projectId: string): Promise<ProjectAgentState | null> {
+export async function loadProjectAgentState(projectId: ProjectId): Promise<ProjectAgentState | null> {
   return invoke('project_agent_state_load', { projectId });
 }
 
@@ -82,8 +83,8 @@ export async function loadProjectAgentState(projectId: string): Promise<ProjectA
 
 export interface SessionMetric {
   id: number;
-  project_id: string;
-  session_id: string;
+  project_id: ProjectId;
+  session_id: SessionId;
   start_time: number;
   end_time: number;
   peak_tokens: number;
@@ -99,7 +100,7 @@ export async function saveSessionMetric(metric: Omit<SessionMetric, 'id'>): Prom
   return invoke('session_metric_save', { metric: { id: 0, ...metric } });
 }
 
-export async function loadSessionMetrics(projectId: string, limit = 20): Promise<SessionMetric[]> {
+export async function loadSessionMetrics(projectId: ProjectId, limit = 20): Promise<SessionMetric[]> {
   return invoke('session_metrics_load', { projectId, limit });
 }
 

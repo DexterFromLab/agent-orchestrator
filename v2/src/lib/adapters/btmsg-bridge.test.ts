@@ -29,6 +29,7 @@ import {
   type BtmsgChannel,
   type BtmsgChannelMessage,
 } from './btmsg-bridge';
+import { GroupId, AgentId } from '../types/ids';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -42,10 +43,10 @@ describe('btmsg-bridge', () => {
   describe('BtmsgAgent camelCase fields', () => {
     it('receives camelCase fields from Rust backend', async () => {
       const agent: BtmsgAgent = {
-        id: 'a1',
+        id: AgentId('a1'),
         name: 'Coder',
         role: 'developer',
-        groupId: 'g1',       // was: group_id
+        groupId: GroupId('g1'),       // was: group_id
         tier: 1,
         model: 'claude-4',
         status: 'active',
@@ -53,7 +54,7 @@ describe('btmsg-bridge', () => {
       };
       mockInvoke.mockResolvedValue([agent]);
 
-      const result = await getGroupAgents('g1');
+      const result = await getGroupAgents(GroupId('g1'));
 
       expect(result).toHaveLength(1);
       expect(result[0].groupId).toBe('g1');
@@ -65,7 +66,7 @@ describe('btmsg-bridge', () => {
 
     it('invokes btmsg_get_agents with groupId', async () => {
       mockInvoke.mockResolvedValue([]);
-      await getGroupAgents('g1');
+      await getGroupAgents(GroupId('g1'));
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_get_agents', { groupId: 'g1' });
     });
   });
@@ -74,8 +75,8 @@ describe('btmsg-bridge', () => {
     it('receives camelCase fields from Rust backend', async () => {
       const msg: BtmsgMessage = {
         id: 'm1',
-        fromAgent: 'a1',      // was: from_agent
-        toAgent: 'a2',        // was: to_agent
+        fromAgent: AgentId('a1'),      // was: from_agent
+        toAgent: AgentId('a2'),        // was: to_agent
         content: 'hello',
         read: false,
         replyTo: null,         // was: reply_to
@@ -85,7 +86,7 @@ describe('btmsg-bridge', () => {
       };
       mockInvoke.mockResolvedValue([msg]);
 
-      const result = await getUnreadMessages('a2');
+      const result = await getUnreadMessages(AgentId('a2'));
 
       expect(result[0].fromAgent).toBe('a1');
       expect(result[0].toAgent).toBe('a2');
@@ -100,8 +101,8 @@ describe('btmsg-bridge', () => {
     it('receives camelCase fields including recipient info', async () => {
       const feed: BtmsgFeedMessage = {
         id: 'm1',
-        fromAgent: 'a1',
-        toAgent: 'a2',
+        fromAgent: AgentId('a1'),
+        toAgent: AgentId('a2'),
         content: 'review this',
         createdAt: '2026-01-01',
         replyTo: null,
@@ -112,7 +113,7 @@ describe('btmsg-bridge', () => {
       };
       mockInvoke.mockResolvedValue([feed]);
 
-      const result = await getAllFeed('g1');
+      const result = await getAllFeed(GroupId('g1'));
 
       expect(result[0].senderName).toBe('Coder');
       expect(result[0].recipientName).toBe('Reviewer');
@@ -125,14 +126,14 @@ describe('btmsg-bridge', () => {
       const channel: BtmsgChannel = {
         id: 'ch1',
         name: 'general',
-        groupId: 'g1',        // was: group_id
-        createdBy: 'admin',   // was: created_by
+        groupId: GroupId('g1'),        // was: group_id
+        createdBy: AgentId('admin'),   // was: created_by
         memberCount: 5,       // was: member_count
         createdAt: '2026-01-01',
       };
       mockInvoke.mockResolvedValue([channel]);
 
-      const result = await getChannels('g1');
+      const result = await getChannels(GroupId('g1'));
 
       expect(result[0].groupId).toBe('g1');
       expect(result[0].createdBy).toBe('admin');
@@ -145,7 +146,7 @@ describe('btmsg-bridge', () => {
       const msg: BtmsgChannelMessage = {
         id: 'cm1',
         channelId: 'ch1',     // was: channel_id
-        fromAgent: 'a1',
+        fromAgent: AgentId('a1'),
         content: 'hello',
         createdAt: '2026-01-01',
         senderName: 'Coder',
@@ -166,65 +167,65 @@ describe('btmsg-bridge', () => {
   describe('IPC commands', () => {
     it('getUnreadCount invokes btmsg_unread_count', async () => {
       mockInvoke.mockResolvedValue(5);
-      const result = await getUnreadCount('a1');
+      const result = await getUnreadCount(AgentId('a1'));
       expect(result).toBe(5);
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_unread_count', { agentId: 'a1' });
     });
 
     it('getHistory invokes btmsg_history', async () => {
       mockInvoke.mockResolvedValue([]);
-      await getHistory('a1', 'a2', 50);
+      await getHistory(AgentId('a1'), AgentId('a2'), 50);
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_history', { agentId: 'a1', otherId: 'a2', limit: 50 });
     });
 
     it('getHistory defaults limit to 20', async () => {
       mockInvoke.mockResolvedValue([]);
-      await getHistory('a1', 'a2');
+      await getHistory(AgentId('a1'), AgentId('a2'));
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_history', { agentId: 'a1', otherId: 'a2', limit: 20 });
     });
 
     it('sendMessage invokes btmsg_send', async () => {
       mockInvoke.mockResolvedValue('msg-id');
-      const result = await sendMessage('a1', 'a2', 'hello');
+      const result = await sendMessage(AgentId('a1'), AgentId('a2'), 'hello');
       expect(result).toBe('msg-id');
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_send', { fromAgent: 'a1', toAgent: 'a2', content: 'hello' });
     });
 
     it('setAgentStatus invokes btmsg_set_status', async () => {
       mockInvoke.mockResolvedValue(undefined);
-      await setAgentStatus('a1', 'active');
+      await setAgentStatus(AgentId('a1'), 'active');
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_set_status', { agentId: 'a1', status: 'active' });
     });
 
     it('ensureAdmin invokes btmsg_ensure_admin', async () => {
       mockInvoke.mockResolvedValue(undefined);
-      await ensureAdmin('g1');
+      await ensureAdmin(GroupId('g1'));
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_ensure_admin', { groupId: 'g1' });
     });
 
     it('markRead invokes btmsg_mark_read', async () => {
       mockInvoke.mockResolvedValue(undefined);
-      await markRead('a2', 'a1');
+      await markRead(AgentId('a2'), AgentId('a1'));
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_mark_read', { readerId: 'a2', senderId: 'a1' });
     });
 
     it('sendChannelMessage invokes btmsg_channel_send', async () => {
       mockInvoke.mockResolvedValue('cm-id');
-      const result = await sendChannelMessage('ch1', 'a1', 'hello channel');
+      const result = await sendChannelMessage('ch1', AgentId('a1'), 'hello channel');
       expect(result).toBe('cm-id');
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_channel_send', { channelId: 'ch1', fromAgent: 'a1', content: 'hello channel' });
     });
 
     it('createChannel invokes btmsg_create_channel', async () => {
       mockInvoke.mockResolvedValue('ch-id');
-      const result = await createChannel('general', 'g1', 'admin');
+      const result = await createChannel('general', GroupId('g1'), AgentId('admin'));
       expect(result).toBe('ch-id');
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_create_channel', { name: 'general', groupId: 'g1', createdBy: 'admin' });
     });
 
     it('addChannelMember invokes btmsg_add_channel_member', async () => {
       mockInvoke.mockResolvedValue(undefined);
-      await addChannelMember('ch1', 'a1');
+      await addChannelMember('ch1', AgentId('a1'));
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_add_channel_member', { channelId: 'ch1', agentId: 'a1' });
     });
   });
@@ -232,7 +233,7 @@ describe('btmsg-bridge', () => {
   describe('error propagation', () => {
     it('propagates invoke errors', async () => {
       mockInvoke.mockRejectedValue(new Error('btmsg database not found'));
-      await expect(getGroupAgents('g1')).rejects.toThrow('btmsg database not found');
+      await expect(getGroupAgents(GroupId('g1'))).rejects.toThrow('btmsg database not found');
     });
   });
 });
