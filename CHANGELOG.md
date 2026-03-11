@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
 ### Added
+- **Agent provider adapter pattern** — architecture plan: 3-phase implementation (core abstraction, settings UI, sidecar routing), 6 architecture decisions (PA-1–PA-6), capability-driven UI rendering, per-provider sidecar binaries. Planning docs at `docs/provider-adapter/` (task_plan.md, findings.md, progress.md)
 - **PDF viewer** in Files tab: `PdfViewer.svelte` using pdfjs-dist (v5.5.207). Canvas-based multi-page rendering, zoom controls (0.5x–3x, 25% steps), HiDPI-aware via devicePixelRatio. Reads PDF via `convertFileSrc()` — no new Rust commands needed
 - **CSV table view** in Files tab: `CsvTable.svelte` with RFC 4180 CSV parser (no external dependency). Auto-detects delimiter (comma, semicolon, tab). Sortable columns (numeric-aware), sticky header, row numbers, text truncation at 20rem
 - FilesTab routing update: Binary+pdf → PdfViewer, Text+csv → CsvTable. Updated file icons (📕 PDF, 📊 CSV)
