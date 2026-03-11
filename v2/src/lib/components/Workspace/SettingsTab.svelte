@@ -18,6 +18,8 @@
   import { THEME_LIST, getPalette, type ThemeId } from '../../styles/themes';
   import { listProfiles, type ClaudeProfile } from '../../adapters/claude-bridge';
   import { invoke } from '@tauri-apps/api/core';
+  import { getProviders } from '../../providers/registry.svelte';
+  import type { ProviderId, ProviderSettings } from '../../providers/types';
 
   const PROJECT_ICONS = [
     '📁', '🚀', '🤖', '🌐', '🔧', '🎮', '📱', '💻',
@@ -27,6 +29,12 @@
 
   // Claude profiles for account selector
   let profiles = $state<ClaudeProfile[]>([]);
+
+  // Provider settings (keyed by ProviderId)
+  let providerSettings = $state<Record<string, ProviderSettings>>({});
+  let expandedProvider = $state<string | null>(null);
+  let registeredProviders = $derived(getProviders());
+  let providerDropdownOpenFor = $state<string | null>(null);
 
   let activeGroupId = $derived(getActiveGroupId());
   let activeGroup = $derived(getActiveGroup());
@@ -131,6 +139,14 @@
     } catch {
       profiles = [];
     }
+
+    // Load provider settings
+    try {
+      const raw = await getSetting('provider_settings');
+      if (raw) providerSettings = JSON.parse(raw);
+    } catch {
+      providerSettings = {};
+    }
   });
 
   function applyCssProp(prop: string, value: string) {
@@ -201,12 +217,35 @@
     await setTheme(themeId);
   }
 
+  async function saveProviderSettings() {
+    await saveGlobalSetting('provider_settings', JSON.stringify(providerSettings));
+  }
+
+  function toggleProviderEnabled(providerId: string) {
+    const current = providerSettings[providerId] ?? { enabled: true, config: {} };
+    providerSettings[providerId] = { ...current, enabled: !current.enabled };
+    providerSettings = { ...providerSettings };
+    saveProviderSettings();
+  }
+
+  function setProviderModel(providerId: string, model: string) {
+    const current = providerSettings[providerId] ?? { enabled: true, config: {} };
+    providerSettings[providerId] = { ...current, defaultModel: model || undefined };
+    providerSettings = { ...providerSettings };
+    saveProviderSettings();
+  }
+
+  function isProviderEnabled(providerId: string): boolean {
+    return providerSettings[providerId]?.enabled ?? true;
+  }
+
   function handleClickOutside(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (!target.closest('.custom-dropdown')) {
       themeDropdownOpen = false;
       uiFontDropdownOpen = false;
       termFontDropdownOpen = false;
+      providerDropdownOpenFor = null;
     }
     if (!target.closest('.icon-field')) {
       iconPickerOpenFor = null;
@@ -505,6 +544,63 @@
   </section>
 
   <section class="settings-section">
+    <h2>Providers</h2>
+    <div class="provider-list">
+      {#each registeredProviders as provider}
+        <div class="provider-panel" class:disabled={!isProviderEnabled(provider.id)}>
+          <button
+            class="provider-header"
+            onclick={() => { expandedProvider = expandedProvider === provider.id ? null : provider.id; }}
+          >
+            <span class="provider-name">{provider.name}</span>
+            <span class="provider-desc">{provider.description}</span>
+            <span class="provider-chevron">{expandedProvider === provider.id ? '\u25B4' : '\u25BE'}</span>
+          </button>
+          {#if expandedProvider === provider.id}
+            <div class="provider-body">
+              <div class="setting-field">
+                <label class="setting-label toggle-label">
+                  <span>Enabled</span>
+                  <button
+                    class="toggle-switch"
+                    class:on={isProviderEnabled(provider.id)}
+                    role="switch"
+                    aria-checked={isProviderEnabled(provider.id)}
+                    onclick={() => toggleProviderEnabled(provider.id)}
+                  >
+                    <span class="toggle-thumb"></span>
+                  </button>
+                </label>
+              </div>
+              {#if provider.capabilities.hasModelSelection}
+                <div class="setting-field">
+                  <span class="setting-label">Default model</span>
+                  <input
+                    value={providerSettings[provider.id]?.defaultModel ?? provider.defaultModel ?? ''}
+                    placeholder={provider.defaultModel ?? 'default'}
+                    onchange={e => setProviderModel(provider.id, (e.target as HTMLInputElement).value)}
+                  />
+                </div>
+              {/if}
+              <div class="provider-caps">
+                <span class="setting-label">Capabilities</span>
+                <div class="caps-grid">
+                  {#if provider.capabilities.hasProfiles}<span class="cap-badge">Profiles</span>{/if}
+                  {#if provider.capabilities.hasSkills}<span class="cap-badge">Skills</span>{/if}
+                  {#if provider.capabilities.supportsSubagents}<span class="cap-badge">Subagents</span>{/if}
+                  {#if provider.capabilities.supportsCost}<span class="cap-badge">Cost tracking</span>{/if}
+                  {#if provider.capabilities.supportsResume}<span class="cap-badge">Resume</span>{/if}
+                  {#if provider.capabilities.hasSandbox}<span class="cap-badge">Sandbox</span>{/if}
+                </div>
+              </div>
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  </section>
+
+  <section class="settings-section">
     <h2>Groups</h2>
     <div class="group-list">
       {#each groups as group}
@@ -636,6 +732,44 @@
                 <span class="profile-single">{getProfileLabel(project.profile)}</span>
               {/if}
             </div>
+
+            {#if registeredProviders.length > 1}
+              <div class="card-field">
+                <span class="card-field-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  Provider
+                </span>
+                <div class="custom-dropdown">
+                  <button
+                    class="dropdown-trigger provider-trigger"
+                    onclick={() => { providerDropdownOpenFor = providerDropdownOpenFor === project.id ? null : project.id; }}
+                    aria-haspopup="listbox"
+                    aria-expanded={providerDropdownOpenFor === project.id}
+                  >
+                    <span class="dropdown-label">{registeredProviders.find(p => p.id === (project.provider ?? 'claude'))?.name ?? 'Claude Code'}</span>
+                    <span class="dropdown-arrow">{providerDropdownOpenFor === project.id ? '\u25B4' : '\u25BE'}</span>
+                  </button>
+                  {#if providerDropdownOpenFor === project.id}
+                    <div class="dropdown-menu" role="listbox">
+                      {#each registeredProviders.filter(p => isProviderEnabled(p.id)) as prov}
+                        <button
+                          class="dropdown-option"
+                          class:active={(project.provider ?? 'claude') === prov.id}
+                          role="option"
+                          aria-selected={(project.provider ?? 'claude') === prov.id}
+                          onclick={() => {
+                            updateProject(activeGroupId, project.id, { provider: prov.id });
+                            providerDropdownOpenFor = null;
+                          }}
+                        >
+                          <span class="dropdown-option-label">{prov.name}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {/if}
 
             <div class="card-footer">
               <button class="btn-remove" onclick={() => removeProject(activeGroupId, project.id)}>
@@ -1393,5 +1527,107 @@
 
   .toggle-switch.on .toggle-thumb {
     transform: translateX(0.875rem);
+  }
+
+  /* Provider section */
+  .provider-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .provider-panel {
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.375rem;
+    overflow: hidden;
+    transition: opacity 0.15s;
+  }
+
+  .provider-panel.disabled {
+    opacity: 0.5;
+  }
+
+  .provider-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.625rem;
+    background: transparent;
+    border: none;
+    color: var(--ctp-text);
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.8rem;
+  }
+
+  .provider-header:hover {
+    background: var(--ctp-base);
+  }
+
+  .provider-name {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .provider-desc {
+    flex: 1;
+    color: var(--ctp-overlay0);
+    font-size: 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .provider-chevron {
+    color: var(--ctp-overlay0);
+    font-size: 0.7rem;
+    flex-shrink: 0;
+  }
+
+  .provider-body {
+    padding: 0.5rem 0.625rem;
+    border-top: 1px solid var(--ctp-surface1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .provider-body > .setting-field > input {
+    padding: 0.375rem 0.625rem;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-size: 0.8rem;
+  }
+
+  .provider-caps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .caps-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .cap-badge {
+    padding: 0.125rem 0.5rem;
+    background: color-mix(in srgb, var(--ctp-blue) 10%, transparent);
+    color: var(--ctp-blue);
+    border-radius: 0.75rem;
+    font-size: 0.65rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .provider-trigger {
+    padding: 0.25rem 0.5rem;
+    background: var(--ctp-base);
+    font-size: 0.78rem;
   }
 </style>
