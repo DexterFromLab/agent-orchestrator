@@ -9,15 +9,16 @@
     removeAnchor,
     changeAnchorType,
   } from '../../stores/anchors.svelte';
-  import { DEFAULT_ANCHOR_SETTINGS, MAX_ANCHOR_TOKEN_BUDGET } from '../../types/anchors';
-  import type { SessionAnchor, AnchorType } from '../../types/anchors';
+  import { ANCHOR_BUDGET_SCALE_MAP, MAX_ANCHOR_TOKEN_BUDGET } from '../../types/anchors';
+  import type { SessionAnchor, AnchorType, AnchorBudgetScale } from '../../types/anchors';
 
   interface Props {
     sessionId: string | null;
     projectId?: string;
+    anchorBudgetScale?: AnchorBudgetScale;
   }
 
-  let { sessionId, projectId }: Props = $props();
+  let { sessionId, projectId, anchorBudgetScale }: Props = $props();
 
   // Reactive session data
   let session = $derived(sessionId ? getAgentSession(sessionId) : undefined);
@@ -193,7 +194,7 @@
   let anchors = $derived(projectId ? getProjectAnchors(projectId) : []);
   let injectableAnchors = $derived(projectId ? getInjectableAnchors(projectId) : []);
   let anchorTokens = $derived(projectId ? getInjectableTokenCount(projectId) : 0);
-  let anchorBudget = $derived(DEFAULT_ANCHOR_SETTINGS.anchorTokenBudget);
+  let anchorBudget = $derived(ANCHOR_BUDGET_SCALE_MAP[anchorBudgetScale ?? 'medium']);
   let anchorBudgetPct = $derived(anchorBudget > 0 ? Math.min((anchorTokens / anchorBudget) * 100, 100) : 0);
 
   function anchorTypeLabel(t: AnchorType): string {

@@ -157,7 +157,7 @@
       <ProjectFiles cwd={project.cwd} projectName={project.name} />
     </div>
     <div class="content-pane" style:display={activeTab === 'context' ? 'flex' : 'none'}>
-      <ContextTab sessionId={mainSessionId} projectId={project.id} />
+      <ContextTab sessionId={mainSessionId} projectId={project.id} anchorBudgetScale={project.anchorBudgetScale} />
     </div>
 
     <!-- PERSISTED-LAZY: mount on first activation, then toggle via display -->

@@ -20,6 +20,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { getProviders } from '../../providers/registry.svelte';
   import type { ProviderId, ProviderSettings } from '../../providers/types';
+  import { ANCHOR_BUDGET_SCALES, ANCHOR_BUDGET_SCALE_LABELS, type AnchorBudgetScale } from '../../types/anchors';
 
   const PROJECT_ICONS = [
     '📁', '🚀', '🤖', '🌐', '🔧', '🎮', '📱', '💻',
@@ -771,6 +772,27 @@
               </div>
             {/if}
 
+            <div class="card-field">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+                Anchor Budget
+              </span>
+              <div class="scale-slider">
+                <input
+                  type="range"
+                  min="0"
+                  max={ANCHOR_BUDGET_SCALES.length - 1}
+                  step="1"
+                  value={ANCHOR_BUDGET_SCALES.indexOf(project.anchorBudgetScale ?? 'medium')}
+                  oninput={(e) => {
+                    const idx = parseInt((e.target as HTMLInputElement).value);
+                    updateProject(activeGroupId, project.id, { anchorBudgetScale: ANCHOR_BUDGET_SCALES[idx] });
+                  }}
+                />
+                <span class="scale-label">{ANCHOR_BUDGET_SCALE_LABELS[project.anchorBudgetScale ?? 'medium']}</span>
+              </div>
+            </div>
+
             <div class="card-footer">
               <button class="btn-remove" onclick={() => removeProject(activeGroupId, project.id)}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
@@ -1201,6 +1223,40 @@
     color: var(--ctp-text);
     font-size: 0.78rem;
     font-family: var(--term-font-family, monospace);
+  }
+
+  /* Anchor budget scale slider */
+  .scale-slider {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .scale-slider input[type="range"] {
+    flex: 1;
+    height: 0.25rem;
+    appearance: none;
+    background: var(--ctp-surface1);
+    border-radius: 0.125rem;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .scale-slider input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background: var(--ctp-blue);
+    border: 2px solid var(--ctp-base);
+    cursor: pointer;
+  }
+
+  .scale-label {
+    font-size: 0.75rem;
+    color: var(--ctp-subtext0);
+    white-space: nowrap;
+    min-width: 5.5em;
   }
 
   /* CWD input: left-ellipsis */

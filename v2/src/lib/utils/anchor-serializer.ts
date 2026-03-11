@@ -137,11 +137,10 @@ function serializeTurn(
     parts.push(`[Turn ${index + 1}] User: "${turn.userPrompt}"`);
   }
   if (turn.assistantText) {
-    // Truncate very long responses to ~500 chars
-    const text = turn.assistantText.length > 500
-      ? turn.assistantText.slice(0, 497) + '...'
-      : turn.assistantText;
-    parts.push(`[Turn ${index + 1}] Assistant: "${text}"`);
+    // Preserve assistant reasoning in full — research consensus (JetBrains NeurIPS 2025,
+    // SWE-agent, OpenDev ACC) is that agent reasoning must never be truncated;
+    // only tool outputs (observations) get masked
+    parts.push(`[Turn ${index + 1}] Assistant: "${turn.assistantText}"`);
   }
   if (turn.toolSummaries.length > 0) {
     parts.push(`[Turn ${index + 1}] Tools: ${turn.toolSummaries.join(' ')}`);

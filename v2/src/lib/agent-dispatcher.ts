@@ -31,6 +31,7 @@ import { extractWritePaths, extractWorktreePath } from './utils/tool-files';
 import { hasAutoAnchored, markAutoAnchored, addAnchors, getAnchorSettings } from './stores/anchors.svelte';
 import { selectAutoAnchors, serializeAnchorsForInjection } from './utils/anchor-serializer';
 import type { SessionAnchor } from './types/anchors';
+import { getEnabledProjects } from './stores/workspace.svelte';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
@@ -418,7 +419,8 @@ function triggerAutoAnchor(
 ): void {
   markAutoAnchored(projectId);
 
-  const settings = getAnchorSettings(projectId);
+  const project = getEnabledProjects().find(p => p.id === projectId);
+  const settings = getAnchorSettings(project?.anchorBudgetScale);
   const { turns, totalTokens } = selectAutoAnchors(
     messages,
     sessionPrompt,

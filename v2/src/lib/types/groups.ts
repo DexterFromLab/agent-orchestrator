@@ -1,4 +1,5 @@
 import type { ProviderId } from '../providers/types';
+import type { AnchorBudgetScale } from './anchors';
 
 export interface ProjectConfig {
   id: string;
@@ -13,6 +14,8 @@ export interface ProjectConfig {
   provider?: ProviderId;
   /** When true, agents for this project use git worktrees for isolation */
   useWorktrees?: boolean;
+  /** Anchor token budget scale (defaults to 'medium' = 6K tokens) */
+  anchorBudgetScale?: AnchorBudgetScale;
 }
 
 export interface GroupConfig {

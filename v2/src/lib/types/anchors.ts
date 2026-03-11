@@ -37,6 +37,28 @@ export const MAX_ANCHOR_TOKEN_BUDGET = 20_000;
 /** Minimum token budget */
 export const MIN_ANCHOR_TOKEN_BUDGET = 2_000;
 
+/** Budget scale presets — maps to provider context window sizes */
+export type AnchorBudgetScale = 'small' | 'medium' | 'large' | 'full';
+
+/** Token budget for each scale preset */
+export const ANCHOR_BUDGET_SCALE_MAP: Record<AnchorBudgetScale, number> = {
+  small: 2_000,
+  medium: 6_144,
+  large: 12_000,
+  full: 20_000,
+};
+
+/** Human-readable labels for budget scale presets */
+export const ANCHOR_BUDGET_SCALE_LABELS: Record<AnchorBudgetScale, string> = {
+  small: 'Small (2K)',
+  medium: 'Medium (6K)',
+  large: 'Large (12K)',
+  full: 'Full (20K)',
+};
+
+/** Ordered list of scales for slider indexing */
+export const ANCHOR_BUDGET_SCALES: AnchorBudgetScale[] = ['small', 'medium', 'large', 'full'];
+
 /** Rust-side record shape (matches SessionAnchorRecord in session.rs) */
 export interface SessionAnchorRecord {
   id: string;

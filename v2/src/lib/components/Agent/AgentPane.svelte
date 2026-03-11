@@ -14,7 +14,7 @@
   import { getInjectableAnchors, getProjectAnchors, addAnchors, removeAnchor } from '../../stores/anchors.svelte';
   import { estimateTokens } from '../../utils/anchor-serializer';
   import type { SessionAnchor } from '../../types/anchors';
-  import { notify } from '../../stores/notifications.svelte';
+
   import AgentTree from './AgentTree.svelte';
   import { getHighlighter, highlightCode, escapeHtml } from '../../utils/highlight';
   import type {
@@ -171,12 +171,6 @@
       if (anchors.length > 0) {
         // Anchors store pre-serialized content — join them directly
         systemPrompt = anchors.map(a => a.content).join('\n');
-
-        // Warn if Ollama provider — default context windows (2K-4K) may be too small
-        if (providerId === 'ollama') {
-          const anchorTokens = anchors.reduce((sum, a) => sum + a.estimatedTokens, 0);
-          notify('warning', `Ollama: injecting ~${anchorTokens} anchor tokens into system prompt. Ensure num_ctx >= 8192 to avoid truncation.`);
-        }
       }
     }
 

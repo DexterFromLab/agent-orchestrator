@@ -1,8 +1,8 @@
 // Session Anchors store — Svelte 5 runes
 // Per-project anchor management with re-injection support
 
-import type { SessionAnchor, AnchorType, SessionAnchorRecord } from '../types/anchors';
-import { DEFAULT_ANCHOR_SETTINGS } from '../types/anchors';
+import type { SessionAnchor, AnchorType, AnchorBudgetScale, SessionAnchorRecord } from '../types/anchors';
+import { DEFAULT_ANCHOR_SETTINGS, ANCHOR_BUDGET_SCALE_MAP } from '../types/anchors';
 import {
   saveSessionAnchors,
   loadSessionAnchors,
@@ -119,7 +119,11 @@ export async function loadAnchorsForProject(projectId: string): Promise<void> {
   }
 }
 
-/** Get anchor settings (uses defaults for now — per-project config can be added later) */
-export function getAnchorSettings(_projectId: string) {
-  return DEFAULT_ANCHOR_SETTINGS;
+/** Get anchor settings, resolving budget from per-project scale if provided */
+export function getAnchorSettings(budgetScale?: AnchorBudgetScale) {
+  if (!budgetScale) return DEFAULT_ANCHOR_SETTINGS;
+  return {
+    ...DEFAULT_ANCHOR_SETTINGS,
+    anchorTokenBudget: ANCHOR_BUDGET_SCALE_MAP[budgetScale],
+  };
 }
