@@ -7,6 +7,8 @@
   import { startHealthTick, stopHealthTick, clearHealthTracking } from './lib/stores/health.svelte';
   import { registerProvider } from './lib/providers/registry.svelte';
   import { CLAUDE_PROVIDER } from './lib/providers/claude';
+  import { CODEX_PROVIDER } from './lib/providers/codex';
+  import { OLLAMA_PROVIDER } from './lib/providers/ollama';
   import { loadWorkspace, getActiveTab, setActiveTab, setActiveProject, getEnabledProjects } from './lib/stores/workspace.svelte';
 
   // Workspace components
@@ -68,6 +70,8 @@
       if (v) document.documentElement.style.setProperty('--project-max-aspect', v);
     });
     registerProvider(CLAUDE_PROVIDER);
+    registerProvider(CODEX_PROVIDER);
+    registerProvider(OLLAMA_PROVIDER);
     startAgentDispatcher();
     startHealthTick();
 

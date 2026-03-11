@@ -14,7 +14,7 @@
     "tauri:build": "cargo tauri build",
     "test": "vitest run",
     "test:e2e": "wdio run tests/e2e/wdio.conf.js",
-    "build:sidecar": "esbuild sidecar/claude-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/claude-runner.mjs"
+    "build:sidecar": "esbuild sidecar/claude-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/claude-runner.mjs && esbuild sidecar/codex-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/codex-runner.mjs && esbuild sidecar/ollama-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/ollama-runner.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
