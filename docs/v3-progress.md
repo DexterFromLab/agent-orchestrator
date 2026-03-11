@@ -683,3 +683,27 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] package.json: build:sidecar builds all 3 runners
 - [x] vitest: 256/256 tests pass
 - [x] cargo test: 42/42 pass
+
+### 2026-03-11 — Register Memora Adapter
+
+**Duration:** ~15 min
+
+**What happened:**
+Registered a concrete MemoraAdapter that bridges the MemoryAdapter interface to the Memora SQLite database. Direct read-only SQLite access (no MCP/CLI dependency at runtime).
+
+#### Rust Backend
+- [x] memora.rs — MemoraDb struct (read-only SQLite, Option<Connection>, graceful absence)
+- [x] list() with tag filtering via json_each() + IN clause
+- [x] search() via FTS5 MATCH on memories_fts, optional tag join
+- [x] get() by ID
+- [x] 4 Tauri commands: memora_available, memora_list, memora_search, memora_get
+- [x] 7 cargo tests (missing-db error paths)
+
+#### TypeScript Bridge + Adapter
+- [x] memora-bridge.ts — IPC wrappers + MemoraAdapter class implementing MemoryAdapter
+- [x] App.svelte — registers MemoraAdapter on mount with async availability check
+- [x] memora-bridge.test.ts — 16 tests (IPC + adapter)
+
+#### Results
+- [x] vitest: 272/272 tests pass
+- [x] cargo test: 49/49 pass

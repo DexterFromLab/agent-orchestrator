@@ -43,6 +43,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions + agent_messages + project_agent_state + session_anchors) |
 | `v2/src-tauri/src/watcher.rs` | FileWatcherManager (notify crate, file change events) |
 | `v2/src-tauri/src/ctx.rs` | CtxDb (read-only access to ~/.claude-context/context.db) |
+| `v2/src-tauri/src/memora.rs` | MemoraDb (read-only access to ~/.local/share/memora/memories.db, FTS5 search) |
 | `v2/src-tauri/src/telemetry.rs` | OTEL telemetry (TelemetryGuard, tracing + OTLP export, BTERMINAL_OTLP_ENDPOINT) |
 | `v2/src/lib/stores/workspace.svelte.ts` | v3 workspace store (project groups, tabs, focus, replaces layout store) |
 | `v2/src/lib/stores/layout.svelte.ts` | v2 layout store (panes, presets, groups, persistence, Svelte 5 runes) |
@@ -72,6 +73,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/remote-bridge.ts` | Remote machine management IPC wrapper |
 | `v2/src/lib/adapters/files-bridge.ts` | File browser IPC wrapper (list_directory_children, read_file_content) |
 | `v2/src/lib/adapters/memory-adapter.ts` | Pluggable memory adapter interface (MemoryAdapter, registry) |
+| `v2/src/lib/adapters/memora-bridge.ts` | Memora IPC bridge + MemoraAdapter (read-only SQLite via Tauri commands) |
 | `v2/src/lib/adapters/fs-watcher-bridge.ts` | Filesystem watcher IPC wrapper (project CWD write detection) |
 | `v2/src/lib/adapters/anchors-bridge.ts` | Session anchors IPC wrapper (save, load, delete, clear, updateType) |
 | `v2/src/lib/adapters/telemetry-bridge.ts` | Frontend telemetry bridge (routes events to Rust tracing via IPC) |
@@ -111,6 +113,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/claude-messages.test.ts` | Vitest tests for Claude message adapter (25 tests) |
 | `v2/src/lib/adapters/codex-messages.test.ts` | Vitest tests for Codex message adapter (19 tests) |
 | `v2/src/lib/adapters/ollama-messages.test.ts` | Vitest tests for Ollama message adapter (11 tests) |
+| `v2/src/lib/adapters/memora-bridge.test.ts` | Vitest tests for Memora bridge + adapter (16 tests) |
 | `v2/src/lib/adapters/agent-bridge.test.ts` | Vitest tests for agent IPC bridge (11 tests) |
 | `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (29 tests) |
 | `v2/src/lib/stores/conflicts.test.ts` | Vitest tests for conflict detection (28 tests) |
