@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { SessionId, ProjectId, type SessionId as SessionIdType, type ProjectId as ProjectIdType } from './ids';
+import {
+  SessionId, ProjectId, GroupId, AgentId,
+  type SessionId as SessionIdType,
+  type ProjectId as ProjectIdType,
+  type GroupId as GroupIdType,
+  type AgentId as AgentIdType,
+} from './ids';
 
 describe('branded types', () => {
   describe('SessionId', () => {
@@ -41,12 +47,50 @@ describe('branded types', () => {
     });
   });
 
+  describe('GroupId', () => {
+    it('creates a GroupId from a string', () => {
+      const id = GroupId('grp-abc');
+      expect(id).toBe('grp-abc');
+    });
+
+    it('is usable as a Map key', () => {
+      const map = new Map<GroupIdType, string>();
+      const id = GroupId('grp-1');
+      map.set(id, 'test-group');
+      expect(map.get(id)).toBe('test-group');
+    });
+  });
+
+  describe('AgentId', () => {
+    it('creates an AgentId from a string', () => {
+      const id = AgentId('agent-manager');
+      expect(id).toBe('agent-manager');
+    });
+
+    it('is usable as a Map key', () => {
+      const map = new Map<AgentIdType, number>();
+      const id = AgentId('a1');
+      map.set(id, 99);
+      expect(map.get(id)).toBe(99);
+    });
+
+    it('equality works between two AgentIds with same value', () => {
+      const a = AgentId('a1');
+      const b = AgentId('a1');
+      expect(a === b).toBe(true);
+    });
+  });
+
   describe('type safety (compile-time)', () => {
-    it('both types are strings at runtime', () => {
+    it('all four types are strings at runtime', () => {
       const sid = SessionId('s1');
       const pid = ProjectId('p1');
+      const gid = GroupId('g1');
+      const aid = AgentId('a1');
       expect(typeof sid).toBe('string');
       expect(typeof pid).toBe('string');
+      expect(typeof gid).toBe('string');
+      expect(typeof aid).toBe('string');
     });
   });
 });

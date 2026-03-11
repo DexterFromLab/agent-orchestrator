@@ -1,8 +1,9 @@
 import type { ProviderId } from '../providers/types';
 import type { AnchorBudgetScale } from './anchors';
+import type { ProjectId, GroupId, AgentId } from './ids';
 
 export interface ProjectConfig {
-  id: string;
+  id: ProjectId;
   name: string;
   identifier: string;
   description: string;
@@ -35,8 +36,9 @@ export const AGENT_ROLE_ICONS: Record<string, string> = {
 
 /** Convert a GroupAgentConfig to a ProjectConfig for unified rendering */
 export function agentToProject(agent: GroupAgentConfig, groupCwd: string): ProjectConfig {
+  // Agent IDs serve as project IDs in the workspace (agents render as project boxes)
   return {
-    id: agent.id,
+    id: agent.id as unknown as ProjectId,
     name: agent.name,
     identifier: agent.role,
     description: `${agent.role.charAt(0).toUpperCase() + agent.role.slice(1)} agent`,
@@ -58,7 +60,7 @@ export type GroupAgentStatus = 'active' | 'sleeping' | 'stopped';
 
 /** Group-level agent configuration */
 export interface GroupAgentConfig {
-  id: string;
+  id: AgentId;
   name: string;
   role: GroupAgentRole;
   model?: string;
@@ -70,7 +72,7 @@ export interface GroupAgentConfig {
 }
 
 export interface GroupConfig {
-  id: string;
+  id: GroupId;
   name: string;
   projects: ProjectConfig[];
   /** Group-level orchestration agents (Tier 1) */
@@ -80,7 +82,7 @@ export interface GroupConfig {
 export interface GroupsFile {
   version: number;
   groups: GroupConfig[];
-  activeGroupId: string;
+  activeGroupId: GroupId;
 }
 
 /** Derive a project identifier from a name: lowercase, spaces to dashes */
