@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `externalConflictCount` in ProjectHealth interface with attention scoring integration (health.svelte.ts)
 - Frontend bridge for filesystem watcher: `fsWatchProject()`, `fsUnwatchProject()`, `onFsWriteDetected()`, `fsWatcherStatus()` (fs-watcher-bridge.ts)
 - Inotify watch limit sensing: `FsWatcherStatus` reads `/proc/sys/fs/inotify/max_user_watches`, counts watched directories per project, warns at >75% usage with shell command to increase limit (fs_watcher.rs, lib.rs, ProjectBox.svelte)
+- Delayed scanning toast: "Scanning project directories…" info toast shown only when inotify status check takes >300ms, auto-dismissed on completion (ProjectBox.svelte)
+- `notify()` returns toast ID (was void) to enable dismissing specific toasts via `dismissNotification(id)` (notifications.svelte.ts)
 - ProjectBox `$effect` starts/stops fs watcher per project CWD on mount/unmount with toast on new external conflict + inotify capacity check (ProjectBox.svelte)
 - Collapsible text messages in AgentPane: model responses wrapped in `<details open>` (open by default, user-collapsible with first-line preview) (AgentPane.svelte)
 - Collapsible cost summary in AgentPane: `cost.result` wrapped in `<details>` (collapsed by default, expandable with 80-char preview) (AgentPane.svelte)
