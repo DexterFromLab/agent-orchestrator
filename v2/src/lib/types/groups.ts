@@ -1,5 +1,6 @@
 import type { ProviderId } from '../providers/types';
 import type { AnchorBudgetScale } from './anchors';
+import type { WakeStrategy } from './wake';
 import type { ProjectId, GroupId, AgentId } from './ids';
 
 export interface ProjectConfig {
@@ -69,6 +70,10 @@ export interface GroupAgentConfig {
   enabled: boolean;
   /** Auto-wake interval in minutes (Manager only, default 3) */
   wakeIntervalMin?: number;
+  /** Wake strategy: persistent (always-on), on-demand (fresh session), smart (threshold-gated) */
+  wakeStrategy?: WakeStrategy;
+  /** Wake threshold 0..1 for smart strategy (default 0.5) */
+  wakeThreshold?: number;
 }
 
 export interface GroupConfig {

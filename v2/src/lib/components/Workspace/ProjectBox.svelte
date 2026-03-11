@@ -19,8 +19,9 @@
   import { getProjectHealth, setStallThreshold } from '../../stores/health.svelte';
   import { fsWatchProject, fsUnwatchProject, onFsWriteDetected, fsWatcherStatus } from '../../adapters/fs-watcher-bridge';
   import { recordExternalWrite } from '../../stores/conflicts.svelte';
-  import { ProjectId } from '../../types/ids';
+  import { ProjectId, type AgentId, type GroupId } from '../../types/ids';
   import { notify, dismissNotification } from '../../stores/notifications.svelte';
+  import { registerManager, unregisterManager, updateManagerConfig } from '../../stores/wake-scheduler.svelte';
 
   interface Props {
     project: ProjectConfig;
@@ -64,6 +65,32 @@
   // Sync per-project stall threshold to health store
   $effect(() => {
     setStallThreshold(project.id, project.stallThresholdMin ?? null);
+  });
+
+  // Register Manager agents with the wake scheduler
+  $effect(() => {
+    if (!(project.isAgent && project.agentRole === 'manager')) return;
+    const groupId = activeGroup?.id;
+    if (!groupId || !mainSessionId) return;
+
+    // Find the agent config to get wake settings
+    const agentConfig = activeGroup?.agents?.find(a => a.id === project.id);
+    const strategy = agentConfig?.wakeStrategy ?? 'smart';
+    const intervalMin = agentConfig?.wakeIntervalMin ?? 3;
+    const threshold = agentConfig?.wakeThreshold ?? 0.5;
+
+    registerManager(
+      project.id as unknown as AgentId,
+      groupId as unknown as GroupId,
+      mainSessionId,
+      strategy,
+      intervalMin,
+      threshold,
+    );
+
+    return () => {
+      unregisterManager(project.id);
+    };
   });
 
   // S-1 Phase 2: start filesystem watcher for this project's CWD

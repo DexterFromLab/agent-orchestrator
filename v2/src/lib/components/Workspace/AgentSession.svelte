@@ -22,6 +22,7 @@
   import type { AgentMessage } from '../../adapters/claude-messages';
   import { getProvider, getDefaultProviderId } from '../../providers/registry.svelte';
   import { loadAnchorsForProject } from '../../stores/anchors.svelte';
+  import { getWakeEvent, consumeWakeEvent, updateManagerSession } from '../../stores/wake-scheduler.svelte';
   import { SessionId, ProjectId } from '../../types/ids';
   import AgentPane from '../Agent/AgentPane.svelte';
 
@@ -87,6 +88,46 @@
   startReinjectionTimer();
   onDestroy(() => {
     if (reinjectionTimer) clearInterval(reinjectionTimer);
+    if (wakeCheckTimer) clearInterval(wakeCheckTimer);
+  });
+
+  // Wake scheduler integration — poll for wake events (Manager agents only)
+  let wakeCheckTimer: ReturnType<typeof setInterval> | null = null;
+  const isManager = $derived(project.isAgent && project.agentRole === 'manager');
+
+  function startWakeCheck() {
+    if (wakeCheckTimer) clearInterval(wakeCheckTimer);
+    if (!isManager) return;
+    wakeCheckTimer = setInterval(() => {
+      if (contextRefreshPrompt) return; // Don't queue if already has a pending prompt
+      const event = getWakeEvent(project.id);
+      if (!event) return;
+
+      if (event.mode === 'fresh') {
+        // On-demand / Smart: reset session, inject wake context as initial prompt
+        handleNewSession();
+        contextRefreshPrompt = buildWakePrompt(event.context.evaluation.summary);
+      } else {
+        // Persistent: resume existing session with wake context
+        contextRefreshPrompt = buildWakePrompt(event.context.evaluation.summary);
+      }
+
+      consumeWakeEvent(project.id);
+    }, 5_000); // Check every 5s
+  }
+
+  function buildWakePrompt(summary: string): string {
+    return `[Auto-Wake] You have been woken by the auto-wake scheduler. Here is the current fleet status:\n\n${summary}\n\nCheck your inbox with \`btmsg inbox\` and review the task board with \`bttask board\`. Take action on any urgent items above.`;
+  }
+
+  // Start wake check when component mounts (for managers)
+  $effect(() => {
+    if (isManager) {
+      startWakeCheck();
+    } else if (wakeCheckTimer) {
+      clearInterval(wakeCheckTimer);
+      wakeCheckTimer = null;
+    }
   });
 
   let sessionId = $state(SessionId(crypto.randomUUID()));
@@ -102,6 +143,8 @@
     contextRefreshPrompt = undefined;
     registerSessionProject(sessionId, ProjectId(project.id), providerId);
     trackProject(ProjectId(project.id), sessionId);
+    // Notify wake scheduler of new session ID
+    if (isManager) updateManagerSession(project.id, sessionId);
     onsessionid?.(sessionId);
   }
 

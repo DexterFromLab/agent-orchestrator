@@ -24,6 +24,7 @@
   import { getProviders } from '../../providers/registry.svelte';
   import type { ProviderId, ProviderSettings } from '../../providers/types';
   import { ANCHOR_BUDGET_SCALES, ANCHOR_BUDGET_SCALE_LABELS, type AnchorBudgetScale } from '../../types/anchors';
+  import { WAKE_STRATEGIES, WAKE_STRATEGY_LABELS, WAKE_STRATEGY_DESCRIPTIONS, type WakeStrategy } from '../../types/wake';
 
   const PROJECT_ICONS = [
     '📁', '🚀', '🤖', '🌐', '🔧', '🎮', '📱', '💻',
@@ -704,6 +705,45 @@
                   <span class="scale-label">{agent.wakeIntervalMin ?? 3} min</span>
                 </div>
               </div>
+
+              <div class="card-field">
+                <span class="card-field-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                  Wake Strategy
+                </span>
+                <div class="wake-strategy-row">
+                  {#each WAKE_STRATEGIES as strat}
+                    <button
+                      class="strategy-btn"
+                      class:active={(agent.wakeStrategy ?? 'smart') === strat}
+                      title={WAKE_STRATEGY_DESCRIPTIONS[strat]}
+                      onclick={() => updateAgent(activeGroupId, agent.id, { wakeStrategy: strat })}
+                    >{WAKE_STRATEGY_LABELS[strat]}</button>
+                  {/each}
+                </div>
+                <span class="setting-hint">{WAKE_STRATEGY_DESCRIPTIONS[agent.wakeStrategy ?? 'smart']}</span>
+              </div>
+
+              {#if (agent.wakeStrategy ?? 'smart') === 'smart'}
+                <div class="card-field">
+                  <span class="card-field-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                    Wake Threshold
+                  </span>
+                  <div class="scale-slider">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={agent.wakeThreshold ?? 0.5}
+                      oninput={e => updateAgent(activeGroupId, agent.id, { wakeThreshold: parseFloat((e.target as HTMLInputElement).value) })}
+                    />
+                    <span class="scale-label">{((agent.wakeThreshold ?? 0.5) * 100).toFixed(0)}%</span>
+                  </div>
+                  <span class="setting-hint">Only wakes when signal score exceeds this level</span>
+                </div>
+              {/if}
             {/if}
 
             <div class="card-field">
@@ -1426,6 +1466,41 @@
     color: var(--ctp-subtext0);
     white-space: nowrap;
     min-width: 5.5em;
+  }
+
+  .wake-strategy-row {
+    display: flex;
+    gap: 0;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    border: 1px solid var(--ctp-surface1);
+  }
+
+  .strategy-btn {
+    flex: 1;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    background: var(--ctp-surface0);
+    color: var(--ctp-overlay1);
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .strategy-btn:not(:last-child) {
+    border-right: 1px solid var(--ctp-surface1);
+  }
+
+  .strategy-btn:hover {
+    background: var(--ctp-surface1);
+    color: var(--ctp-subtext1);
+  }
+
+  .strategy-btn.active {
+    background: color-mix(in srgb, var(--ctp-blue) 20%, var(--ctp-surface0));
+    color: var(--ctp-blue);
+    font-weight: 600;
   }
 
   /* CWD input: left-ellipsis */

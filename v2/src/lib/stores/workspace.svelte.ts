@@ -4,6 +4,7 @@ import { agentToProject } from '../types/groups';
 import { clearAllAgentSessions } from '../stores/agents.svelte';
 import { clearHealthTracking } from '../stores/health.svelte';
 import { clearAllConflicts } from '../stores/conflicts.svelte';
+import { clearWakeScheduler } from '../stores/wake-scheduler.svelte';
 import { waitForPendingPersistence } from '../agent-dispatcher';
 
 export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings' | 'comms';
@@ -91,11 +92,12 @@ export async function switchGroup(groupId: string): Promise<void> {
   // Wait for any in-flight persistence before clearing state
   await waitForPendingPersistence();
 
-  // Teardown: clear terminal tabs, agent sessions, and health tracking for the old group
+  // Teardown: clear terminal tabs, agent sessions, health tracking, and wake schedulers for the old group
   projectTerminals = {};
   clearAllAgentSessions();
   clearHealthTracking();
   clearAllConflicts();
+  clearWakeScheduler();
 
   activeGroupId = groupId;
   activeProjectId = null;
