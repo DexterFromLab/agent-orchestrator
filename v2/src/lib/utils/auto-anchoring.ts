@@ -1,6 +1,7 @@
 // Auto-anchoring — creates session anchors on first compaction event
 // Extracted from agent-dispatcher.ts (SRP: anchor creation concern)
 
+import type { ProjectId as ProjectIdType } from '../types/ids';
 import type { AgentMessage } from '../adapters/claude-messages';
 import type { SessionAnchor } from '../types/anchors';
 import { getAnchorSettings, addAnchors } from '../stores/anchors.svelte';
@@ -11,7 +12,7 @@ import { notify } from '../stores/notifications.svelte';
 
 /** Auto-anchor first N turns on first compaction event for a project */
 export function triggerAutoAnchor(
-  projectId: string,
+  projectId: ProjectIdType,
   messages: AgentMessage[],
   sessionPrompt: string,
 ): void {

@@ -1,6 +1,7 @@
 // Session persistence — maps session IDs to projects/providers and persists state to SQLite
 // Extracted from agent-dispatcher.ts (SRP: persistence concern)
 
+import type { SessionId as SessionIdType, ProjectId as ProjectIdType } from '../types/ids';
 import type { ProviderId } from '../providers/types';
 import { getAgentSession } from '../stores/agents.svelte';
 import {
@@ -11,31 +12,31 @@ import {
 } from '../adapters/groups-bridge';
 
 // Map sessionId -> projectId for persistence routing
-const sessionProjectMap = new Map<string, string>();
+const sessionProjectMap = new Map<SessionIdType, ProjectIdType>();
 
 // Map sessionId -> provider for message adapter routing
-const sessionProviderMap = new Map<string, ProviderId>();
+const sessionProviderMap = new Map<SessionIdType, ProviderId>();
 
 // Map sessionId -> start timestamp for metrics
-const sessionStartTimes = new Map<string, number>();
+const sessionStartTimes = new Map<SessionIdType, number>();
 
 // In-flight persistence counter — prevents teardown from racing with async saves
 let pendingPersistCount = 0;
 
-export function registerSessionProject(sessionId: string, projectId: string, provider: ProviderId = 'claude'): void {
+export function registerSessionProject(sessionId: SessionIdType, projectId: ProjectIdType, provider: ProviderId = 'claude'): void {
   sessionProjectMap.set(sessionId, projectId);
   sessionProviderMap.set(sessionId, provider);
 }
 
-export function getSessionProjectId(sessionId: string): string | undefined {
+export function getSessionProjectId(sessionId: SessionIdType): ProjectIdType | undefined {
   return sessionProjectMap.get(sessionId);
 }
 
-export function getSessionProvider(sessionId: string): ProviderId {
+export function getSessionProvider(sessionId: SessionIdType): ProviderId {
   return sessionProviderMap.get(sessionId) ?? 'claude';
 }
 
-export function recordSessionStart(sessionId: string): void {
+export function recordSessionStart(sessionId: SessionIdType): void {
   sessionStartTimes.set(sessionId, Date.now());
 }
 
@@ -47,7 +48,7 @@ export async function waitForPendingPersistence(): Promise<void> {
 }
 
 /** Persist session state + messages to SQLite for the project that owns this session */
-export async function persistSessionForProject(sessionId: string): Promise<void> {
+export async function persistSessionForProject(sessionId: SessionIdType): Promise<void> {
   const projectId = sessionProjectMap.get(sessionId);
   if (!projectId) return; // Not a project-scoped session
 
