@@ -329,13 +329,24 @@ impl SidecarManager {
 }
 
 /// Returns true if the env var should be KEPT (not stripped).
-/// Strips CLAUDE*, CODEX*, OLLAMA* prefixes to prevent nesting detection.
-/// Whitelists CLAUDE_CODE_EXPERIMENTAL_* for feature flags.
+/// First line of defense: strips provider-specific prefixes to prevent nesting detection
+/// and credential leakage. JS runners apply a second layer of provider-specific stripping.
+///
+/// Stripped prefixes: CLAUDE*, CODEX*, OLLAMA*, ANTHROPIC_*
+/// Whitelisted: CLAUDE_CODE_EXPERIMENTAL_* (feature flags like agent teams)
+///
+/// Note: OPENAI_* is NOT stripped here because the Codex runner needs OPENAI_API_KEY
+/// from the environment (it re-injects it after its own stripping). If Codex support
+/// moves to extraEnv-based key injection, add OPENAI to this list.
 fn strip_provider_env_var(key: &str) -> bool {
     if key.starts_with("CLAUDE_CODE_EXPERIMENTAL_") {
         return true;
     }
-    if key.starts_with("CLAUDE") || key.starts_with("CODEX") || key.starts_with("OLLAMA") {
+    if key.starts_with("CLAUDE")
+        || key.starts_with("CODEX")
+        || key.starts_with("OLLAMA")
+        || key.starts_with("ANTHROPIC_")
+    {
         return false;
     }
     true
@@ -344,5 +355,104 @@ fn strip_provider_env_var(key: &str) -> bool {
 impl Drop for SidecarManager {
     fn drop(&mut self) {
         let _ = self.shutdown();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---- strip_provider_env_var unit tests ----
+
+    #[test]
+    fn test_keeps_normal_env_vars() {
+        assert!(strip_provider_env_var("HOME"));
+        assert!(strip_provider_env_var("PATH"));
+        assert!(strip_provider_env_var("USER"));
+        assert!(strip_provider_env_var("SHELL"));
+        assert!(strip_provider_env_var("TERM"));
+        assert!(strip_provider_env_var("XDG_DATA_HOME"));
+        assert!(strip_provider_env_var("RUST_LOG"));
+    }
+
+    #[test]
+    fn test_strips_claude_vars() {
+        assert!(!strip_provider_env_var("CLAUDE_CONFIG_DIR"));
+        assert!(!strip_provider_env_var("CLAUDE_SESSION_ID"));
+        assert!(!strip_provider_env_var("CLAUDECODE"));
+        assert!(!strip_provider_env_var("CLAUDE_API_KEY"));
+    }
+
+    #[test]
+    fn test_whitelists_claude_code_experimental() {
+        assert!(strip_provider_env_var("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"));
+        assert!(strip_provider_env_var("CLAUDE_CODE_EXPERIMENTAL_TOOLS"));
+        assert!(strip_provider_env_var("CLAUDE_CODE_EXPERIMENTAL_SOMETHING_NEW"));
+    }
+
+    #[test]
+    fn test_strips_codex_vars() {
+        assert!(!strip_provider_env_var("CODEX_API_KEY"));
+        assert!(!strip_provider_env_var("CODEX_SESSION"));
+        assert!(!strip_provider_env_var("CODEX_CONFIG"));
+    }
+
+    #[test]
+    fn test_strips_ollama_vars() {
+        assert!(!strip_provider_env_var("OLLAMA_HOST"));
+        assert!(!strip_provider_env_var("OLLAMA_MODELS"));
+        assert!(!strip_provider_env_var("OLLAMA_NUM_PARALLEL"));
+    }
+
+    #[test]
+    fn test_strips_anthropic_vars() {
+        // ANTHROPIC_* vars stripped at Rust layer (defense in depth)
+        // Claude CLI has its own auth via credentials file
+        assert!(!strip_provider_env_var("ANTHROPIC_API_KEY"));
+        assert!(!strip_provider_env_var("ANTHROPIC_BASE_URL"));
+        assert!(!strip_provider_env_var("ANTHROPIC_LOG"));
+    }
+
+    #[test]
+    fn test_keeps_openai_vars() {
+        // OPENAI_* vars are NOT stripped by the Rust layer
+        // (they're stripped in the JS codex-runner layer instead)
+        assert!(strip_provider_env_var("OPENAI_API_KEY"));
+        assert!(strip_provider_env_var("OPENAI_BASE_URL"));
+    }
+
+    #[test]
+    fn test_env_filtering_integration() {
+        let test_env = vec![
+            ("HOME", "/home/user"),
+            ("PATH", "/usr/bin"),
+            ("CLAUDE_CONFIG_DIR", "/tmp/claude"),
+            ("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "1"),
+            ("CODEX_API_KEY", "sk-test"),
+            ("OLLAMA_HOST", "localhost"),
+            ("ANTHROPIC_API_KEY", "sk-ant-xxx"),
+            ("OPENAI_API_KEY", "sk-openai-xxx"),
+            ("RUST_LOG", "debug"),
+            ("BTMSG_AGENT_ID", "a1"),
+        ];
+
+        let kept: Vec<&str> = test_env
+            .iter()
+            .filter(|(k, _)| strip_provider_env_var(k))
+            .map(|(k, _)| *k)
+            .collect();
+
+        assert!(kept.contains(&"HOME"));
+        assert!(kept.contains(&"PATH"));
+        assert!(kept.contains(&"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"));
+        assert!(kept.contains(&"RUST_LOG"));
+        assert!(kept.contains(&"BTMSG_AGENT_ID"));
+        // OPENAI_* passes through Rust layer (Codex runner needs it)
+        assert!(kept.contains(&"OPENAI_API_KEY"));
+        // These are stripped:
+        assert!(!kept.contains(&"CLAUDE_CONFIG_DIR"));
+        assert!(!kept.contains(&"CODEX_API_KEY"));
+        assert!(!kept.contains(&"OLLAMA_HOST"));
+        assert!(!kept.contains(&"ANTHROPIC_API_KEY"));
     }
 }
