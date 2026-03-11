@@ -16,5 +16,5 @@ export const CLAUDE_PROVIDER: ProviderMeta = {
     supportsResume: true,
   },
   sidecarRunner: 'claude-runner.mjs',
-  defaultModel: 'claude-sonnet-4-20250514',
+  defaultModel: 'claude-opus-4-6',
 };
