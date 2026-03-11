@@ -89,6 +89,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `docker/tempo/` | Docker compose: Tempo + Grafana for trace visualization (port 9715) |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
 | `v2/src/lib/utils/attention-scorer.ts` | Pure attention scoring function (extracted from health store, 14 tests) |
+| `v2/src/lib/utils/wake-scorer.ts` | Pure wake signal evaluation (6 signals, 24 tests) |
+| `v2/src/lib/types/wake.ts` | WakeStrategy, WakeSignal, WakeEvaluation, WakeContext types |
+| `v2/src/lib/stores/wake-scheduler.svelte.ts` | Manager auto-wake scheduler (3 strategies, per-manager timers) |
 | `v2/src/lib/utils/type-guards.ts` | Shared runtime guards: str(), num() for untyped wire format parsing |
 | `v2/src/lib/utils/agent-tree.ts` | Agent tree builder (hierarchy from messages) |
 | `v2/src/lib/utils/highlight.ts` | Shiki syntax highlighter (lazy singleton, 13 languages) |
