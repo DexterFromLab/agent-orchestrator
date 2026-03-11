@@ -725,3 +725,25 @@ Made the hardcoded 15-minute stall threshold configurable per-project via a rang
 - [x] No test changes — UI/config wiring only
 - [x] vitest: 272/272 tests pass
 - [x] cargo test: 49/49 pass
+
+### 2026-03-11 — Nemesis Security Audit + Reconnect Loop Fix
+
+**Duration:** ~15 min
+
+**What happened:**
+Ran nemezis-audit on Rust backend. 0 verified exploitable findings, 10 recon targets identified (all previously known from 2026-03-08 security audit). Fixed Priority 8 reconnect loop race condition.
+
+#### Nemesis Audit
+- [x] Ran nemezis orchestrator on v2/src-tauri (Rust backend, 496s, $0.57)
+- [x] 0 verified findings, 10 attack surface targets in recon hit list
+- [x] All targets match previous 2026-03-08 security audit — no new vulnerabilities
+
+#### Reconnect Loop Fix
+- [x] remote.rs — Added `cancelled: Arc<AtomicBool>` to RemoteMachine struct
+- [x] remove_machine() and disconnect() set cancelled=true before aborting tasks
+- [x] connect() resets cancelled=false for new connections
+- [x] Reconnect loop checks flag at top of each iteration, exits immediately when set
+
+#### Results
+- [x] cargo check: clean
+- [x] cargo test: 49/49 pass

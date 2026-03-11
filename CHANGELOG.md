@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
+### Fixed
+- **Reconnect loop race in RemoteManager** — orphaned reconnect tasks continued running after `remove_machine()` or `disconnect()`. Added `cancelled: Arc<AtomicBool>` flag to `RemoteMachine`; set on removal/disconnect, checked each reconnect iteration. `connect()` resets flag for new connections (remote.rs)
+
 ### Added
 - **Configurable stall threshold** — per-project range slider (5–60 min, step 5) in SettingsTab. `stallThresholdMin` in `ProjectConfig` (groups.json), `setStallThreshold()` API in health store with `stallThresholds` Map and `DEFAULT_STALL_THRESHOLD_MS` fallback. ProjectBox `$effect` syncs config → store on mount/change
 - **Memora adapter** — `MemoraAdapter` (memora-bridge.ts) implements `MemoryAdapter` interface, bridging to Memora's SQLite database (`~/.local/share/memora/memories.db`) via read-only Rust backend (`memora.rs`). FTS5 text search, tag filtering via `json_each()`. 4 Tauri commands (memora_available, memora_list, memora_search, memora_get). Registered in App.svelte onMount. 16 vitest + 7 cargo tests. MemoriesTab now shows Memora memories on startup
