@@ -23,40 +23,40 @@ Multi-provider agent support (Claude Code, Codex CLI, Ollama) via adapter patter
 
 | # | Task | Files | Status |
 |---|------|-------|--------|
-| 1.1 | Create provider types | NEW: `src/lib/providers/types.ts` | pending |
-| 1.2 | Create provider registry | NEW: `src/lib/providers/registry.svelte.ts` | pending |
-| 1.3 | Create Claude provider meta | NEW: `src/lib/providers/claude.ts` | pending |
-| 1.4 | Rename sdk-messages.ts → claude-messages.ts | RENAME + update imports | pending |
-| 1.5 | Create message adapter registry | NEW: `src/lib/adapters/message-adapters.ts` | pending |
-| 1.6 | Update Rust AgentQueryOptions | MOD: `bterminal-core/src/sidecar.rs` | pending |
-| 1.7 | Update agent-bridge.ts options shape | MOD: `src/lib/adapters/agent-bridge.ts` | pending |
-| 1.8 | Rename agent-runner.ts → claude-runner.ts | RENAME + update build script | pending |
-| 1.9 | Add provider field to ProjectConfig | MOD: `src/lib/types/groups.ts` | pending |
-| 1.10 | Rename ClaudeSession.svelte → AgentSession.svelte | RENAME + update imports | pending |
-| 1.11 | Update agent-dispatcher provider routing | MOD: `src/lib/agent-dispatcher.ts` | pending |
-| 1.12 | Update AgentPane for capability-driven rendering | MOD: `src/lib/components/Agent/AgentPane.svelte` | pending |
-| 1.13 | Rename claude-bridge.ts → provider-bridge.ts | RENAME + genericize | pending |
-| 1.14 | Update Rust lib.rs commands | MOD: `src-tauri/src/lib.rs` | pending |
-| 1.15 | Update all tests | MOD: test files | pending |
-| 1.16 | Verify: 202 vitest + 42 cargo tests pass | — | pending |
+| 1.1 | Create provider types | NEW: `src/lib/providers/types.ts` | done |
+| 1.2 | Create provider registry | NEW: `src/lib/providers/registry.svelte.ts` | done |
+| 1.3 | Create Claude provider meta | NEW: `src/lib/providers/claude.ts` | done |
+| 1.4 | Rename sdk-messages.ts → claude-messages.ts | RENAME + update imports | done |
+| 1.5 | Create message adapter registry | NEW: `src/lib/adapters/message-adapters.ts` | done |
+| 1.6 | Update Rust AgentQueryOptions | MOD: `bterminal-core/src/sidecar.rs` | done |
+| 1.7 | Update agent-bridge.ts options shape | MOD: `src/lib/adapters/agent-bridge.ts` | done |
+| 1.8 | Rename agent-runner.ts → claude-runner.ts | RENAME + update build script | done |
+| 1.9 | Add provider field to ProjectConfig | MOD: `src/lib/types/groups.ts` | done |
+| 1.10 | Rename ClaudeSession.svelte → AgentSession.svelte | RENAME + update imports | done |
+| 1.11 | Update agent-dispatcher provider routing | MOD: `src/lib/agent-dispatcher.ts` | done |
+| 1.12 | Update AgentPane for capability-driven rendering | MOD: `src/lib/components/Agent/AgentPane.svelte` | done |
+| 1.13 | Rename claude-bridge.ts → provider-bridge.ts | RENAME + genericize | done |
+| 1.14 | Update Rust lib.rs commands | MOD: `src-tauri/src/lib.rs` | done |
+| 1.15 | Update all tests | MOD: test files | done |
+| 1.16 | Verify: 202 vitest + 42 cargo tests pass | — | done |
 
 ### Phase 2: Settings UI
 
 | # | Task | Files | Status |
 |---|------|-------|--------|
-| 2.1 | Add Providers section to SettingsTab | MOD: `SettingsTab.svelte` | pending |
-| 2.2 | Per-provider collapsible config panels | MOD: `SettingsTab.svelte` | pending |
-| 2.3 | Per-project provider dropdown | MOD: `SettingsTab.svelte` | pending |
-| 2.4 | Persist provider settings | MOD: `settings-bridge.ts` | pending |
-| 2.5 | Provider-aware AgentPane | MOD: `AgentPane.svelte` | pending |
+| 2.1 | Add Providers section to SettingsTab | MOD: `SettingsTab.svelte` | done |
+| 2.2 | Per-provider collapsible config panels | MOD: `SettingsTab.svelte` | done |
+| 2.3 | Per-project provider dropdown | MOD: `SettingsTab.svelte` | done |
+| 2.4 | Persist provider settings | MOD: `settings-bridge.ts` | done |
+| 2.5 | Provider-aware AgentPane | MOD: `AgentPane.svelte` | done |
 
 ### Phase 3: Sidecar Routing
 
 | # | Task | Files | Status |
 |---|------|-------|--------|
-| 3.1 | SidecarManager provider-based runner selection | MOD: `bterminal-core/src/sidecar.rs` | pending |
-| 3.2 | Per-provider runner discovery | MOD: `bterminal-core/src/sidecar.rs` | pending |
-| 3.3 | Provider-specific env var stripping | MOD: `bterminal-core/src/sidecar.rs` | pending |
+| 3.1 | SidecarManager provider-based runner selection | MOD: `bterminal-core/src/sidecar.rs` | done |
+| 3.2 | Per-provider runner discovery | MOD: `bterminal-core/src/sidecar.rs` | done |
+| 3.3 | Provider-specific env var stripping | MOD: `bterminal-core/src/sidecar.rs` | done |
 
 ## Type System
 

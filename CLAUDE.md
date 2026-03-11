@@ -52,7 +52,12 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/components/Agent/AgentPane.svelte` | Agent session pane (sans-serif font, tool call/result pairing, hook collapsing, context meter, prompt, cost, profile selector, skill autocomplete) |
 | `v2/src/lib/adapters/pty-bridge.ts` | PTY IPC wrapper (Tauri invoke/listen) |
 | `v2/src/lib/adapters/agent-bridge.ts` | Agent IPC wrapper (Tauri invoke/listen) |
-| `v2/src/lib/adapters/sdk-messages.ts` | SDK message adapter (stream-json parser) |
+| `v2/src/lib/adapters/claude-messages.ts` | Claude message adapter (stream-json parser, renamed from sdk-messages.ts) |
+| `v2/src/lib/adapters/message-adapters.ts` | Provider message adapter registry (per-provider routing to common AgentMessage) |
+| `v2/src/lib/adapters/provider-bridge.ts` | Generic provider bridge (delegates to provider-specific bridges) |
+| `v2/src/lib/providers/types.ts` | Provider abstraction types (ProviderId, ProviderCapabilities, ProviderMeta, ProviderSettings) |
+| `v2/src/lib/providers/registry.svelte.ts` | Svelte 5 rune-based provider registry (registerProvider, getProviders) |
+| `v2/src/lib/providers/claude.ts` | Claude provider metadata constant (CLAUDE_PROVIDER) |
 | `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + subagent routing + session persistence + toast notifications |
 | `v2/src/lib/adapters/file-bridge.ts` | File watcher IPC wrapper |
 | `v2/src/lib/adapters/settings-bridge.ts` | Settings IPC wrapper (get/set/list) |
@@ -86,14 +91,14 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/utils/tool-files.ts` | Shared file path extraction from tool_call inputs (extractFilePaths, extractWritePaths, extractWorktreePath) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Mission Control bar (agent states, $/hr burn rate, attention queue, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
-| `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, ClaudeSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, FilesTab, SshTab, MemoriesTab, CommandPalette, DocsTab, SettingsTab |
+| `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, AgentSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, FilesTab, SshTab, MemoriesTab, CommandPalette, DocsTab, SettingsTab |
 | `v2/src/lib/types/groups.ts` | TypeScript interfaces (ProjectConfig, GroupConfig, GroupsFile) |
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |
-| `v2/sidecar/agent-runner.ts` | Sidecar source (compiled to .mjs by esbuild, includes findClaudeCli()) |
+| `v2/sidecar/claude-runner.ts` | Claude sidecar source (compiled to .mjs by esbuild, includes findClaudeCli()) |
 | `v2/sidecar/agent-runner-deno.ts` | Standalone Deno sidecar runner (not used by SidecarManager, alternative) |
-| `v2/sidecar/dist/agent-runner.mjs` | Bundled sidecar (runs on both Deno and Node.js) |
-| `v2/src/lib/adapters/sdk-messages.test.ts` | Vitest tests for SDK message adapter (25 tests) |
+| `v2/sidecar/dist/claude-runner.mjs` | Bundled Claude sidecar (runs on both Deno and Node.js) |
+| `v2/src/lib/adapters/claude-messages.test.ts` | Vitest tests for Claude message adapter (25 tests) |
 | `v2/src/lib/adapters/agent-bridge.test.ts` | Vitest tests for agent IPC bridge (11 tests) |
 | `v2/src/lib/agent-dispatcher.test.ts` | Vitest tests for agent dispatcher (29 tests) |
 | `v2/src/lib/stores/conflicts.test.ts` | Vitest tests for conflict detection (28 tests) |

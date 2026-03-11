@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
 ### Added
-- **Agent provider adapter pattern** — architecture plan: 3-phase implementation (core abstraction, settings UI, sidecar routing), 6 architecture decisions (PA-1–PA-6), capability-driven UI rendering, per-provider sidecar binaries. Planning docs at `docs/provider-adapter/` (task_plan.md, findings.md, progress.md)
+- **Agent provider adapter pattern** — full implementation (3 phases complete): core abstraction layer (provider types/registry/capabilities, message adapter registry, 4 file renames), Settings UI (collapsible per-provider config panels, per-project provider dropdown, settings persistence), sidecar routing (provider-based runner selection, env var stripping for CLAUDE*/CODEX*/OLLAMA*). 5 new files, 4 renames, 20+ modified. 6 architecture decisions (PA-1–PA-6). Docs at `docs/provider-adapter/`
 - **PDF viewer** in Files tab: `PdfViewer.svelte` using pdfjs-dist (v5.5.207). Canvas-based multi-page rendering, zoom controls (0.5x–3x, 25% steps), HiDPI-aware via devicePixelRatio. Reads PDF via `convertFileSrc()` — no new Rust commands needed
 - **CSV table view** in Files tab: `CsvTable.svelte` with RFC 4180 CSV parser (no external dependency). Auto-detects delimiter (comma, semicolon, tab). Sortable columns (numeric-aware), sticky header, row numbers, text truncation at 20rem
 - FilesTab routing update: Binary+pdf → PdfViewer, Text+csv → CsvTable. Updated file icons (📕 PDF, 📊 CSV)
@@ -62,6 +62,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `useWorktrees` optional boolean field on ProjectConfig for future per-project worktree spawning setting (groups.ts)
 
 ### Changed
+- Renamed `sdk-messages.ts` → `claude-messages.ts`, `agent-runner.ts` → `claude-runner.ts`, `ClaudeSession.svelte` → `AgentSession.svelte` — provider-neutral naming for multi-provider support
+- `agent-dispatcher.ts` now uses `adaptMessage(provider, event)` from message-adapters.ts registry instead of directly calling `adaptSDKMessage` — enables per-provider message parsing
+- Rust `AgentQueryOptions` gained `provider` (String, defaults "claude") and `provider_config` (serde_json::Value) fields with serde defaults for backward compatibility
+- Rust `SidecarManager.resolve_sidecar_for_provider(provider)` looks for `{provider}-runner.mjs` instead of hardcoded `claude-runner.mjs`
+- Rust `strip_provider_env_var()` strips CLAUDE*/CODEX*/OLLAMA* env vars (whitelists CLAUDE_CODE_EXPERIMENTAL_*)
+- SettingsTab: added Providers section with collapsible per-provider config panels (enabled toggle, default model, capabilities display) and per-project provider dropdown
+- AgentPane: capability-driven rendering via ProviderCapabilities props (hasProfiles, hasSkills, supportsResume gates)
 - AgentPane UI redesign: sans-serif root font (system-ui), tool calls paired with results in collapsible `<details>` groups, hook messages collapsed into compact labels, context window usage meter in status strip, cost bar made minimal (no background), session summary with translucent background, two-phase scroll anchoring, tool-aware output truncation (Bash 500/Read 50/Glob 20 lines), colors softened via `color-mix()`, responsive margins via container queries (AgentPane.svelte)
 - MarkdownPane: added inner scroll wrapper with `container-type: inline-size`, responsive padding via shared `--bterminal-pane-padding-inline` variable (MarkdownPane.svelte)
 - Added `--bterminal-pane-padding-inline: clamp(0.75rem, 3.5cqi, 2rem)` shared CSS variable for responsive pane padding (catppuccin.css)
