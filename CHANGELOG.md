@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (commands/claude.rs)
 
 ### Fixed
+- **btmsg.rs column index mismatch** — `get_agents()` used `SELECT a.*` with positional index 7 for `status`, but column 7 is actually `system_prompt`. Converted all query functions in btmsg.rs and bttask.rs from positional to named column access (`row.get("column_name")`). Added SQL aliases for JOIN columns
+- **btmsg-bridge.ts camelCase mismatch** — `BtmsgAgent` and `BtmsgMessage` TypeScript interfaces used snake_case fields (`group_id`, `unread_count`, `from_agent`) but Rust `#[serde(rename_all = "camelCase")]` sends camelCase. Fixed interfaces + all consumers (CommsTab.svelte)
+- **GroupAgentsPanel event propagation** — toggleAgent button click propagated to parent card click handler (`setActiveProject`). Added `e.stopPropagation()`
+- **ArchitectureTab PlantUML encoding** — `rawDeflate()` was a no-op, `encode64()` did hex encoding. Collapsed into single `plantumlEncode()` using PlantUML's `~h` hex encoding
+- **TestingTab Tauri 2.x asset URL** — used `asset://localhost/` (Tauri 1.x). Fixed to `convertFileSrc()` from `@tauri-apps/api/core`
 - **Reconnect loop race in RemoteManager** — orphaned reconnect tasks continued running after `remove_machine()` or `disconnect()`. Added `cancelled: Arc<AtomicBool>` flag to `RemoteMachine`; set on removal/disconnect, checked each reconnect iteration. `connect()` resets flag for new connections (remote.rs)
 
 ### Changed
@@ -20,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **lib.rs command module split** — 976-line monolith with 48 Tauri commands split into 11 domain modules under `src-tauri/src/commands/` (pty, agent, watcher, session, persistence, knowledge, claude, groups, files, remote, misc). lib.rs reduced to ~170 lines (AppState + setup + handler registration)
 - **Attention scorer extraction** — `scoreAttention()` pure function extracted from inline health store code to `utils/attention-scorer.ts` with 14 tests. Priority chain: stalled > error > context critical > file conflict > context high
 - **Shared type guards** — deduplicated `str()`/`num()` runtime guards from claude-messages.ts, codex-messages.ts, ollama-messages.ts into shared `utils/type-guards.ts`
+- **btmsg/bttask WAL mode** — added SQLite WAL journal mode + 5s busy_timeout to both `btmsg.rs` and `bttask.rs` `open_db()` for safe concurrent access from Python CLIs + Rust backend
 
 ### Added
 - **Configurable stall threshold** — per-project range slider (5–60 min, step 5) in SettingsTab. `stallThresholdMin` in `ProjectConfig` (groups.json), `setStallThreshold()` API in health store with `stallThresholds` Map and `DEFAULT_STALL_THRESHOLD_MS` fallback. ProjectBox `$effect` syncs config → store on mount/change

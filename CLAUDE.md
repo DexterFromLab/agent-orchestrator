@@ -38,6 +38,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/fs_watcher.rs` | ProjectFsWatcher (inotify per-project recursive file change detection, S-1 Phase 2) |
 | `v2/src-tauri/src/lib.rs` | AppState + setup + handler registration (~170 lines) |
 | `v2/src-tauri/src/commands/` | 12 domain command modules (pty, agent, watcher, session, persistence, knowledge, claude, groups, files, remote, misc, bttask) |
+| `v2/src-tauri/src/btmsg.rs` | Agent messaging backend (agents, DMs, channels, contacts ACL; SQLite WAL mode, named column access) |
 | `v2/src-tauri/src/bttask.rs` | Task board backend (list, create, update status, delete, comments; shared btmsg.db) |
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |

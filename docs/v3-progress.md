@@ -883,3 +883,22 @@ Ran nemezis-audit on Rust backend. 0 verified exploitable findings, 10 recon tar
 - [x] cargo check: clean (bttask module + commands)
 - [x] svelte-check: 0 project errors
 - [x] Sidecar rebuilt with extraEnv support
+
+### Night Integration Session — Bug Fixes for dexter_changes (2026-03-11)
+
+Reviewed and integrated Dexter's multi-agent orchestration branch (dexter_changes, ~6,500 lines, 36 files). Fast-forward merged. Fixed 5 critical bugs + 2 hardening improvements.
+
+#### Critical Bug Fixes
+- [x] **Bug 1 — btmsg.rs column index mismatch**: `get_agents()` used `SELECT a.*` with positional index 7 for `status`, but column 7 is `system_prompt` (column 8 is `status`). Converted ALL query functions in btmsg.rs and bttask.rs from positional to named column access (`row.get("column_name")`). Added SQL aliases for JOIN columns.
+- [x] **Bug 2 — btmsg-bridge.ts serde camelCase mismatch**: `BtmsgAgent` and `BtmsgMessage` TypeScript interfaces used snake_case (`group_id`, `unread_count`, `from_agent`) but Rust `#[serde(rename_all = "camelCase")]` sends camelCase. Fixed interfaces to match wire format.
+- [x] **Bug 3 — GroupAgentsPanel event propagation**: toggleAgent button click propagated to parent card click handler (setActiveProject). Added `e.stopPropagation()`.
+- [x] **Bug 4 — ArchitectureTab PlantUML encoding**: `rawDeflate()` was a no-op, `encode64()` did hex encoding. Collapsed into single `plantumlEncode()` using PlantUML's `~h` hex encoding.
+- [x] **Bug 5 — TestingTab Tauri 2.x asset URL**: Used `asset://localhost/` (Tauri 1.x pattern). Fixed to `convertFileSrc()` from `@tauri-apps/api/core`.
+
+#### Hardening
+- [x] Added WAL mode + 5s busy_timeout to both btmsg.rs and bttask.rs `open_db()` for safe concurrent access from Python CLIs + Rust backend
+- [x] Fixed misleading "Read-only access" comment in btmsg.rs (it opens READ_WRITE)
+
+#### Verification
+- [x] cargo check: clean
+- [x] svelte-check: 0 project errors (2 pre-existing in node_modules/esrap)
