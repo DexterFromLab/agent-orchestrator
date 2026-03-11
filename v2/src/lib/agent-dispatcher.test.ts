@@ -51,8 +51,10 @@ vi.mock('./adapters/agent-bridge', () => ({
   restartAgent: (...args: unknown[]) => mockRestartAgent(...args),
 }));
 
-vi.mock('./adapters/sdk-messages', () => ({
-  adaptSDKMessage: vi.fn((raw: Record<string, unknown>) => {
+vi.mock('./providers/types', () => ({}));
+
+vi.mock('./adapters/message-adapters', () => ({
+  adaptMessage: vi.fn((_provider: string, raw: Record<string, unknown>) => {
     if (raw.type === 'system' && raw.subtype === 'init') {
       return [{
         id: 'msg-1',

@@ -1,7 +1,7 @@
 // Agent tree builder — constructs hierarchical tree from agent messages
 // Subagents are identified by parent_tool_use_id on their messages
 
-import type { AgentMessage, ToolCallContent, CostContent } from '../adapters/sdk-messages';
+import type { AgentMessage, ToolCallContent, CostContent } from '../adapters/claude-messages';
 
 export interface AgentTreeNode {
   id: string;

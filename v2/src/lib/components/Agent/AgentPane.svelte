@@ -21,7 +21,8 @@
     CostContent,
     ErrorContent,
     StatusContent,
-  } from '../../adapters/sdk-messages';
+  } from '../../adapters/claude-messages';
+  import type { ProviderId, ProviderCapabilities } from '../../providers/types';
 
   // Tool-aware truncation limits
   const MAX_BASH_LINES = 500;
@@ -29,15 +30,28 @@
   const MAX_GLOB_LINES = 20;
   const MAX_DEFAULT_LINES = 30;
 
+  // Default capabilities (Claude — all enabled)
+  const DEFAULT_CAPABILITIES: ProviderCapabilities = {
+    hasProfiles: true,
+    hasSkills: true,
+    hasModelSelection: true,
+    hasSandbox: false,
+    supportsSubagents: true,
+    supportsCost: true,
+    supportsResume: true,
+  };
+
   interface Props {
     sessionId: string;
     prompt?: string;
     cwd?: string;
     profile?: string;
+    provider?: ProviderId;
+    capabilities?: ProviderCapabilities;
     onExit?: () => void;
   }
 
-  let { sessionId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, onExit }: Props = $props();
+  let { sessionId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, onExit }: Props = $props();
 
   let session = $derived(getAgentSession(sessionId));
   let inputPrompt = $state(initialPrompt);
@@ -106,9 +120,10 @@
 
   onMount(async () => {
     await getHighlighter();
+    // Only load profiles/skills for providers that support them
     const [profileList, skillList] = await Promise.all([
-      listProfiles().catch(() => []),
-      listSkills().catch(() => []),
+      capabilities.hasProfiles ? listProfiles().catch(() => []) : Promise.resolve([]),
+      capabilities.hasSkills ? listSkills().catch(() => []) : Promise.resolve([]),
     ]);
     profiles = profileList;
     skills = skillList;
@@ -144,6 +159,7 @@
 
     const profile = profileName ? profiles.find(p => p.name === profileName) : undefined;
     await queryAgent({
+      provider: providerId,
       session_id: sessionId,
       prompt: text,
       cwd: initialCwd || undefined,
@@ -335,7 +351,7 @@
           {#if msg.type === 'init'}
             <div class="msg-init">
               <span class="label">Session started</span>
-              <span class="model">{(msg.content as import('../../adapters/sdk-messages').InitContent).model}</span>
+              <span class="model">{(msg.content as import('../../adapters/claude-messages').InitContent).model}</span>
             </div>
           {:else if msg.type === 'text'}
             {@const textContent = (msg.content as TextContent).text}
@@ -490,19 +506,21 @@
         </svg>
         New Session
       </button>
-      <button class="session-btn session-btn-continue" onclick={() => promptRef?.focus()}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-        Continue
-      </button>
+      {#if capabilities.supportsResume}
+        <button class="session-btn session-btn-continue" onclick={() => promptRef?.focus()}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+          Continue
+        </button>
+      {/if}
     </div>
   {/if}
 
   <!-- Unified prompt input -->
   <div class="prompt-container" class:disabled={isRunning}>
     <div class="prompt-wrapper">
-      {#if showSkillMenu && filteredSkills.length > 0}
+      {#if capabilities.hasSkills && showSkillMenu && filteredSkills.length > 0}
         <div class="skill-menu">
           {#each filteredSkills as skill, i (skill.name)}
             <button

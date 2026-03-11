@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getAgentSession, getTotalCost, type AgentSession } from '../../stores/agents.svelte';
-  import type { AgentMessage, ToolCallContent, CostContent, CompactionContent } from '../../adapters/sdk-messages';
+  import type { AgentMessage, ToolCallContent, CostContent, CompactionContent } from '../../adapters/claude-messages';
   import { extractFilePaths } from '../../utils/tool-files';
 
   interface Props {

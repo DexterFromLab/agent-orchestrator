@@ -1,7 +1,7 @@
 // Agent tracking state — Svelte 5 runes
 // Manages agent session lifecycle and message history
 
-import type { AgentMessage } from '../adapters/sdk-messages';
+import type { AgentMessage } from '../adapters/claude-messages';
 
 export type AgentStatus = 'idle' | 'starting' | 'running' | 'done' | 'error';
 

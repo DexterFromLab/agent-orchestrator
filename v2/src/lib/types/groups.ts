@@ -1,3 +1,5 @@
+import type { ProviderId } from '../providers/types';
+
 export interface ProjectConfig {
   id: string;
   name: string;
@@ -7,6 +9,8 @@ export interface ProjectConfig {
   cwd: string;
   profile: string;
   enabled: boolean;
+  /** Agent provider for this project (defaults to 'claude') */
+  provider?: ProviderId;
   /** When true, agents for this project use git worktrees for isolation */
   useWorktrees?: boolean;
 }

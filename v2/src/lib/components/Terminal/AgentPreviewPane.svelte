@@ -13,7 +13,7 @@
     ErrorContent,
     TextContent,
     AgentMessage,
-  } from '../../adapters/sdk-messages';
+  } from '../../adapters/claude-messages';
   import '@xterm/xterm/css/xterm.css';
 
   interface Props {

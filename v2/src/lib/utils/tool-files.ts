@@ -1,7 +1,7 @@
 // Extracts file paths from agent tool_call inputs
 // Used by ContextTab (all file ops) and conflicts store (write ops only)
 
-import type { ToolCallContent } from '../adapters/sdk-messages';
+import type { ToolCallContent } from '../adapters/claude-messages';
 
 export interface ToolFileRef {
   path: string;

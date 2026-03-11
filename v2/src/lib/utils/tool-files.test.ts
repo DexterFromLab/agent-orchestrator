@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { extractFilePaths, extractWritePaths, extractWorktreePath } from './tool-files';
-import type { ToolCallContent } from '../adapters/sdk-messages';
+import type { ToolCallContent } from '../adapters/claude-messages';
 
 function makeTc(name: string, input: unknown): ToolCallContent {
   return { toolUseId: `tu-${Math.random()}`, name, input };

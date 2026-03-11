@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildAgentTree, countTreeNodes, subtreeCost } from './agent-tree';
-import type { AgentMessage, ToolCallContent, ToolResultContent } from '../adapters/sdk-messages';
+import type { AgentMessage, ToolCallContent, ToolResultContent } from '../adapters/claude-messages';
 import type { AgentTreeNode } from './agent-tree';
 
 // Helper to create typed AgentMessages

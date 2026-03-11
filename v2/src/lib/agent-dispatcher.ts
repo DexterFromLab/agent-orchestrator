@@ -2,8 +2,9 @@
 // Single listener that routes sidecar messages to the correct agent session
 
 import { onSidecarMessage, onSidecarExited, restartAgent, type SidecarMessage } from './adapters/agent-bridge';
-import { adaptSDKMessage } from './adapters/sdk-messages';
-import type { InitContent, CostContent, ToolCallContent } from './adapters/sdk-messages';
+import { adaptMessage } from './adapters/message-adapters';
+import type { InitContent, CostContent, ToolCallContent } from './adapters/claude-messages';
+import type { ProviderId } from './providers/types';
 import {
   updateAgentStatus,
   setAgentSdkSessionId,
@@ -34,14 +35,18 @@ let unlistenExit: (() => void) | null = null;
 // Map sessionId -> projectId for persistence routing
 const sessionProjectMap = new Map<string, string>();
 
+// Map sessionId -> provider for message adapter routing
+const sessionProviderMap = new Map<string, ProviderId>();
+
 // Map sessionId -> start timestamp for metrics
 const sessionStartTimes = new Map<string, number>();
 
 // In-flight persistence counter — prevents teardown from racing with async saves
 let pendingPersistCount = 0;
 
-export function registerSessionProject(sessionId: string, projectId: string): void {
+export function registerSessionProject(sessionId: string, projectId: string, provider: ProviderId = 'claude'): void {
   sessionProjectMap.set(sessionId, projectId);
+  sessionProviderMap.set(sessionId, provider);
 }
 
 // Sidecar liveness — checked by UI components
@@ -149,7 +154,8 @@ const SUBAGENT_TOOL_NAMES = new Set(['Agent', 'Task', 'dispatch_agent']);
 const toolUseToChildPane = new Map<string, string>();
 
 function handleAgentEvent(sessionId: string, event: Record<string, unknown>): void {
-  const messages = adaptSDKMessage(event);
+  const provider = sessionProviderMap.get(sessionId) ?? 'claude';
+  const messages = adaptMessage(provider, event);
 
   // Route messages with parentId to the appropriate child pane
   const mainMessages: typeof messages = [];
@@ -401,5 +407,6 @@ export function stopAgentDispatcher(): void {
   // Clear routing maps to prevent unbounded memory growth
   toolUseToChildPane.clear();
   sessionProjectMap.clear();
+  sessionProviderMap.clear();
   sessionStartTimes.clear();
 }

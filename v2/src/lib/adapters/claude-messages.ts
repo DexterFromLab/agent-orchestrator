@@ -1,5 +1,5 @@
-// SDK Message Adapter — insulates UI from Claude Agent SDK wire format changes
-// This is the ONLY place that knows SDK internals.
+// Claude Message Adapter — transforms Claude Agent SDK wire format to internal AgentMessage format
+// This is the ONLY place that knows Claude SDK internals.
 
 export type AgentMessageType =
   | 'init'

@@ -5,6 +5,8 @@
   import { isDetachedMode, getDetachedConfig } from './lib/utils/detach';
   import { startAgentDispatcher, stopAgentDispatcher } from './lib/agent-dispatcher';
   import { startHealthTick, stopHealthTick, clearHealthTracking } from './lib/stores/health.svelte';
+  import { registerProvider } from './lib/providers/registry.svelte';
+  import { CLAUDE_PROVIDER } from './lib/providers/claude';
   import { loadWorkspace, getActiveTab, setActiveTab, setActiveProject, getEnabledProjects } from './lib/stores/workspace.svelte';
 
   // Workspace components
@@ -65,6 +67,7 @@
     getSetting('project_max_aspect').then(v => {
       if (v) document.documentElement.style.setProperty('--project-max-aspect', v);
     });
+    registerProvider(CLAUDE_PROVIDER);
     startAgentDispatcher();
     startHealthTick();
 

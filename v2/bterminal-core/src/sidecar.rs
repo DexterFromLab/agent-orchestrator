@@ -12,6 +12,8 @@ use crate::event::EventSink;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentQueryOptions {
+    #[serde(default = "default_provider")]
+    pub provider: String,
     pub session_id: String,
     pub prompt: String,
     pub cwd: Option<String>,
@@ -24,6 +26,13 @@ pub struct AgentQueryOptions {
     pub model: Option<String>,
     pub claude_config_dir: Option<String>,
     pub additional_directories: Option<Vec<String>>,
+    /// Provider-specific configuration blob (passed through to sidecar as-is)
+    #[serde(default)]
+    pub provider_config: serde_json::Value,
+}
+
+fn default_provider() -> String {
+    "claude".to_string()
 }
 
 /// Directories to search for sidecar scripts.
@@ -66,12 +75,13 @@ impl SidecarManager {
 
         log::info!("Starting sidecar: {} {}", cmd.program, cmd.args.join(" "));
 
-        // Build a clean environment stripping CLAUDE* vars to prevent
-        // the SDK from detecting nesting when BTerminal is launched from a Claude Code terminal.
-        // Whitelist CLAUDE_CODE_EXPERIMENTAL_* so feature flags (e.g. agent teams) pass through.
+        // Build a clean environment stripping provider-specific vars to prevent
+        // SDKs from detecting nesting when BTerminal is launched from a provider terminal.
+        // Per-provider prefixes: CLAUDE* (whitelist CLAUDE_CODE_EXPERIMENTAL_*),
+        // CODEX* and OLLAMA* for future providers.
         let clean_env: Vec<(String, String)> = std::env::vars()
             .filter(|(k, _)| {
-                !k.starts_with("CLAUDE") || k.starts_with("CLAUDE_CODE_EXPERIMENTAL_")
+                strip_provider_env_var(k)
             })
             .collect();
 
@@ -177,8 +187,23 @@ impl SidecarManager {
             return Err("Sidecar not ready".to_string());
         }
 
+        // Validate that the requested provider has a runner available
+        let runner_name = format!("{}-runner.mjs", options.provider);
+        let runner_exists = self
+            .config
+            .search_paths
+            .iter()
+            .any(|base| base.join("dist").join(&runner_name).exists());
+        if !runner_exists {
+            return Err(format!(
+                "No sidecar runner found for provider '{}' (expected {})",
+                options.provider, runner_name
+            ));
+        }
+
         let msg = serde_json::json!({
             "type": "query",
+            "provider": options.provider,
             "sessionId": options.session_id,
             "prompt": options.prompt,
             "cwd": options.cwd,
@@ -191,6 +216,7 @@ impl SidecarManager {
             "model": options.model,
             "claudeConfigDir": options.claude_config_dir,
             "additionalDirectories": options.additional_directories,
+            "providerConfig": options.provider_config,
         });
 
         self.send_message(&msg)
@@ -227,8 +253,16 @@ impl SidecarManager {
         *self.ready.lock().unwrap()
     }
 
+    /// Resolve a sidecar runner command. Uses the default claude-runner for startup.
+    /// Future providers will have their own runners (e.g. codex-runner.mjs).
     fn resolve_sidecar_command(&self) -> Result<SidecarCommand, String> {
-        // Single bundled .mjs works with both Deno and Node.js.
+        self.resolve_sidecar_for_provider("claude")
+    }
+
+    /// Resolve a sidecar command for a specific provider's runner file.
+    fn resolve_sidecar_for_provider(&self, provider: &str) -> Result<SidecarCommand, String> {
+        let runner_name = format!("{}-runner.mjs", provider);
+
         // Try Deno first (faster startup, better perf), fall back to Node.js.
         let has_deno = Command::new("deno")
             .arg("--version")
@@ -246,7 +280,7 @@ impl SidecarManager {
         let mut checked = Vec::new();
 
         for base in &self.config.search_paths {
-            let mjs_path = base.join("dist").join("agent-runner.mjs");
+            let mjs_path = base.join("dist").join(&runner_name);
             if mjs_path.exists() {
                 if has_deno {
                     return Ok(SidecarCommand {
@@ -279,11 +313,25 @@ impl SidecarManager {
             ""
         };
         Err(format!(
-            "Sidecar not found. Checked: {}{}",
+            "Sidecar not found for provider '{}'. Checked: {}{}",
+            provider,
             paths.join(", "),
             runtime_note,
         ))
     }
+}
+
+/// Returns true if the env var should be KEPT (not stripped).
+/// Strips CLAUDE*, CODEX*, OLLAMA* prefixes to prevent nesting detection.
+/// Whitelists CLAUDE_CODE_EXPERIMENTAL_* for feature flags.
+fn strip_provider_env_var(key: &str) -> bool {
+    if key.starts_with("CLAUDE_CODE_EXPERIMENTAL_") {
+        return true;
+    }
+    if key.starts_with("CLAUDE") || key.starts_with("CODEX") || key.starts_with("OLLAMA") {
+        return false;
+    }
+    true
 }
 
 impl Drop for SidecarManager {

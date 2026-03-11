@@ -3,7 +3,7 @@
   import type { ProjectConfig } from '../../types/groups';
   import { PROJECT_ACCENTS } from '../../types/groups';
   import ProjectHeader from './ProjectHeader.svelte';
-  import ClaudeSession from './ClaudeSession.svelte';
+  import AgentSession from './AgentSession.svelte';
   import TerminalTabs from './TerminalTabs.svelte';
   import TeamAgentsPanel from './TeamAgentsPanel.svelte';
   import ProjectFiles from './ProjectFiles.svelte';
@@ -148,7 +148,7 @@
   <div class="project-content-area">
     <!-- PERSISTED-EAGER: always mounted, toggled via display -->
     <div class="content-pane" style:display={activeTab === 'model' ? 'flex' : 'none'}>
-      <ClaudeSession {project} onsessionid={(id) => mainSessionId = id} />
+      <AgentSession {project} onsessionid={(id) => mainSessionId = id} />
       {#if mainSessionId}
         <TeamAgentsPanel {mainSessionId} />
       {/if}

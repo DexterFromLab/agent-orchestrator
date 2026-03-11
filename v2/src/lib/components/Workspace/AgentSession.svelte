@@ -16,7 +16,8 @@
     setAgentSdkSessionId,
     getAgentSession,
   } from '../../stores/agents.svelte';
-  import type { AgentMessage } from '../../adapters/sdk-messages';
+  import type { AgentMessage } from '../../adapters/claude-messages';
+  import { getProvider, getDefaultProviderId } from '../../providers/registry.svelte';
   import AgentPane from '../Agent/AgentPane.svelte';
 
   interface Props {
@@ -25,6 +26,9 @@
   }
 
   let { project, onsessionid }: Props = $props();
+
+  let providerId = $derived(project.provider ?? getDefaultProviderId());
+  let providerMeta = $derived(getProvider(providerId));
 
   let sessionId = $state(crypto.randomUUID());
   let lastState = $state<ProjectAgentState | null>(null);
@@ -35,7 +39,7 @@
     sessionId = crypto.randomUUID();
     hasRestoredHistory = false;
     lastState = null;
-    registerSessionProject(sessionId, project.id);
+    registerSessionProject(sessionId, project.id, providerId);
     trackProject(project.id, sessionId);
     onsessionid?.(sessionId);
   }
@@ -70,7 +74,7 @@
     } finally {
       loading = false;
       // Register session -> project mapping for persistence + health tracking
-      registerSessionProject(sessionId, project.id);
+      registerSessionProject(sessionId, project.id, providerId);
       trackProject(project.id, sessionId);
       onsessionid?.(sessionId);
     }
@@ -112,7 +116,7 @@
   }
 </script>
 
-<div class="claude-session">
+<div class="agent-session">
   {#if loading}
     <div class="loading-state">Loading session...</div>
   {:else}
@@ -120,13 +124,15 @@
       {sessionId}
       cwd={project.cwd}
       profile={project.profile || undefined}
+      provider={providerId}
+      capabilities={providerMeta?.capabilities}
       onExit={handleNewSession}
     />
   {/if}
 </div>
 
 <style>
-  .claude-session {
+  .agent-session {
     height: 100%;
     overflow: hidden;
     display: flex;

@@ -4,7 +4,10 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
+import type { ProviderId } from '../providers/types';
+
 export interface AgentQueryOptions {
+  provider?: ProviderId;
   session_id: string;
   prompt: string;
   cwd?: string;
@@ -17,6 +20,7 @@ export interface AgentQueryOptions {
   model?: string;
   claude_config_dir?: string;
   additional_directories?: string[];
+  provider_config?: Record<string, unknown>;
   remote_machine_id?: string;
 }
 

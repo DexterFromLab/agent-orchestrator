@@ -1,6 +1,6 @@
-// Agent Runner — Node.js sidecar entry point
-// Spawned by Rust backend, communicates via stdio NDJSON
-// Uses @anthropic-ai/claude-agent-sdk for proper Claude session management
+// Claude Runner — Node.js sidecar entry point for Claude Code provider
+// Spawned by Rust SidecarManager, communicates via stdio NDJSON
+// Uses @anthropic-ai/claude-agent-sdk for Claude session management
 
 import { stdin, stdout, stderr } from 'process';
 import { createInterface } from 'readline';
