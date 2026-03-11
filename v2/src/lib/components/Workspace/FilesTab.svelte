@@ -3,6 +3,8 @@
   import { getSetting } from '../../adapters/settings-bridge';
   import { convertFileSrc } from '@tauri-apps/api/core';
   import CodeEditor from './CodeEditor.svelte';
+  import PdfViewer from './PdfViewer.svelte';
+  import CsvTable from './CsvTable.svelte';
 
   interface Props {
     cwd: string;
@@ -189,7 +191,8 @@
     if (['md', 'markdown'].includes(ext)) return '📝';
     if (['json', 'toml', 'yaml', 'yml'].includes(ext)) return '⚙️';
     if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico'].includes(ext)) return '🖼️';
-    if (ext === 'pdf') return '📄';
+    if (ext === 'pdf') return '📕';
+    if (ext === 'csv') return '📊';
     if (['css', 'scss', 'less'].includes(ext)) return '🎨';
     if (['html', 'htm'].includes(ext)) return '🌐';
     return '📄';
@@ -204,6 +207,14 @@
   function isImageExt(path: string): boolean {
     const ext = path.split('.').pop()?.toLowerCase() ?? '';
     return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'].includes(ext);
+  }
+
+  function isPdfExt(path: string): boolean {
+    return path.split('.').pop()?.toLowerCase() === 'pdf';
+  }
+
+  function isCsvLang(lang: string): boolean {
+    return lang === 'csv';
   }
 
   // Editor change handler
@@ -344,7 +355,11 @@
         <span class="viewer-detail">{formatSize(activeTab.content.size)}</span>
       </div>
     {:else if activeTab.content?.type === 'Binary'}
-      {#if isImageExt(activeTab.path)}
+      {#if isPdfExt(activeTab.path)}
+        {#key activeTabPath}
+          <PdfViewer filePath={activeTab.path} />
+        {/key}
+      {:else if isImageExt(activeTab.path)}
         <div class="viewer-image">
           <img src={convertFileSrc(activeTab.path)} alt={activeTab.name} />
         </div>
@@ -352,15 +367,21 @@
         <div class="viewer-state">{activeTab.content.message}</div>
       {/if}
     {:else if activeTab.content?.type === 'Text'}
-      {#key activeTabPath}
-        <CodeEditor
-          content={activeTab.editContent}
-          lang={activeTab.content.lang}
-          onchange={(c) => handleEditorChange(activeTab!.path, c)}
-          onsave={saveActiveTab}
-          onblur={() => handleEditorBlur(activeTab!.path)}
-        />
-      {/key}
+      {#if isCsvLang(activeTab.content.lang)}
+        {#key activeTabPath}
+          <CsvTable content={activeTab.editContent} filename={activeTab.name} />
+        {/key}
+      {:else}
+        {#key activeTabPath}
+          <CodeEditor
+            content={activeTab.editContent}
+            lang={activeTab.content.lang}
+            onchange={(c) => handleEditorChange(activeTab!.path, c)}
+            onsave={saveActiveTab}
+            onblur={() => handleEditorBlur(activeTab!.path)}
+          />
+        {/key}
+      {/if}
     {/if}
 
     {#if activeTab}
