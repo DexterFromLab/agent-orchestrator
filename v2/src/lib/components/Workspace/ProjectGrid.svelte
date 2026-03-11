@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { getEnabledProjects, getActiveProjectId, setActiveProject } from '../../stores/workspace.svelte';
+  import { getAllWorkItems, getActiveProjectId, setActiveProject } from '../../stores/workspace.svelte';
   import ProjectBox from './ProjectBox.svelte';
 
   let containerEl: HTMLDivElement | undefined = $state();
   let containerWidth = $state(0);
 
-  let projects = $derived(getEnabledProjects());
+  let projects = $derived(getAllWorkItems());
   let activeProjectId = $derived(getActiveProjectId());
   let visibleCount = $derived(
     Math.min(projects.length, Math.max(1, Math.floor(containerWidth / 520))),

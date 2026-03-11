@@ -18,6 +18,36 @@ export interface ProjectConfig {
   anchorBudgetScale?: AnchorBudgetScale;
   /** Stall detection threshold in minutes (defaults to 15) */
   stallThresholdMin?: number;
+  /** True for Tier 1 management agents rendered as project boxes */
+  isAgent?: boolean;
+  /** Agent role (manager/architect/tester/reviewer) — only when isAgent */
+  agentRole?: GroupAgentRole;
+  /** System prompt injected at session start — only when isAgent */
+  systemPrompt?: string;
+}
+
+const AGENT_ROLE_ICONS: Record<string, string> = {
+  manager: '🎯',
+  architect: '🏗',
+  tester: '🧪',
+  reviewer: '🔍',
+};
+
+/** Convert a GroupAgentConfig to a ProjectConfig for unified rendering */
+export function agentToProject(agent: GroupAgentConfig, groupCwd: string): ProjectConfig {
+  return {
+    id: agent.id,
+    name: agent.name,
+    identifier: agent.role,
+    description: `${agent.role.charAt(0).toUpperCase() + agent.role.slice(1)} agent`,
+    icon: AGENT_ROLE_ICONS[agent.role] ?? '🤖',
+    cwd: agent.cwd ?? groupCwd,
+    profile: 'default',
+    enabled: agent.enabled,
+    isAgent: true,
+    agentRole: agent.role,
+    systemPrompt: agent.systemPrompt,
+  };
 }
 
 /** Group-level agent role (Tier 1 management agents) */

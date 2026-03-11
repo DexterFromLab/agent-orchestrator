@@ -35,6 +35,7 @@ DB_PATH = Path.home() / ".local" / "share" / "bterminal" / "btmsg.db"
 
 # Agent roles and their tiers
 ROLES = {
+    'admin': 0,
     'manager': 1,
     'architect': 1,
     'tester': 1,
@@ -54,6 +55,7 @@ C_MAGENTA = "\033[35m"
 C_CYAN = "\033[36m"
 
 ROLE_COLORS = {
+    'admin': C_CYAN,
     'manager': C_MAGENTA,
     'architect': C_BLUE,
     'tester': C_GREEN,
@@ -112,6 +114,36 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_agent);
         CREATE INDEX IF NOT EXISTS idx_messages_group ON messages(group_id);
         CREATE INDEX IF NOT EXISTS idx_messages_reply ON messages(reply_to);
+
+        CREATE TABLE IF NOT EXISTS channels (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            group_id TEXT NOT NULL,
+            created_by TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (created_by) REFERENCES agents(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS channel_members (
+            channel_id TEXT NOT NULL,
+            agent_id TEXT NOT NULL,
+            joined_at TEXT DEFAULT (datetime('now')),
+            PRIMARY KEY (channel_id, agent_id),
+            FOREIGN KEY (channel_id) REFERENCES channels(id),
+            FOREIGN KEY (agent_id) REFERENCES agents(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS channel_messages (
+            id TEXT PRIMARY KEY,
+            channel_id TEXT NOT NULL,
+            from_agent TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (channel_id) REFERENCES channels(id),
+            FOREIGN KEY (from_agent) REFERENCES agents(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_channel_messages ON channel_messages(channel_id, created_at);
     """)
     db.commit()
     db.close()
@@ -135,6 +167,10 @@ def get_agent(db, agent_id):
 
 def can_message(db, from_id, to_id):
     """Check if from_agent is allowed to message to_agent."""
+    # Admin (tier 0) can message anyone
+    sender = get_agent(db, from_id)
+    if sender and sender['tier'] == 0:
+        return True
     row = db.execute(
         "SELECT 1 FROM contacts WHERE agent_id = ? AND contact_id = ?",
         (from_id, to_id)
@@ -825,6 +861,276 @@ def cmd_graph(args):
     db.close()
 
 
+def cmd_feed(args):
+    """Show all messages in the group (admin only)."""
+    agent_id = get_agent_id()
+    db = get_db()
+    agent = get_agent(db, agent_id)
+    if not agent or agent['tier'] != 0:
+        print(f"{C_RED}Admin access required (tier 0).{C_RESET}")
+        db.close()
+        return
+
+    limit = 50
+    if "--limit" in args:
+        idx = args.index("--limit")
+        if idx + 1 < len(args):
+            try:
+                limit = int(args[idx + 1])
+            except ValueError:
+                pass
+
+    rows = db.execute(
+        "SELECT m.*, a1.name as sender_name, a1.role as sender_role, "
+        "a2.name as recipient_name, a2.role as recipient_role "
+        "FROM messages m "
+        "JOIN agents a1 ON m.from_agent = a1.id "
+        "JOIN agents a2 ON m.to_agent = a2.id "
+        "WHERE m.group_id = ? ORDER BY m.created_at DESC LIMIT ?",
+        (agent['group_id'], limit)
+    ).fetchall()
+
+    print(f"\n{C_BOLD}📡 Activity Feed — All Messages{C_RESET}\n")
+    if not rows:
+        print(f"  {C_DIM}No messages yet.{C_RESET}\n")
+        db.close()
+        return
+
+    for row in reversed(rows):
+        time_str = format_time(row['created_at'])
+        sender_role = format_role(row['sender_role'])
+        recipient_role = format_role(row['recipient_role'])
+        print(f"  {C_DIM}{time_str}{C_RESET} {C_BOLD}{row['sender_name']}{C_RESET} ({sender_role}) "
+              f"→ {C_BOLD}{row['recipient_name']}{C_RESET} ({recipient_role})")
+        preview = row['content'][:200].replace('\n', ' ')
+        if len(row['content']) > 200:
+            preview += "..."
+        print(f"    {preview}\n")
+
+    db.close()
+
+
+def cmd_channel(args):
+    """Channel management commands."""
+    if not args:
+        print(f"{C_RED}Usage: btmsg channel <create|list|send|history|add> [args]{C_RESET}")
+        return
+
+    subcmd = args[0]
+    subargs = args[1:]
+
+    handlers = {
+        'create': cmd_channel_create,
+        'list': cmd_channel_list,
+        'send': cmd_channel_send,
+        'history': cmd_channel_history,
+        'add': cmd_channel_add,
+    }
+    handler = handlers.get(subcmd)
+    if handler:
+        handler(subargs)
+    else:
+        print(f"{C_RED}Unknown channel command: {subcmd}{C_RESET}")
+
+
+def cmd_channel_create(args):
+    """Create a new channel."""
+    if not args:
+        print(f"{C_RED}Usage: btmsg channel create <name>{C_RESET}")
+        return
+
+    agent_id = get_agent_id()
+    name = args[0]
+    db = get_db()
+
+    agent = get_agent(db, agent_id)
+    if not agent:
+        print(f"{C_RED}Agent '{agent_id}' not registered.{C_RESET}")
+        db.close()
+        return
+
+    channel_id = str(uuid.uuid4())[:8]
+    db.execute(
+        "INSERT INTO channels (id, name, group_id, created_by) VALUES (?, ?, ?, ?)",
+        (channel_id, name, agent['group_id'], agent_id)
+    )
+    db.execute(
+        "INSERT INTO channel_members (channel_id, agent_id) VALUES (?, ?)",
+        (channel_id, agent_id)
+    )
+    db.commit()
+    db.close()
+    print(f"{C_GREEN}✓ Channel #{name} created [{channel_id}]{C_RESET}")
+
+
+def cmd_channel_list(args):
+    """List channels."""
+    agent_id = get_agent_id()
+    db = get_db()
+    agent = get_agent(db, agent_id)
+    if not agent:
+        print(f"{C_RED}Agent '{agent_id}' not registered.{C_RESET}")
+        db.close()
+        return
+
+    rows = db.execute(
+        "SELECT c.*, "
+        "(SELECT COUNT(*) FROM channel_members cm WHERE cm.channel_id = c.id) as member_count, "
+        "(SELECT content FROM channel_messages cm2 WHERE cm2.channel_id = c.id "
+        "ORDER BY cm2.created_at DESC LIMIT 1) as last_msg "
+        "FROM channels c WHERE c.group_id = ? ORDER BY c.name",
+        (agent['group_id'],)
+    ).fetchall()
+
+    print(f"\n{C_BOLD}📢 Channels{C_RESET}\n")
+    if not rows:
+        print(f"  {C_DIM}No channels yet. Create one: btmsg channel create <name>{C_RESET}\n")
+        db.close()
+        return
+
+    for row in rows:
+        last = row['last_msg'] or ""
+        if len(last) > 60:
+            last = last[:60] + "..."
+        print(f"  {C_CYAN}#{row['name']}{C_RESET} ({row['member_count']} members) [{row['id']}]")
+        if last:
+            print(f"    {C_DIM}{last}{C_RESET}")
+
+    print()
+    db.close()
+
+
+def cmd_channel_send(args):
+    """Send message to a channel."""
+    if len(args) < 2:
+        print(f"{C_RED}Usage: btmsg channel send <channel-name> <message>{C_RESET}")
+        return
+
+    agent_id = get_agent_id()
+    channel_ref = args[0]
+    content = " ".join(args[1:])
+    db = get_db()
+
+    agent = get_agent(db, agent_id)
+    if not agent:
+        print(f"{C_RED}Agent '{agent_id}' not registered.{C_RESET}")
+        db.close()
+        return
+
+    channel = db.execute(
+        "SELECT * FROM channels WHERE id = ? OR name = ?",
+        (channel_ref, channel_ref)
+    ).fetchone()
+
+    if not channel:
+        print(f"{C_RED}Channel '{channel_ref}' not found.{C_RESET}")
+        db.close()
+        return
+
+    if agent['tier'] > 0:
+        is_member = db.execute(
+            "SELECT 1 FROM channel_members WHERE channel_id = ? AND agent_id = ?",
+            (channel['id'], agent_id)
+        ).fetchone()
+        if not is_member:
+            print(f"{C_RED}Not a member of #{channel['name']}.{C_RESET}")
+            db.close()
+            return
+
+    msg_id = str(uuid.uuid4())
+    db.execute(
+        "INSERT INTO channel_messages (id, channel_id, from_agent, content) VALUES (?, ?, ?, ?)",
+        (msg_id, channel['id'], agent_id, content)
+    )
+    db.commit()
+    db.close()
+    print(f"{C_GREEN}✓ Sent to #{channel['name']}{C_RESET} [{short_id(msg_id)}]")
+
+
+def cmd_channel_history(args):
+    """Show channel message history."""
+    if not args:
+        print(f"{C_RED}Usage: btmsg channel history <channel-name> [--limit N]{C_RESET}")
+        return
+
+    channel_ref = args[0]
+    limit = 30
+    if "--limit" in args:
+        idx = args.index("--limit")
+        if idx + 1 < len(args):
+            try:
+                limit = int(args[idx + 1])
+            except ValueError:
+                pass
+
+    db = get_db()
+    channel = db.execute(
+        "SELECT * FROM channels WHERE id = ? OR name = ?",
+        (channel_ref, channel_ref)
+    ).fetchone()
+
+    if not channel:
+        print(f"{C_RED}Channel '{channel_ref}' not found.{C_RESET}")
+        db.close()
+        return
+
+    rows = db.execute(
+        "SELECT cm.*, a.name as sender_name, a.role as sender_role "
+        "FROM channel_messages cm JOIN agents a ON cm.from_agent = a.id "
+        "WHERE cm.channel_id = ? ORDER BY cm.created_at ASC LIMIT ?",
+        (channel['id'], limit)
+    ).fetchall()
+
+    print(f"\n{C_BOLD}📢 #{channel['name']}{C_RESET}\n")
+
+    if not rows:
+        print(f"  {C_DIM}No messages yet.{C_RESET}\n")
+        db.close()
+        return
+
+    for row in rows:
+        time_str = format_time(row['created_at'])
+        role_str = format_role(row['sender_role'])
+        print(f"  {C_DIM}{time_str}{C_RESET} {C_BOLD}{row['sender_name']}{C_RESET} ({role_str}): {row['content']}")
+
+    print()
+    db.close()
+
+
+def cmd_channel_add(args):
+    """Add member to a channel."""
+    if len(args) < 2:
+        print(f"{C_RED}Usage: btmsg channel add <channel-name> <agent-id>{C_RESET}")
+        return
+
+    channel_ref = args[0]
+    member_id = args[1]
+    db = get_db()
+
+    channel = db.execute(
+        "SELECT * FROM channels WHERE id = ? OR name = ?",
+        (channel_ref, channel_ref)
+    ).fetchone()
+    if not channel:
+        print(f"{C_RED}Channel '{channel_ref}' not found.{C_RESET}")
+        db.close()
+        return
+
+    member = get_agent(db, member_id)
+    if not member:
+        print(f"{C_RED}Agent '{member_id}' not found.{C_RESET}")
+        db.close()
+        return
+
+    db.execute(
+        "INSERT OR IGNORE INTO channel_members (channel_id, agent_id) VALUES (?, ?)",
+        (channel['id'], member_id)
+    )
+    db.commit()
+    db.close()
+    print(f"{C_GREEN}✓ Added {member['name']} to #{channel['name']}{C_RESET}")
+
+
 def cmd_help(args=None):
     """Show help."""
     print(__doc__)
@@ -846,6 +1152,8 @@ COMMANDS = {
     'graph': cmd_graph,
     'unread': cmd_unread_count,
     'notify': cmd_notify,
+    'feed': cmd_feed,
+    'channel': cmd_channel,
     'help': cmd_help,
     '--help': cmd_help,
     '-h': cmd_help,

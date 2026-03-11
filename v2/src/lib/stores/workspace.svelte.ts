@@ -1,11 +1,12 @@
 import { loadGroups, saveGroups, getCliGroup } from '../adapters/groups-bridge';
-import type { GroupsFile, GroupConfig, ProjectConfig } from '../types/groups';
+import type { GroupsFile, GroupConfig, ProjectConfig, GroupAgentConfig } from '../types/groups';
+import { agentToProject } from '../types/groups';
 import { clearAllAgentSessions } from '../stores/agents.svelte';
 import { clearHealthTracking } from '../stores/health.svelte';
 import { clearAllConflicts } from '../stores/conflicts.svelte';
 import { waitForPendingPersistence } from '../agent-dispatcher';
 
-export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings';
+export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings' | 'comms';
 
 export interface TerminalTab {
   id: string;
@@ -53,6 +54,21 @@ export function getEnabledProjects(): ProjectConfig[] {
   const group = getActiveGroup();
   if (!group) return [];
   return group.projects.filter(p => p.enabled);
+}
+
+/** Get all work items: enabled projects + agents as virtual project entries */
+export function getAllWorkItems(): ProjectConfig[] {
+  const group = getActiveGroup();
+  if (!group) return [];
+  const projects = group.projects.filter(p => p.enabled);
+  const agentProjects = (group.agents ?? [])
+    .filter(a => a.enabled)
+    .map(a => {
+      // Use first project's parent dir as default CWD for agents
+      const groupCwd = projects[0]?.cwd?.replace(/\/[^/]+\/?$/, '/') ?? '/tmp';
+      return agentToProject(a, groupCwd);
+    });
+  return [...agentProjects, ...projects];
 }
 
 export function getAllGroups(): GroupConfig[] {
@@ -222,5 +238,23 @@ export function removeProject(groupId: string, projectId: string): void {
   if (activeProjectId === projectId) {
     activeProjectId = null;
   }
+  saveGroups(groupsConfig).catch(e => console.warn('Failed to save groups:', e));
+}
+
+export function updateAgent(groupId: string, agentId: string, updates: Partial<GroupAgentConfig>): void {
+  if (!groupsConfig) return;
+  groupsConfig = {
+    ...groupsConfig,
+    groups: groupsConfig.groups.map(g => {
+      if (g.id !== groupId) return g;
+      return {
+        ...g,
+        agents: (g.agents ?? []).map(a => {
+          if (a.id !== agentId) return a;
+          return { ...a, ...updates };
+        }),
+      };
+    }),
+  };
   saveGroups(groupsConfig).catch(e => console.warn('Failed to save groups:', e));
 }

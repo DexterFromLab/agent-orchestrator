@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { getActiveGroup, getEnabledProjects } from '../../stores/workspace.svelte';
+  import { getActiveGroup, getEnabledProjects, setActiveProject } from '../../stores/workspace.svelte';
   import type { GroupAgentConfig, GroupAgentStatus, ProjectConfig } from '../../types/groups';
   import { getGroupAgents, setAgentStatus, type BtmsgAgent } from '../../adapters/btmsg-bridge';
 
@@ -114,7 +114,14 @@
         <div class="agents-grid">
           {#each agents as agent (agent.id)}
             {@const status = getStatus(agent.id)}
-            <div class="agent-card" class:active={status === 'active'} class:sleeping={status === 'sleeping'}>
+            <div
+              class="agent-card"
+              class:active={status === 'active'}
+              class:sleeping={status === 'sleeping'}
+              onclick={() => setActiveProject(agent.id)}
+              role="button"
+              tabindex="0"
+            >
               <div class="card-top">
                 <span class="agent-icon">{ROLE_ICONS[agent.role] ?? '🤖'}</span>
                 <span class="agent-name">{agent.name}</span>
@@ -130,9 +137,8 @@
                 {#if agent.model}
                   <span class="agent-model">{agent.model}</span>
                 {/if}
-                {@const unread = getUnread(agent.id)}
-                {#if unread > 0}
-                  <span class="unread-badge">{unread}</span>
+                {#if getUnread(agent.id) > 0}
+                  <span class="unread-badge">{getUnread(agent.id)}</span>
                 {/if}
               </div>
               <div class="card-actions">
@@ -159,7 +165,14 @@
         <div class="agents-grid">
           {#each projects as project (project.id)}
             {@const status = getStatus(project.id)}
-            <div class="agent-card tier2" class:active={status === 'active'} class:sleeping={status === 'sleeping'}>
+            <div
+              class="agent-card tier2"
+              class:active={status === 'active'}
+              class:sleeping={status === 'sleeping'}
+              onclick={() => setActiveProject(project.id)}
+              role="button"
+              tabindex="0"
+            >
               <div class="card-top">
                 <span class="agent-icon">{project.icon}</span>
                 <span class="agent-name">{project.name}</span>
@@ -172,9 +185,8 @@
               </div>
               <div class="card-meta">
                 <span class="agent-role">Project</span>
-                {@const unread = getUnread(project.id)}
-                {#if unread > 0}
-                  <span class="unread-badge">{unread}</span>
+                {#if getUnread(project.id) > 0}
+                  <span class="unread-badge">{getUnread(project.id)}</span>
                 {/if}
               </div>
             </div>
@@ -309,6 +321,7 @@
     border: 1px solid var(--ctp-surface0);
     border-radius: 0.25rem;
     transition: border-color 0.15s, background 0.15s;
+    cursor: pointer;
   }
 
   .agent-card:hover {

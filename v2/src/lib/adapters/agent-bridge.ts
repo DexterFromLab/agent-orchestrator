@@ -23,6 +23,8 @@ export interface AgentQueryOptions {
   /** When set, agent runs in a git worktree for isolation */
   worktree_name?: string;
   provider_config?: Record<string, unknown>;
+  /** Extra environment variables injected into the agent process (e.g. BTMSG_AGENT_ID) */
+  extra_env?: Record<string, string>;
   remote_machine_id?: string;
 }
 

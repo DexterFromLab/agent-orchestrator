@@ -49,6 +49,7 @@ interface QueryMessage {
   claudeConfigDir?: string;
   additionalDirectories?: string[];
   worktreeName?: string;
+  extraEnv?: Record<string, string>;
 }
 
 interface StopMessage {
@@ -73,7 +74,7 @@ async function handleMessage(msg: Record<string, unknown>) {
 }
 
 async function handleQuery(msg: QueryMessage) {
-  const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId, permissionMode, settingSources, systemPrompt, model, claudeConfigDir, additionalDirectories, worktreeName } = msg;
+  const { sessionId, prompt, cwd, maxTurns, maxBudgetUsd, resumeSessionId, permissionMode, settingSources, systemPrompt, model, claudeConfigDir, additionalDirectories, worktreeName, extraEnv } = msg;
 
   if (sessions.has(sessionId)) {
     send({ type: 'error', sessionId, message: 'Session already running' });
@@ -97,6 +98,12 @@ async function handleQuery(msg: QueryMessage) {
   // Override CLAUDE_CONFIG_DIR for multi-account support
   if (claudeConfigDir) {
     cleanEnv['CLAUDE_CONFIG_DIR'] = claudeConfigDir;
+  }
+  // Inject extra environment variables (e.g. BTMSG_AGENT_ID for agent communication)
+  if (extraEnv) {
+    for (const [key, value] of Object.entries(extraEnv)) {
+      cleanEnv[key] = value;
+    }
   }
 
   try {

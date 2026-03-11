@@ -31,6 +31,9 @@ pub struct AgentQueryOptions {
     /// Provider-specific configuration blob (passed through to sidecar as-is)
     #[serde(default)]
     pub provider_config: serde_json::Value,
+    /// Extra environment variables injected into the agent process (e.g. BTMSG_AGENT_ID)
+    #[serde(default)]
+    pub extra_env: std::collections::HashMap<String, String>,
 }
 
 fn default_provider() -> String {
@@ -220,6 +223,7 @@ impl SidecarManager {
             "additionalDirectories": options.additional_directories,
             "worktreeName": options.worktree_name,
             "providerConfig": options.provider_config,
+            "extraEnv": options.extra_env,
         });
 
         self.send_message(&msg)

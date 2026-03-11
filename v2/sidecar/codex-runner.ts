@@ -43,6 +43,7 @@ interface QueryMessage {
   systemPrompt?: string;
   model?: string;
   providerConfig?: Record<string, unknown>;
+  extraEnv?: Record<string, string>;
 }
 
 interface StopMessage {
@@ -67,7 +68,7 @@ async function handleMessage(msg: Record<string, unknown>) {
 }
 
 async function handleQuery(msg: QueryMessage) {
-  const { sessionId, prompt, cwd, maxTurns, resumeSessionId, permissionMode, model, providerConfig } = msg;
+  const { sessionId, prompt, cwd, maxTurns, resumeSessionId, permissionMode, model, providerConfig, extraEnv } = msg;
 
   if (sessions.has(sessionId)) {
     send({ type: 'error', sessionId, message: 'Session already running' });
@@ -89,6 +90,12 @@ async function handleQuery(msg: QueryMessage) {
   const apiKey = process.env.CODEX_API_KEY || process.env.OPENAI_API_KEY;
   if (apiKey) {
     cleanEnv['CODEX_API_KEY'] = apiKey;
+  }
+  // Inject extra environment variables (e.g. BTMSG_AGENT_ID for agent communication)
+  if (extraEnv) {
+    for (const [key, value] of Object.entries(extraEnv)) {
+      cleanEnv[key] = value;
+    }
   }
 
   // Dynamically import SDK — fails gracefully if not installed

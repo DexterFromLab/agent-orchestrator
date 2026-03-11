@@ -18,6 +18,7 @@
   import GroupAgentsPanel from './lib/components/Workspace/GroupAgentsPanel.svelte';
   import ProjectGrid from './lib/components/Workspace/ProjectGrid.svelte';
   import SettingsTab from './lib/components/Workspace/SettingsTab.svelte';
+  import CommsTab from './lib/components/Workspace/CommsTab.svelte';
   import CommandPalette from './lib/components/Workspace/CommandPalette.svelte';
 
   // Shared
@@ -116,6 +117,18 @@
         return;
       }
 
+      // Ctrl+M — toggle messages panel
+      if (e.ctrlKey && !e.shiftKey && e.key === 'm') {
+        e.preventDefault();
+        if (getActiveTab() === 'comms' && drawerOpen) {
+          drawerOpen = false;
+        } else {
+          setActiveTab('comms');
+          drawerOpen = true;
+        }
+        return;
+      }
+
       // Ctrl+B — toggle sidebar
       if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
         e.preventDefault();
@@ -165,7 +178,7 @@
       {#if drawerOpen}
         <aside class="sidebar-panel" style:width={panelWidth}>
           <div class="panel-header">
-            <h2>Settings</h2>
+            <h2>{activeTab === 'comms' ? 'Messages' : 'Settings'}</h2>
             <button class="panel-close" onclick={() => drawerOpen = false} title="Close sidebar (Ctrl+B)">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -173,7 +186,11 @@
             </button>
           </div>
           <div class="panel-content" bind:this={panelContentEl}>
-            <SettingsTab />
+            {#if activeTab === 'comms'}
+              <CommsTab />
+            {:else}
+              <SettingsTab />
+            {/if}
           </div>
         </aside>
       {/if}

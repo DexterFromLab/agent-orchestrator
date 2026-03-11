@@ -1,5 +1,7 @@
 <script lang="ts">
-  import type { ProjectConfig } from '../../types/groups';
+  import type { ProjectConfig, GroupAgentRole } from '../../types/groups';
+  import { generateAgentPrompt } from '../../utils/agent-prompts';
+  import { getActiveGroup } from '../../stores/workspace.svelte';
   import {
     loadProjectAgentState,
     loadAgentMessages,
@@ -31,6 +33,23 @@
 
   let providerId = $derived(project.provider ?? getDefaultProviderId());
   let providerMeta = $derived(getProvider(providerId));
+  let group = $derived(getActiveGroup());
+  let agentPrompt = $derived.by(() => {
+    if (!project.isAgent || !project.agentRole || !group) return undefined;
+    return generateAgentPrompt({
+      role: project.agentRole as GroupAgentRole,
+      agentId: project.id,
+      agentName: project.name,
+      group,
+      customPrompt: project.systemPrompt,
+    });
+  });
+
+  // Inject BTMSG_AGENT_ID for agent projects so they can use btmsg/bttask CLIs
+  let agentEnv = $derived.by(() => {
+    if (!project.isAgent) return undefined;
+    return { BTMSG_AGENT_ID: project.id };
+  });
 
   let sessionId = $state(SessionId(crypto.randomUUID()));
   let lastState = $state<ProjectAgentState | null>(null);
@@ -132,6 +151,8 @@
       provider={providerId}
       capabilities={providerMeta?.capabilities}
       useWorktrees={project.useWorktrees ?? false}
+      agentSystemPrompt={agentPrompt}
+      extraEnv={agentEnv}
       onExit={handleNewSession}
     />
   {/if}

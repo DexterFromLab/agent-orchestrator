@@ -54,10 +54,14 @@
     provider?: ProviderId;
     capabilities?: ProviderCapabilities;
     useWorktrees?: boolean;
+    /** Prepended to system_prompt for agent role instructions */
+    agentSystemPrompt?: string;
+    /** Extra env vars injected into agent process (e.g. BTMSG_AGENT_ID) */
+    extraEnv?: Record<string, string>;
     onExit?: () => void;
   }
 
-  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, useWorktrees = false, onExit }: Props = $props();
+  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, useWorktrees = false, agentSystemPrompt, extraEnv, onExit }: Props = $props();
 
   let session = $derived(getAgentSession(sessionId));
   let inputPrompt = $state(initialPrompt);
@@ -165,15 +169,18 @@
 
     const profile = profileName ? profiles.find(p => p.name === profileName) : undefined;
 
-    // Build system prompt with anchor re-injection if available
-    let systemPrompt: string | undefined;
+    // Build system prompt: agent role instructions + anchor re-injection
+    const promptParts: string[] = [];
+    if (agentSystemPrompt) {
+      promptParts.push(agentSystemPrompt);
+    }
     if (projectId) {
       const anchors = getInjectableAnchors(projectId);
       if (anchors.length > 0) {
-        // Anchors store pre-serialized content — join them directly
-        systemPrompt = anchors.map(a => a.content).join('\n');
+        promptParts.push(anchors.map(a => a.content).join('\n'));
       }
     }
+    const systemPrompt = promptParts.length > 0 ? promptParts.join('\n\n') : undefined;
 
     await queryAgent({
       provider: providerId,
@@ -186,6 +193,7 @@
       claude_config_dir: profile?.config_dir,
       system_prompt: systemPrompt,
       worktree_name: useWorktrees ? sessionId : undefined,
+      extra_env: extraEnv,
     });
     inputPrompt = '';
     if (promptRef) {

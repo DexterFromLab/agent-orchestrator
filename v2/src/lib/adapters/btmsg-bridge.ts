@@ -29,6 +29,38 @@ export interface BtmsgMessage {
   sender_role?: string;
 }
 
+export interface BtmsgFeedMessage {
+  id: string;
+  fromAgent: string;
+  toAgent: string;
+  content: string;
+  createdAt: string;
+  replyTo: string | null;
+  senderName: string;
+  senderRole: string;
+  recipientName: string;
+  recipientRole: string;
+}
+
+export interface BtmsgChannel {
+  id: string;
+  name: string;
+  groupId: string;
+  createdBy: string;
+  memberCount: number;
+  createdAt: string;
+}
+
+export interface BtmsgChannelMessage {
+  id: string;
+  channelId: string;
+  fromAgent: string;
+  content: string;
+  createdAt: string;
+  senderName: string;
+  senderRole: string;
+}
+
 /**
  * Get all agents in a group with their unread counts.
  */
@@ -69,4 +101,60 @@ export async function sendMessage(fromAgent: string, toAgent: string, content: s
  */
 export async function setAgentStatus(agentId: string, status: string): Promise<void> {
   return invoke('btmsg_set_status', { agentId, status });
+}
+
+/**
+ * Ensure admin agent exists with contacts to all agents.
+ */
+export async function ensureAdmin(groupId: string): Promise<void> {
+  return invoke('btmsg_ensure_admin', { groupId });
+}
+
+/**
+ * Get all messages in group (admin global feed).
+ */
+export async function getAllFeed(groupId: string, limit: number = 100): Promise<BtmsgFeedMessage[]> {
+  return invoke('btmsg_all_feed', { groupId, limit });
+}
+
+/**
+ * Mark all messages from sender to reader as read.
+ */
+export async function markRead(readerId: string, senderId: string): Promise<void> {
+  return invoke('btmsg_mark_read', { readerId, senderId });
+}
+
+/**
+ * Get channels in a group.
+ */
+export async function getChannels(groupId: string): Promise<BtmsgChannel[]> {
+  return invoke('btmsg_get_channels', { groupId });
+}
+
+/**
+ * Get messages in a channel.
+ */
+export async function getChannelMessages(channelId: string, limit: number = 100): Promise<BtmsgChannelMessage[]> {
+  return invoke('btmsg_channel_messages', { channelId, limit });
+}
+
+/**
+ * Send a message to a channel.
+ */
+export async function sendChannelMessage(channelId: string, fromAgent: string, content: string): Promise<string> {
+  return invoke('btmsg_channel_send', { channelId, fromAgent, content });
+}
+
+/**
+ * Create a new channel.
+ */
+export async function createChannel(name: string, groupId: string, createdBy: string): Promise<string> {
+  return invoke('btmsg_create_channel', { name, groupId, createdBy });
+}
+
+/**
+ * Add a member to a channel.
+ */
+export async function addChannelMember(channelId: string, agentId: string): Promise<void> {
+  return invoke('btmsg_add_channel_member', { channelId, agentId });
 }
