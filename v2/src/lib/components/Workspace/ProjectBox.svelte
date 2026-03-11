@@ -15,7 +15,7 @@
   import { getProjectHealth } from '../../stores/health.svelte';
   import { fsWatchProject, fsUnwatchProject, onFsWriteDetected, fsWatcherStatus } from '../../adapters/fs-watcher-bridge';
   import { recordExternalWrite } from '../../stores/conflicts.svelte';
-  import { notify } from '../../stores/notifications.svelte';
+  import { notify, dismissNotification } from '../../stores/notifications.svelte';
 
   interface Props {
     project: ProjectConfig;
@@ -59,16 +59,26 @@
     if (!cwd) return;
 
     // Start watching, then check inotify capacity
+    // Show scanning toast only if status check takes >300ms
+    let scanToastId: string | null = null;
+    const scanTimer = setTimeout(() => {
+      scanToastId = notify('info', 'Scanning project directories…');
+    }, 300);
+
     fsWatchProject(projectId, cwd)
       .then(() => fsWatcherStatus())
       .then((status) => {
+        clearTimeout(scanTimer);
+        if (scanToastId) dismissNotification(scanToastId);
         if (status.warning) {
           notify('warning', status.warning);
         }
       })
-      .catch(e =>
-        console.warn(`Failed to start fs watcher for ${projectId}:`, e)
-      );
+      .catch(e => {
+        clearTimeout(scanTimer);
+        if (scanToastId) dismissNotification(scanToastId);
+        console.warn(`Failed to start fs watcher for ${projectId}:`, e);
+      });
 
     // Listen for fs write events (filter to this project)
     let unlisten: (() => void) | null = null;

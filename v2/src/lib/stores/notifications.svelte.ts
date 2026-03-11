@@ -18,7 +18,7 @@ export function getNotifications(): Notification[] {
   return notifications;
 }
 
-export function notify(type: NotificationType, message: string): void {
+export function notify(type: NotificationType, message: string): string {
   const id = crypto.randomUUID();
   notifications.push({ id, type, message, timestamp: Date.now() });
 
@@ -29,6 +29,8 @@ export function notify(type: NotificationType, message: string): void {
 
   // Auto-dismiss
   setTimeout(() => dismissNotification(id), TOAST_DURATION_MS);
+
+  return id;
 }
 
 export function dismissNotification(id: string): void {
