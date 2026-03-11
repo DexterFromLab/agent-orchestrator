@@ -1,3 +1,4 @@
+mod btmsg;
 mod commands;
 mod ctx;
 mod event_sink;
@@ -123,6 +124,13 @@ pub fn run() {
             commands::remote::remote_pty_write,
             commands::remote::remote_pty_resize,
             commands::remote::remote_pty_kill,
+            // btmsg (agent messenger)
+            commands::btmsg::btmsg_get_agents,
+            commands::btmsg::btmsg_unread_count,
+            commands::btmsg::btmsg_unread_messages,
+            commands::btmsg::btmsg_history,
+            commands::btmsg::btmsg_send,
+            commands::btmsg::btmsg_set_status,
             // Misc
             commands::misc::cli_get_group,
             commands::misc::open_url,

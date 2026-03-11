@@ -9,3 +9,4 @@ pub mod groups;
 pub mod files;
 pub mod remote;
 pub mod misc;
+pub mod btmsg;

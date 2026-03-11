@@ -20,10 +20,31 @@ export interface ProjectConfig {
   stallThresholdMin?: number;
 }
 
+/** Group-level agent role (Tier 1 management agents) */
+export type GroupAgentRole = 'manager' | 'architect' | 'tester' | 'reviewer';
+
+/** Group-level agent status */
+export type GroupAgentStatus = 'active' | 'sleeping' | 'stopped';
+
+/** Group-level agent configuration */
+export interface GroupAgentConfig {
+  id: string;
+  name: string;
+  role: GroupAgentRole;
+  model?: string;
+  cwd?: string;
+  systemPrompt?: string;
+  enabled: boolean;
+  /** Auto-wake interval in minutes (Manager only, default 3) */
+  wakeIntervalMin?: number;
+}
+
 export interface GroupConfig {
   id: string;
   name: string;
   projects: ProjectConfig[];
+  /** Group-level orchestration agents (Tier 1) */
+  agents?: GroupAgentConfig[];
 }
 
 export interface GroupsFile {

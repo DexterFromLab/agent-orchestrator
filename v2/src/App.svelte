@@ -15,6 +15,7 @@
 
   // Workspace components
   import GlobalTabBar from './lib/components/Workspace/GlobalTabBar.svelte';
+  import GroupAgentsPanel from './lib/components/Workspace/GroupAgentsPanel.svelte';
   import ProjectGrid from './lib/components/Workspace/ProjectGrid.svelte';
   import SettingsTab from './lib/components/Workspace/SettingsTab.svelte';
   import CommandPalette from './lib/components/Workspace/CommandPalette.svelte';
@@ -178,6 +179,7 @@
       {/if}
 
       <main class="workspace">
+        <GroupAgentsPanel />
         <ProjectGrid />
       </main>
     </div>
@@ -264,6 +266,8 @@
   .workspace {
     flex: 1;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   .loading {

@@ -18,10 +18,29 @@ pub struct ProjectConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupAgentConfig {
+    pub id: String,
+    pub name: String,
+    pub role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_prompt: Option<String>,
+    pub enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wake_interval_min: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupConfig {
     pub id: String,
     pub name: String,
     pub projects: Vec<ProjectConfig>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub agents: Vec<GroupAgentConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
