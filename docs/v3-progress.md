@@ -789,3 +789,97 @@ Ran nemezis-audit on Rust backend. 0 verified exploitable findings, 10 recon tar
 - [x] vitest: 286/286 pass (5 worktree tests moved to new file)
 - [x] cargo check: clean
 - [x] cargo test: 49/49 pass
+
+### Session 2026-03-11 (SOLID Phase 3 — Branded Types)
+
+#### Implementation
+- [x] Introduced SessionId/ProjectId branded types (types/ids.ts)
+- [x] Applied branded types to conflicts.svelte.ts and health.svelte.ts Map keys
+- [x] Branded sessionId at sidecar boundary in agent-dispatcher
+- [x] Applied branded types at Svelte component call sites
+
+#### Results
+- [x] cargo check: clean
+- [x] vitest: 286/286 pass
+
+### Session 2026-03-11 — Multi-Agent Orchestration System
+
+#### btmsg Group Agent Messenger CLI
+- [x] Created btmsg CLI tool — inter-agent messaging (inbox, send, reply, contacts, history, channels)
+- [x] btmsg graph command — visual agent hierarchy with status
+- [x] Admin role (tier 0), channel messaging (create/list/send/history), mark-read, global feed
+
+#### btmsg Rust Backend + Tauri Bridge
+- [x] Created btmsg.rs module — SQLite-backed messaging (shared DB: ~/.local/share/bterminal/btmsg.db)
+- [x] 8+ Tauri commands: btmsg_inbox, btmsg_send, btmsg_read, btmsg_contacts, btmsg_feed, btmsg_channels, etc.
+- [x] CommsTab: sidebar chat interface with activity feed, DMs, channels (Ctrl+M)
+
+#### Agent Unification (Tier 1 → ProjectBoxes)
+- [x] agentToProject() converter in groups.ts — Tier 1 agents rendered as full ProjectBoxes
+- [x] getAllWorkItems() in workspace store combines agents + projects for ProjectGrid
+- [x] GroupAgentsPanel: click-to-navigate agent cards to their ProjectBox
+
+#### Agent System Prompts
+- [x] Created utils/agent-prompts.ts — generateAgentPrompt() builds comprehensive introductory context
+  - Sections: Identity, Environment, Team hierarchy, btmsg docs, bttask docs, Custom context, Workflow
+  - Role-specific workflows (Manager: check inbox → review board → coordinate; Architect: code review focus; Tester: write/run tests)
+- [x] AgentSession builds system prompt: Tier 1 gets full generated prompt, Tier 2 gets custom context
+
+#### BTMSG_AGENT_ID Environment Passthrough (5-layer chain)
+- [x] agent-bridge.ts: added extra_env?: Record<string,string> to AgentQueryOptions
+- [x] bterminal-core/sidecar.rs: added extra_env: HashMap<String,String> with #[serde(default)]
+- [x] claude-runner.ts: extraEnv merged into cleanEnv after provider var stripping
+- [x] codex-runner.ts: same extraEnv pattern
+- [x] AgentSession injects { BTMSG_AGENT_ID: project.id } for agent projects
+
+#### Tier 1 Agent Config in SettingsTab
+- [x] Agent cards: icon + name + role badge + enable toggle + CWD + model + wake interval (manager)
+- [x] Custom Context textarea per agent (appended to auto-generated prompt)
+- [x] Collapsible preview of full generated introductory prompt
+- [x] updateAgent() function in workspace store for Tier 1 config persistence
+
+#### Custom Context for Tier 2 Projects
+- [x] Custom Context textarea in SettingsTab project cards
+- [x] Stored as project.systemPrompt, passed through AgentSession → AgentPane
+
+#### Periodic System Prompt Re-injection
+- [x] AgentSession: 1-hour timer (REINJECTION_INTERVAL_MS = 3,600,000ms)
+- [x] Checks every 60s if elapsed > 1 hour, sets contextRefreshPrompt
+- [x] AgentPane: autoPrompt prop consumed only when agent is idle (done/error state)
+- [x] Different refresh messages: Tier 1 (check inbox + task board), Tier 2 (review instructions)
+
+#### bttask Kanban Backend + UI
+- [x] Created bttask.rs — Task/TaskComment structs, 6 operations (list, comments, update_status, create, delete, add_comment)
+- [x] Created commands/bttask.rs — 6 Tauri commands registered in lib.rs
+- [x] Created bttask-bridge.ts — TypeScript IPC adapter
+- [x] Created TaskBoardTab.svelte — Kanban board with 5 columns (todo/progress/review/done/blocked)
+  - Task creation form (title, description, priority)
+  - Expandable task detail with status actions, comments, delete
+  - 5-second polling
+  - Pending count badge
+
+#### ArchitectureTab (PlantUML Diagrams)
+- [x] Created ArchitectureTab.svelte — PlantUML diagram viewer/editor
+  - Sidebar with diagram list + new diagram form (4 templates: Class, Sequence, State, Component)
+  - PlantUML source editor + SVG preview via plantuml.com server (~h hex encoding)
+  - Stores .puml files in .architecture/ directory
+  - Read/write via files-bridge.ts
+
+#### TestingTab (Selenium + Automated Tests)
+- [x] Created TestingTab.svelte — dual-mode component
+  - Selenium mode: screenshot gallery (.selenium/screenshots/), session log viewer, 3s polling
+  - Tests mode: discovers test files in standard dirs (tests/, test/, spec/, __tests__/, e2e/), file content viewer
+
+#### Role-Specific Tabs in ProjectBox
+- [x] Extended ProjectTab type: added 'tasks' | 'architecture' | 'selenium' | 'tests'
+- [x] Conditional tab buttons: Manager→Tasks, Architect→Arch, Tester→Selenium+Tests
+- [x] PERSISTED-LAZY rendering via {#if everActivated[tab]} pattern
+- [x] .ptab-role CSS class (mauve accent color for agent-specific tabs)
+
+#### Bug Fix
+- [x] Fixed FileContent type case: 'text' → 'Text' in ArchitectureTab and TestingTab (files-bridge uses capital T)
+
+#### Verification
+- [x] cargo check: clean (bttask module + commands)
+- [x] svelte-check: 0 project errors
+- [x] Sidecar rebuilt with extraEnv support

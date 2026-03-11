@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control (All Phases 1-10 Complete + Sidebar Redesign): multi-project dashboard with project groups, per-project Claude sessions with session continuity, team agents panel, terminal tabs, VSCode-style left sidebar (icon rail + expandable drawer + always-visible workspace), dead v2 component cleanup.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control (All Phases 1-10 Complete + Sidebar Redesign + Multi-Agent Orchestration): multi-project dashboard with project groups, per-project Claude sessions with session continuity, team agents panel, terminal tabs, VSCode-style left sidebar, multi-agent orchestration (Tier 1 management agents: Manager/Architect/Tester with role-specific tabs, btmsg inter-agent messaging, bttask kanban task board, BTMSG_AGENT_ID env passthrough, periodic system prompt re-injection, custom context for all tiers).
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -37,7 +37,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/groups.rs` | Groups config (load/save ~/.config/bterminal/groups.json) |
 | `v2/src-tauri/src/fs_watcher.rs` | ProjectFsWatcher (inotify per-project recursive file change detection, S-1 Phase 2) |
 | `v2/src-tauri/src/lib.rs` | AppState + setup + handler registration (~170 lines) |
-| `v2/src-tauri/src/commands/` | 11 domain command modules (pty, agent, watcher, session, persistence, knowledge, claude, groups, files, remote, misc) |
+| `v2/src-tauri/src/commands/` | 12 domain command modules (pty, agent, watcher, session, persistence, knowledge, claude, groups, files, remote, misc, bttask) |
+| `v2/src-tauri/src/bttask.rs` | Task board backend (list, create, update status, delete, comments; shared btmsg.db) |
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |
 | `v2/src-tauri/src/remote.rs` | RemoteManager (WebSocket client connections to relays) |
@@ -81,7 +82,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/memora-bridge.ts` | Memora IPC bridge + MemoraAdapter (read-only SQLite via Tauri commands) |
 | `v2/src/lib/adapters/fs-watcher-bridge.ts` | Filesystem watcher IPC wrapper (project CWD write detection) |
 | `v2/src/lib/adapters/anchors-bridge.ts` | Session anchors IPC wrapper (save, load, delete, clear, updateType) |
+| `v2/src/lib/adapters/bttask-bridge.ts` | Task board IPC adapter (listTasks, createTask, updateTaskStatus, deleteTask, comments) |
 | `v2/src/lib/adapters/telemetry-bridge.ts` | Frontend telemetry bridge (routes events to Rust tracing via IPC) |
+| `v2/src/lib/utils/agent-prompts.ts` | Agent prompt generator (generateAgentPrompt: identity, env, team, btmsg/bttask docs, workflow) |
 | `docker/tempo/` | Docker compose: Tempo + Grafana for trace visualization (port 9715) |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
 | `v2/src/lib/utils/attention-scorer.ts` | Pure attention scoring function (extracted from health store, 14 tests) |
@@ -108,7 +111,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/utils/tool-files.ts` | Shared file path extraction from tool_call inputs (extractFilePaths, extractWritePaths, extractWorktreePath) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Mission Control bar (agent states, $/hr burn rate, attention queue, cost) |
 | `v2/src/lib/components/Notifications/ToastContainer.svelte` | Toast notification display |
-| `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, AgentSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, FilesTab, SshTab, MemoriesTab, CommandPalette, DocsTab, SettingsTab |
+| `v2/src/lib/components/Workspace/` | v3 components: GlobalTabBar, ProjectGrid, ProjectBox, ProjectHeader, AgentSession, TeamAgentsPanel, AgentCard, TerminalTabs, ProjectFiles, FilesTab, SshTab, MemoriesTab, CommandPalette, DocsTab, SettingsTab, TaskBoardTab, ArchitectureTab, TestingTab |
 | `v2/src/lib/types/groups.ts` | TypeScript interfaces (ProjectConfig, GroupConfig, GroupsFile) |
 | `v2/src/lib/adapters/session-bridge.ts` | Session/layout/group persistence IPC wrapper |
 | `v2/src/lib/components/Markdown/MarkdownPane.svelte` | Markdown file viewer (marked.js + shiki, live reload) |

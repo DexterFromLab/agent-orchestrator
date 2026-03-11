@@ -335,6 +335,12 @@ All 10 phases complete. Detailed checklists in [v3-progress.md](v3-progress.md).
 | Unmount/remount on group switch | Serialize xterm scrollbacks, destroy, remount new group. <100ms perceived. Frees ~80MB. | 2026-03-07 |
 | All themes map to --ctp-* CSS vars | 17 themes in 3 groups: 4 Catppuccin + 7 Editor (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) + 6 Deep Dark (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight). All map to same 26 --ctp-* CSS custom properties — zero component changes needed. | 2026-03-07 |
 | Typography via CSS custom properties | --ui-font-family/--ui-font-size + --term-font-family/--term-font-size in catppuccin.css :root. Restored by initTheme() on startup. Persisted as ui_font_family/ui_font_size/term_font_family/term_font_size SQLite settings. | 2026-03-07 |
+| Tier 1 agents as ProjectBoxes via agentToProject() | Agents render as full ProjectBoxes (not separate UI). getAllWorkItems() merges agents+projects. Unified rendering = less code, same capabilities. | 2026-03-11 |
+| extra_env 5-layer passthrough for BTMSG_AGENT_ID | TS → Rust AgentQueryOptions → NDJSON → JS runner → SDK env. Minimal surface — only agent projects get env injection. | 2026-03-11 |
+| Periodic system prompt re-injection (1 hour) | LLM context degrades over long sessions. 1-hour timer re-sends role/tools reminder when agent is idle. autoPrompt/onautopromptconsumed callback pattern between AgentSession and AgentPane. | 2026-03-11 |
+| btmsg/bttask shared SQLite DB | Both CLI tools share ~/.local/share/bterminal/btmsg.db. Single DB simplifies deployment, agents already have path. Read-only for non-Manager roles via CLI permissions. | 2026-03-11 |
+| Role-specific tabs via conditional rendering | Manager=Tasks, Architect=Arch, Tester=Selenium+Tests. PERSISTED-LAZY pattern (mount on first activation). Conditional on isAgent && agentRole. | 2026-03-11 |
+| PlantUML via plantuml.com server (~h hex encoding) | Avoids Java dependency. Hex encoding simpler than deflate+base64. Works with free tier. Trade-off: requires internet. | 2026-03-11 |
 
 ## Errors Encountered
 
