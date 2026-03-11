@@ -146,7 +146,7 @@
                   class="action-btn"
                   class:start={status === 'stopped'}
                   class:stop={status !== 'stopped'}
-                  onclick={() => toggleAgent(agent)}
+                  onclick={(e: MouseEvent) => { e.stopPropagation(); toggleAgent(agent); }}
                   title={status === 'stopped' ? 'Start agent' : 'Stop agent'}
                 >
                   {status === 'stopped' ? '▶' : '■'}

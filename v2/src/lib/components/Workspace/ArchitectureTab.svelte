@@ -154,27 +154,13 @@ package "Backend" {
     }
   }
 
-  // PlantUML text encoder (deflate + base64 variant)
-  // Uses the PlantUML encoding scheme: https://plantuml.com/text-encoding
+  // PlantUML hex encoding — uses the ~h prefix supported by plantuml.com
+  // See: https://plantuml.com/text-encoding
   function plantumlEncode(text: string): string {
-    const data = unescape(encodeURIComponent(text));
-    const compressed = rawDeflate(data);
-    return encode64(compressed);
-  }
-
-  // Minimal raw deflate (store-only for simplicity — works with plantuml.com)
-  function rawDeflate(data: string): string {
-    // For PlantUML server compatibility, we use the ~h hex encoding as fallback
-    // which is simpler and doesn't require deflate
-    return data;
-  }
-
-  // PlantUML base64 encoding (6-bit alphabet: 0-9A-Za-z-_)
-  function encode64(data: string): string {
-    // Use hex encoding prefix for simplicity (supported by PlantUML server)
+    const bytes = unescape(encodeURIComponent(text));
     let hex = '~h';
-    for (let i = 0; i < data.length; i++) {
-      hex += data.charCodeAt(i).toString(16).padStart(2, '0');
+    for (let i = 0; i < bytes.length; i++) {
+      hex += bytes.charCodeAt(i).toString(16).padStart(2, '0');
     }
     return hex;
   }

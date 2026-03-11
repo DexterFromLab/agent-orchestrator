@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { convertFileSrc } from '@tauri-apps/api/core';
   import { listDirectoryChildren, readFileContent, type DirEntry } from '../../adapters/files-bridge';
 
   interface Props {
@@ -150,7 +151,7 @@
         {#if selectedScreenshot}
           <div class="screenshot-preview">
             <img
-              src="asset://localhost/{selectedScreenshot}"
+              src={convertFileSrc(selectedScreenshot)}
               alt="Selenium screenshot"
               class="screenshot-img"
             />
