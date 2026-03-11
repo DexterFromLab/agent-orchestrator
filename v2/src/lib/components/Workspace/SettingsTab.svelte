@@ -14,6 +14,7 @@
     switchGroup,
   } from '../../stores/workspace.svelte';
   import { deriveIdentifier, type GroupAgentRole, AGENT_ROLE_ICONS } from '../../types/groups';
+  import { ProjectId, GroupId } from '../../types/ids';
   import { generateAgentPrompt } from '../../utils/agent-prompts';
   import { getSetting, setSetting } from '../../adapters/settings-bridge';
   import { getCurrentTheme, setTheme } from '../../stores/theme.svelte';
@@ -284,7 +285,7 @@
 
   function handleAddProject() {
     if (!newName.trim() || !newCwd.trim() || !activeGroupId) return;
-    const id = crypto.randomUUID();
+    const id = ProjectId(crypto.randomUUID());
     addProject(activeGroupId, {
       id,
       name: newName.trim(),
@@ -304,7 +305,7 @@
 
   function handleAddGroup() {
     if (!newGroupName.trim()) return;
-    const id = crypto.randomUUID();
+    const id = GroupId(crypto.randomUUID());
     addGroup({ id, name: newGroupName.trim(), projects: [] });
     newGroupName = '';
   }

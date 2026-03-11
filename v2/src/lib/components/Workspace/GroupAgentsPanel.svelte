@@ -3,6 +3,7 @@
   import { getActiveGroup, getEnabledProjects, setActiveProject } from '../../stores/workspace.svelte';
   import type { GroupAgentConfig, GroupAgentStatus, ProjectConfig } from '../../types/groups';
   import { getGroupAgents, setAgentStatus, type BtmsgAgent } from '../../adapters/btmsg-bridge';
+  import type { AgentId } from '../../types/ids';
 
   /** Runtime agent status from btmsg database */
   let btmsgAgents = $state<BtmsgAgent[]>([]);
@@ -46,12 +47,12 @@
     if (pollTimer) clearInterval(pollTimer);
   });
 
-  function getStatus(agentId: string): GroupAgentStatus {
+  function getStatus(agentId: AgentId): GroupAgentStatus {
     const btAgent = btmsgAgents.find(a => a.id === agentId);
     return (btAgent?.status as GroupAgentStatus) ?? 'stopped';
   }
 
-  function getUnread(agentId: string): number {
+  function getUnread(agentId: AgentId): number {
     const btAgent = btmsgAgents.find(a => a.id === agentId);
     return btAgent?.unreadCount ?? 0;
   }

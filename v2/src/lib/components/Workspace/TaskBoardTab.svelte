@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { listTasks, updateTaskStatus, createTask, deleteTask, addTaskComment, type Task, type TaskComment, getTaskComments } from '../../adapters/bttask-bridge';
+  import type { GroupId } from '../../types/ids';
+  import { AgentId } from '../../types/ids';
 
   interface Props {
-    groupId: string;
+    groupId: GroupId;
     projectId?: string;
   }
 
@@ -92,7 +94,7 @@
   async function handleAddTask() {
     if (!newTitle.trim()) return;
     try {
-      await createTask(newTitle.trim(), newDesc.trim(), newPriority, groupId, 'admin');
+      await createTask(newTitle.trim(), newDesc.trim(), newPriority, groupId, AgentId('admin'));
       newTitle = '';
       newDesc = '';
       newPriority = 'medium';
@@ -129,7 +131,7 @@
   async function handleAddComment() {
     if (!expandedTaskId || !newComment.trim()) return;
     try {
-      await addTaskComment(expandedTaskId, 'admin', newComment.trim());
+      await addTaskComment(expandedTaskId, AgentId('admin'), newComment.trim());
       newComment = '';
       taskComments = await getTaskComments(expandedTaskId);
     } catch (e) {
