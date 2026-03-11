@@ -1,6 +1,7 @@
 // Project health tracking — Svelte 5 runes
 // Tracks per-project activity state, burn rate, context pressure, and attention scoring
 
+import type { SessionId as SessionIdType, ProjectId as ProjectIdType } from '../types/ids';
 import { getAgentSession, type AgentSession } from './agents.svelte';
 import { getProjectConflicts } from './conflicts.svelte';
 import { scoreAttention } from '../utils/attention-scorer';
@@ -10,8 +11,8 @@ import { scoreAttention } from '../utils/attention-scorer';
 export type ActivityState = 'inactive' | 'running' | 'idle' | 'stalled';
 
 export interface ProjectHealth {
-  projectId: string;
-  sessionId: string | null;
+  projectId: ProjectIdType;
+  sessionId: SessionIdType | null;
   /** Current activity state */
   activityState: ActivityState;
   /** Name of currently running tool (if any) */
@@ -56,8 +57,8 @@ const DEFAULT_CONTEXT_LIMIT = 200_000;
 // --- State ---
 
 interface ProjectTracker {
-  projectId: string;
-  sessionId: string | null;
+  projectId: ProjectIdType;
+  sessionId: SessionIdType | null;
   lastActivityTs: number; // epoch ms
   lastToolName: string | null;
   toolInFlight: boolean;
@@ -67,15 +68,15 @@ interface ProjectTracker {
   costSnapshots: Array<[number, number]>;
 }
 
-let trackers = $state<Map<string, ProjectTracker>>(new Map());
-let stallThresholds = $state<Map<string, number>>(new Map()); // projectId → ms
+let trackers = $state<Map<ProjectIdType, ProjectTracker>>(new Map());
+let stallThresholds = $state<Map<ProjectIdType, number>>(new Map()); // projectId → ms
 let tickTs = $state<number>(Date.now());
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 
 // --- Public API ---
 
 /** Register a project for health tracking */
-export function trackProject(projectId: string, sessionId: string | null): void {
+export function trackProject(projectId: ProjectIdType, sessionId: SessionIdType | null): void {
   const existing = trackers.get(projectId);
   if (existing) {
     existing.sessionId = sessionId;
@@ -93,12 +94,12 @@ export function trackProject(projectId: string, sessionId: string | null): void 
 }
 
 /** Remove a project from health tracking */
-export function untrackProject(projectId: string): void {
+export function untrackProject(projectId: ProjectIdType): void {
   trackers.delete(projectId);
 }
 
 /** Set per-project stall threshold in minutes (null to use default) */
-export function setStallThreshold(projectId: string, minutes: number | null): void {
+export function setStallThreshold(projectId: ProjectIdType, minutes: number | null): void {
   if (minutes === null) {
     stallThresholds.delete(projectId);
   } else {
@@ -107,7 +108,7 @@ export function setStallThreshold(projectId: string, minutes: number | null): vo
 }
 
 /** Update session ID for a tracked project */
-export function updateProjectSession(projectId: string, sessionId: string): void {
+export function updateProjectSession(projectId: ProjectIdType, sessionId: SessionIdType): void {
   const t = trackers.get(projectId);
   if (t) {
     t.sessionId = sessionId;
@@ -115,7 +116,7 @@ export function updateProjectSession(projectId: string, sessionId: string): void
 }
 
 /** Record activity — call on every agent message. Auto-starts tick if stopped. */
-export function recordActivity(projectId: string, toolName?: string): void {
+export function recordActivity(projectId: ProjectIdType, toolName?: string): void {
   const t = trackers.get(projectId);
   if (!t) return;
   t.lastActivityTs = Date.now();
@@ -128,7 +129,7 @@ export function recordActivity(projectId: string, toolName?: string): void {
 }
 
 /** Record tool completion */
-export function recordToolDone(projectId: string): void {
+export function recordToolDone(projectId: ProjectIdType): void {
   const t = trackers.get(projectId);
   if (!t) return;
   t.lastActivityTs = Date.now();
@@ -136,7 +137,7 @@ export function recordToolDone(projectId: string): void {
 }
 
 /** Record a token/cost snapshot for burn rate calculation */
-export function recordTokenSnapshot(projectId: string, totalTokens: number, costUsd: number): void {
+export function recordTokenSnapshot(projectId: ProjectIdType, totalTokens: number, costUsd: number): void {
   const t = trackers.get(projectId);
   if (!t) return;
   const now = Date.now();
@@ -272,7 +273,7 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
 }
 
 /** Get health for a single project (reactive via tickTs) */
-export function getProjectHealth(projectId: string): ProjectHealth | null {
+export function getProjectHealth(projectId: ProjectIdType): ProjectHealth | null {
   // Touch tickTs to make this reactive to the timer
   const now = tickTs;
   const t = trackers.get(projectId);
