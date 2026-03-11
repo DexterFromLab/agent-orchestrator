@@ -1,6 +1,7 @@
 // Agent Dispatcher — connects sidecar bridge events to agent store
 // Thin coordinator that routes sidecar messages to specialized modules
 
+import { SessionId, type SessionId as SessionIdType } from './types/ids';
 import { onSidecarMessage, onSidecarExited, restartAgent, type SidecarMessage } from './adapters/agent-bridge';
 import { adaptMessage } from './adapters/message-adapters';
 import type { InitContent, CostContent, ToolCallContent } from './adapters/claude-messages';
@@ -68,8 +69,8 @@ export async function startAgentDispatcher(): Promise<void> {
       restartAttempts = 0;
     }
 
-    const sessionId = msg.sessionId;
-    if (!sessionId) return;
+    if (!msg.sessionId) return;
+    const sessionId = SessionId(msg.sessionId);
 
     switch (msg.type) {
       case 'agent_started':
@@ -139,7 +140,7 @@ export async function startAgentDispatcher(): Promise<void> {
   });
 }
 
-function handleAgentEvent(sessionId: string, event: Record<string, unknown>): void {
+function handleAgentEvent(sessionId: SessionIdType, event: Record<string, unknown>): void {
   const provider = getSessionProvider(sessionId);
   const messages = adaptMessage(provider, event);
 
