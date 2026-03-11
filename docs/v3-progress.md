@@ -637,3 +637,28 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 #### Verification
 - [x] vitest: 219/219 tests pass (no regressions)
 - [x] cargo test: 42/42 pass (no regressions)
+
+### Session: 2026-03-11 — S-1 Phase 3: Worktree Isolation Per Project
+
+#### UI toggle
+- [x] Added 'Worktree Isolation' checkbox to SettingsTab per-project card (card-field-row CSS layout)
+- [x] ProjectConfig.useWorktrees? already existed — wired to toggle
+
+#### Spawn with worktree flag
+- [x] Added worktree_name: Option<String> to AgentQueryOptions (Rust sidecar.rs)
+- [x] Added worktree_name?: string to TS AgentQueryOptions (agent-bridge.ts)
+- [x] Sidecar JSON passes worktreeName field to claude-runner.ts
+- [x] claude-runner.ts passes extraArgs: { worktree: name } to SDK query() (maps to --worktree CLI flag)
+- [x] AgentPane: added useWorktrees prop, passes worktree_name=sessionId when enabled
+- [x] AgentSession: passes useWorktrees={project.useWorktrees} to AgentPane
+- [x] Rebuilt sidecar bundle (claude-runner.mjs)
+
+#### CWD-based worktree detection
+- [x] Added detectWorktreeFromCwd() to agent-dispatcher.ts (matches .claude/.codex/.cursor worktree patterns)
+- [x] Init event handler now calls setSessionWorktree() when CWD contains worktree path
+- [x] Dual detection: CWD-based (primary) + tool_call-based extractWorktreePath (subagent fallback)
+
+#### Tests
+- [x] Added 7 new tests to agent-dispatcher.test.ts (detectWorktreeFromCwd unit tests + init CWD integration)
+- [x] vitest: 226/226 tests pass
+- [x] cargo test: 42/42 pass

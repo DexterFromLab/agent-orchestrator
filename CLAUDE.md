@@ -58,7 +58,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/providers/types.ts` | Provider abstraction types (ProviderId, ProviderCapabilities, ProviderMeta, ProviderSettings) |
 | `v2/src/lib/providers/registry.svelte.ts` | Svelte 5 rune-based provider registry (registerProvider, getProviders) |
 | `v2/src/lib/providers/claude.ts` | Claude provider metadata constant (CLAUDE_PROVIDER) |
-| `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + subagent routing + session persistence + toast notifications |
+| `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + subagent routing + session persistence + toast notifications + CWD-based worktree detection |
 | `v2/src/lib/adapters/file-bridge.ts` | File watcher IPC wrapper |
 | `v2/src/lib/adapters/settings-bridge.ts` | Settings IPC wrapper (get/set/list) |
 | `v2/src/lib/adapters/ctx-bridge.ts` | ctx database IPC wrapper |
