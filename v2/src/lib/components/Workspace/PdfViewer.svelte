@@ -3,11 +3,9 @@
   import { convertFileSrc } from '@tauri-apps/api/core';
   import * as pdfjsLib from 'pdfjs-dist';
 
-  // Configure worker — use the bundled worker from pdfjs-dist
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/pdf.worker.min.mjs',
-    import.meta.url,
-  ).href;
+  // Worker copied to public/ — Vite serves it as a static asset.
+  // Avoids Vite/Rollup resolution issues with pdfjs worker imports.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
   interface Props {
     filePath: string;
@@ -22,7 +20,10 @@
   let error = $state<string | null>(null);
 
   let pdfDoc: pdfjsLib.PDFDocumentProxy | null = null;
-  let renderTask: { cancel: () => void } | null = null;
+  let observer: IntersectionObserver | null = null;
+  // Track which pages have been rendered and which are pending
+  let renderedPages = new Set<number>();
+  let renderingPages = new Set<number>();
 
   const SCALE_STEP = 0.25;
   const MIN_SCALE = 0.5;
@@ -31,22 +32,14 @@
   async function loadPdf(path: string) {
     loading = true;
     error = null;
-
-    // Clean up previous document
-    if (pdfDoc) {
-      pdfDoc.destroy();
-      pdfDoc = null;
-    }
-    if (container) {
-      container.querySelectorAll('.pdf-page-canvas').forEach(c => c.remove());
-    }
+    cleanup();
 
     try {
       const assetUrl = convertFileSrc(path);
       const loadingTask = pdfjsLib.getDocument(assetUrl);
       pdfDoc = await loadingTask.promise;
       pageCount = pdfDoc.numPages;
-      await renderAllPages();
+      createPlaceholders();
     } catch (e) {
       error = `Failed to load PDF: ${e}`;
       console.warn('PDF load error:', e);
@@ -55,62 +48,115 @@
     }
   }
 
-  async function renderAllPages() {
+  /** Create placeholder divs for each page, observed for lazy rendering */
+  function createPlaceholders() {
     if (!pdfDoc || !container) return;
 
-    // Clear existing canvases
-    container.querySelectorAll('.pdf-page-canvas').forEach(c => c.remove());
+    // Clean existing
+    container.innerHTML = '';
+    renderedPages.clear();
+    renderingPages.clear();
+
+    // Stop old observer
+    observer?.disconnect();
+    observer = new IntersectionObserver(onIntersect, {
+      root: container,
+      rootMargin: '200px 0px', // pre-render 200px ahead
+    });
 
     for (let i = 1; i <= pdfDoc.numPages; i++) {
-      await renderPage(i);
+      const placeholder = document.createElement('div');
+      placeholder.className = 'pdf-page-slot';
+      placeholder.dataset.page = String(i);
+      // Estimate height from first page viewport (or fallback)
+      placeholder.style.width = '100%';
+      placeholder.style.minHeight = '20rem';
+      container.appendChild(placeholder);
+      observer.observe(placeholder);
     }
   }
 
-  async function renderPage(pageNum: number) {
-    if (!pdfDoc || !container) return;
+  function onIntersect(entries: IntersectionObserverEntry[]) {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const pageNum = Number((entry.target as HTMLElement).dataset.page);
+      if (!pageNum || renderedPages.has(pageNum) || renderingPages.has(pageNum)) continue;
+      renderPage(pageNum, entry.target as HTMLElement);
+    }
+  }
 
-    const page = await pdfDoc.getPage(pageNum);
-    const viewport = page.getViewport({ scale: currentScale * window.devicePixelRatio });
-    const displayViewport = page.getViewport({ scale: currentScale });
+  async function renderPage(pageNum: number, slot: HTMLElement) {
+    if (!pdfDoc) return;
+    renderingPages.add(pageNum);
 
-    const canvas = document.createElement('canvas');
-    canvas.className = 'pdf-page-canvas';
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    canvas.style.width = `${displayViewport.width}px`;
-    canvas.style.height = `${displayViewport.height}px`;
-
-    container.appendChild(canvas);
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    renderTask = page.render({ canvasContext: ctx, viewport });
     try {
-      await renderTask.promise;
+      const page = await pdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: currentScale * window.devicePixelRatio });
+      const displayViewport = page.getViewport({ scale: currentScale });
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'pdf-page-canvas';
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = `${displayViewport.width}px`;
+      canvas.style.height = `${displayViewport.height}px`;
+
+      // Replace placeholder content with canvas
+      slot.innerHTML = '';
+      slot.style.minHeight = '';
+      slot.appendChild(canvas);
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const task = page.render({ canvasContext: ctx, viewport });
+      await task.promise;
+      renderedPages.add(pageNum);
+
+      // Stop observing once rendered
+      observer?.unobserve(slot);
     } catch (e: unknown) {
-      // Ignore cancelled renders
       if (e && typeof e === 'object' && 'name' in e && (e as { name: string }).name !== 'RenderingCancelledException') {
         console.warn(`Failed to render page ${pageNum}:`, e);
       }
+    } finally {
+      renderingPages.delete(pageNum);
     }
+  }
+
+  function rerender() {
+    renderedPages.clear();
+    renderingPages.clear();
+    createPlaceholders();
   }
 
   function zoomIn() {
     if (currentScale >= MAX_SCALE) return;
     currentScale = Math.min(MAX_SCALE, currentScale + SCALE_STEP);
-    renderAllPages();
+    rerender();
   }
 
   function zoomOut() {
     if (currentScale <= MIN_SCALE) return;
     currentScale = Math.max(MIN_SCALE, currentScale - SCALE_STEP);
-    renderAllPages();
+    rerender();
   }
 
   function resetZoom() {
     currentScale = 1.0;
-    renderAllPages();
+    rerender();
+  }
+
+  function cleanup() {
+    observer?.disconnect();
+    observer = null;
+    renderedPages.clear();
+    renderingPages.clear();
+    if (container) container.innerHTML = '';
+    if (pdfDoc) {
+      pdfDoc.destroy();
+      pdfDoc = null;
+    }
   }
 
   onMount(() => {
@@ -128,13 +174,7 @@
   });
 
   onDestroy(() => {
-    if (renderTask) {
-      try { renderTask.cancel(); } catch { /* ignore */ }
-    }
-    if (pdfDoc) {
-      pdfDoc.destroy();
-      pdfDoc = null;
-    }
+    cleanup();
   });
 </script>
 
@@ -228,6 +268,11 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem;
+  }
+
+  .pdf-pages :global(.pdf-page-slot) {
+    display: flex;
+    justify-content: center;
   }
 
   .pdf-pages :global(.pdf-page-canvas) {
