@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { getActiveGroup } from '../../stores/workspace.svelte';
-  import type { GroupAgentConfig, GroupAgentStatus } from '../../types/groups';
+  import { getActiveGroup, getEnabledProjects } from '../../stores/workspace.svelte';
+  import type { GroupAgentConfig, GroupAgentStatus, ProjectConfig } from '../../types/groups';
   import { getGroupAgents, setAgentStatus, type BtmsgAgent } from '../../adapters/btmsg-bridge';
 
   /** Runtime agent status from btmsg database */
@@ -10,7 +10,8 @@
 
   let group = $derived(getActiveGroup());
   let agents = $derived(group?.agents ?? []);
-  let hasAgents = $derived(agents.length > 0);
+  let projects = $derived(getEnabledProjects());
+  let hasAgents = $derived(agents.length > 0 || projects.length > 0);
   let collapsed = $state(false);
 
   const ROLE_ICONS: Record<string, string> = {
@@ -76,7 +77,7 @@
       <span class="header-left">
         <span class="header-icon">{collapsed ? '▸' : '▾'}</span>
         <span class="header-title">Agents</span>
-        <span class="agent-count">{agents.length}</span>
+        <span class="agent-count">{agents.length + projects.length}</span>
       </span>
       <span class="header-right">
         {#each agents as agent (agent.id)}
@@ -89,48 +90,97 @@
             title="{ROLE_LABELS[agent.role] ?? agent.role}: {status}"
           ></span>
         {/each}
+        {#if agents.length > 0 && projects.length > 0}
+          <span class="tier-separator-dot"></span>
+        {/if}
+        {#each projects as project (project.id)}
+          {@const status = getStatus(project.id)}
+          <span
+            class="status-dot"
+            class:active={status === 'active'}
+            class:sleeping={status === 'sleeping'}
+            class:stopped={status === 'stopped'}
+            title="{project.name}: {status}"
+          ></span>
+        {/each}
       </span>
     </button>
 
     {#if !collapsed}
-      <div class="agents-grid">
-        {#each agents as agent (agent.id)}
-          {@const status = getStatus(agent.id)}
-          <div class="agent-card" class:active={status === 'active'} class:sleeping={status === 'sleeping'}>
-            <div class="card-top">
-              <span class="agent-icon">{ROLE_ICONS[agent.role] ?? '🤖'}</span>
-              <span class="agent-name">{agent.name}</span>
-              <span
-                class="card-status-dot"
-                class:active={status === 'active'}
-                class:sleeping={status === 'sleeping'}
-                class:stopped={status === 'stopped'}
-              ></span>
+      {#if agents.length > 0}
+        <div class="tier-label">
+          <span class="tier-text">Tier 1 — Management</span>
+        </div>
+        <div class="agents-grid">
+          {#each agents as agent (agent.id)}
+            {@const status = getStatus(agent.id)}
+            <div class="agent-card" class:active={status === 'active'} class:sleeping={status === 'sleeping'}>
+              <div class="card-top">
+                <span class="agent-icon">{ROLE_ICONS[agent.role] ?? '🤖'}</span>
+                <span class="agent-name">{agent.name}</span>
+                <span
+                  class="card-status-dot"
+                  class:active={status === 'active'}
+                  class:sleeping={status === 'sleeping'}
+                  class:stopped={status === 'stopped'}
+                ></span>
+              </div>
+              <div class="card-meta">
+                <span class="agent-role">{ROLE_LABELS[agent.role] ?? agent.role}</span>
+                {#if agent.model}
+                  <span class="agent-model">{agent.model}</span>
+                {/if}
+                {@const unread = getUnread(agent.id)}
+                {#if unread > 0}
+                  <span class="unread-badge">{unread}</span>
+                {/if}
+              </div>
+              <div class="card-actions">
+                <button
+                  class="action-btn"
+                  class:start={status === 'stopped'}
+                  class:stop={status !== 'stopped'}
+                  onclick={() => toggleAgent(agent)}
+                  title={status === 'stopped' ? 'Start agent' : 'Stop agent'}
+                >
+                  {status === 'stopped' ? '▶' : '■'}
+                </button>
+              </div>
             </div>
-            <div class="card-meta">
-              <span class="agent-role">{ROLE_LABELS[agent.role] ?? agent.role}</span>
-              {#if agent.model}
-                <span class="agent-model">{agent.model}</span>
-              {/if}
-              {@const unread = getUnread(agent.id)}
-              {#if unread > 0}
-                <span class="unread-badge">{unread}</span>
-              {/if}
+          {/each}
+        </div>
+      {/if}
+
+      {#if projects.length > 0}
+        <div class="tier-divider"></div>
+        <div class="tier-label">
+          <span class="tier-text">Tier 2 — Execution</span>
+        </div>
+        <div class="agents-grid">
+          {#each projects as project (project.id)}
+            {@const status = getStatus(project.id)}
+            <div class="agent-card tier2" class:active={status === 'active'} class:sleeping={status === 'sleeping'}>
+              <div class="card-top">
+                <span class="agent-icon">{project.icon}</span>
+                <span class="agent-name">{project.name}</span>
+                <span
+                  class="card-status-dot"
+                  class:active={status === 'active'}
+                  class:sleeping={status === 'sleeping'}
+                  class:stopped={status === 'stopped'}
+                ></span>
+              </div>
+              <div class="card-meta">
+                <span class="agent-role">Project</span>
+                {@const unread = getUnread(project.id)}
+                {#if unread > 0}
+                  <span class="unread-badge">{unread}</span>
+                {/if}
+              </div>
             </div>
-            <div class="card-actions">
-              <button
-                class="action-btn"
-                class:start={status === 'stopped'}
-                class:stop={status !== 'stopped'}
-                onclick={() => toggleAgent(agent)}
-                title={status === 'stopped' ? 'Start agent' : 'Stop agent'}
-              >
-                {status === 'stopped' ? '▶' : '■'}
-              </button>
-            </div>
-          </div>
-        {/each}
-      </div>
+          {/each}
+        </div>
+      {/if}
     {/if}
   </div>
 {/if}
@@ -219,10 +269,35 @@
     50% { opacity: 0.4; }
   }
 
+  .tier-label {
+    padding: 0.1rem 0.5rem;
+  }
+
+  .tier-text {
+    font-size: 0.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ctp-overlay0);
+  }
+
+  .tier-divider {
+    height: 1px;
+    margin: 0.15rem 0.5rem;
+    background: var(--ctp-surface0);
+  }
+
+  .tier-separator-dot {
+    width: 1px;
+    height: 6px;
+    background: var(--ctp-surface1);
+    margin: 0 0.1rem;
+  }
+
   .agents-grid {
     display: flex;
     gap: 0.25rem;
-    padding: 0.25rem 0.5rem 0.375rem;
+    padding: 0.1rem 0.5rem 0.25rem;
     overflow-x: auto;
   }
 
@@ -316,6 +391,14 @@
     background: var(--ctp-red);
     color: var(--ctp-base);
     border-color: var(--ctp-red);
+  }
+
+  .agent-card.tier2 {
+    min-width: 6rem;
+  }
+
+  .agent-card.tier2 .card-actions {
+    display: none;
   }
 
   .unread-badge {
