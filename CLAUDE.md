@@ -90,7 +90,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/stores/health.svelte.ts` | Project health store (activity state, burn rate, context pressure, file conflicts, attention scoring) |
 | `v2/src/lib/stores/conflicts.svelte.ts` | File overlap + external write conflict detection (per-project, session-scoped, worktree-aware, dismissible, inotify-backed) |
 | `v2/src/lib/stores/anchors.svelte.ts` | Session anchor store (per-project anchors, auto-anchor tracking, re-injection support) |
-| `v2/src/lib/types/anchors.ts` | Anchor types (AnchorType, SessionAnchor, AnchorSettings, SessionAnchorRecord) |
+| `v2/src/lib/types/anchors.ts` | Anchor types (AnchorType, SessionAnchor, AnchorSettings, AnchorBudgetScale, SessionAnchorRecord) |
 | `v2/src/lib/utils/anchor-serializer.ts` | Anchor serialization (turn grouping, observation masking, token estimation) |
 | `v2/src/lib/utils/tool-files.ts` | Shared file path extraction from tool_call inputs (extractFilePaths, extractWritePaths, extractWorktreePath) |
 | `v2/src/lib/components/StatusBar/StatusBar.svelte` | Mission Control bar (agent states, $/hr burn rate, attention queue, cost) |

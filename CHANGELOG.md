@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
 
 ### Added
-- **S-2 Session Anchors** — preserves important conversation turns through context compaction chains. Auto-anchors first 3 turns (6144 token budget) with observation masking on first compaction event. Manual pin button on AgentPane text messages. Three anchor types: auto (re-injectable), pinned (display-only), promoted (user-promoted, re-injectable). Re-injection via `system_prompt` field. ContextTab anchor section with budget meter bar, per-anchor promote/demote/remove actions. Ollama context warning toast when injecting into small context windows. SQLite `session_anchors` table with 5 CRUD commands. 5 new files (types/anchors.ts, anchors-bridge.ts, anchors.svelte.ts, anchor-serializer.ts, anchor-serializer.test.ts), 7 modified. 219 vitest + 42 cargo tests
+- **S-2 Session Anchors** — preserves important conversation turns through context compaction chains. Auto-anchors first 3 turns with observation masking (reasoning preserved in full per research). Manual pin button on AgentPane text messages. Three anchor types: auto (re-injectable), pinned (display-only), promoted (user-promoted, re-injectable). Re-injection via `system_prompt` field. ContextTab anchor section with budget meter bar, per-anchor promote/demote/remove actions. SQLite `session_anchors` table with 5 CRUD commands. 5 new files, 7 modified. 219 vitest + 42 cargo tests
+- **Configurable anchor budget scale** — `AnchorBudgetScale` type with 4 presets: Small (2K), Medium (6K, default), Large (12K), Full (20K). Per-project 4-stop range slider in SettingsTab. `ProjectConfig.anchorBudgetScale` persisted in groups.json. ContextTab budget meter derives from project setting. agent-dispatcher resolves scale on auto-anchor
 - **Agent provider adapter pattern** — full implementation (3 phases complete): core abstraction layer (provider types/registry/capabilities, message adapter registry, 4 file renames), Settings UI (collapsible per-provider config panels, per-project provider dropdown, settings persistence), sidecar routing (provider-based runner selection, env var stripping for CLAUDE*/CODEX*/OLLAMA*). 5 new files, 4 renames, 20+ modified. 6 architecture decisions (PA-1–PA-6). Docs at `docs/provider-adapter/`
 - **PDF viewer** in Files tab: `PdfViewer.svelte` using pdfjs-dist (v5.5.207). Canvas-based multi-page rendering, zoom controls (0.5x–3x, 25% steps), HiDPI-aware via devicePixelRatio. Reads PDF via `convertFileSrc()` — no new Rust commands needed
 - **CSV table view** in Files tab: `CsvTable.svelte` with RFC 4180 CSV parser (no external dependency). Auto-detects delimiter (comma, semicolon, tab). Sortable columns (numeric-aware), sticky header, row numbers, text truncation at 20rem
@@ -63,6 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `useWorktrees` optional boolean field on ProjectConfig for future per-project worktree spawning setting (groups.ts)
 
 ### Changed
+- Anchor observation masking no longer truncates assistant reasoning text (was 500 chars) — reasoning is preserved in full per research consensus (JetBrains NeurIPS 2025, SWE-agent, OpenDev ACC); only tool outputs are compacted (anchor-serializer.ts)
+- `getAnchorSettings()` now accepts optional `AnchorBudgetScale` parameter to resolve budget from per-project scale setting (anchors.svelte.ts)
+- ContextTab now derives anchor budget from `anchorBudgetScale` prop via `ANCHOR_BUDGET_SCALE_MAP` instead of hardcoded `DEFAULT_ANCHOR_SETTINGS` (ContextTab.svelte)
 - Renamed `sdk-messages.ts` → `claude-messages.ts`, `agent-runner.ts` → `claude-runner.ts`, `ClaudeSession.svelte` → `AgentSession.svelte` — provider-neutral naming for multi-provider support
 - `agent-dispatcher.ts` now uses `adaptMessage(provider, event)` from message-adapters.ts registry instead of directly calling `adaptSDKMessage` — enables per-provider message parsing
 - Rust `AgentQueryOptions` gained `provider` (String, defaults "claude") and `provider_config` (serde_json::Value) fields with serde defaults for backward compatibility
@@ -92,6 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - wdio.conf.js: added SKIP_BUILD env var to skip cargo tauri build when debug binary already exists
 
 ### Removed
+- Ollama-specific warning toast from AgentPane when injecting anchors — replaced by generic configurable budget scale slider (AgentPane.svelte)
+- Unused `notify` import from AgentPane (AgentPane.svelte)
 - `tauri-plugin-log` dependency from Cargo.toml — redundant with telemetry::init() tracing-subscriber setup
 - Individual E2E spec files (smoke.test.ts, keyboard.test.ts, settings.test.ts, workspace.test.ts) — consolidated into bterminal.test.ts
 - Workspace teardown race: `switchGroup()` now awaits `waitForPendingPersistence()` before clearing agent state, preventing data loss when agents complete during group switch (agent-dispatcher.ts, workspace.svelte.ts)

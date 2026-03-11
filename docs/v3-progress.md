@@ -596,3 +596,44 @@ All editor themes map to the same `--ctp-*` CSS custom property names (26 vars).
 - [x] vitest: 202/202 tests pass (no regressions)
 - [x] Vite build: clean
 - [x] cargo check: clean
+
+### Session: 2026-03-11 — S-2 Session Anchors
+
+#### Implementation
+- [x] Created types/anchors.ts — AnchorType, SessionAnchor, AnchorSettings, budget constants
+- [x] Created adapters/anchors-bridge.ts — 5 Tauri IPC functions (save, load, delete, clear, updateType)
+- [x] Created stores/anchors.svelte.ts — Svelte 5 rune store (per-project anchor management)
+- [x] Created utils/anchor-serializer.ts — observation masking, turn grouping, token estimation
+- [x] Created utils/anchor-serializer.test.ts — 17 tests (4 describe blocks)
+- [x] Added session_anchors SQLite table + SessionAnchorRecord struct + 5 CRUD methods (session.rs)
+- [x] Added 5 Tauri commands for anchor persistence (lib.rs)
+- [x] Auto-anchor logic in agent-dispatcher.ts on first compaction event per project
+- [x] Re-injection in AgentPane.startQuery() via system_prompt field
+- [x] Pin button on AgentPane text messages
+- [x] Anchor section in ContextTab: budget meter, promote/demote, remove
+
+#### Verification
+- [x] vitest: 219/219 tests pass (+17 new anchor tests)
+- [x] cargo test: 42/42 pass (+3 new session_anchors tests)
+
+### Session: 2026-03-11 — Configurable Anchor Budget + Truncation Fix
+
+#### Research-backed truncation fix
+- [x] Removed 500-char assistant text truncation in anchor-serializer.ts
+- [x] Research consensus (JetBrains NeurIPS 2025, SWE-agent, OpenDev ACC): reasoning must never be truncated, only tool outputs get masked
+
+#### Configurable anchor budget scale
+- [x] Added AnchorBudgetScale type ('small'|'medium'|'large'|'full') with preset map (2K/6K/12K/20K)
+- [x] Added anchorBudgetScale? field to ProjectConfig (persisted in groups.json)
+- [x] Updated getAnchorSettings() to resolve budget from scale
+- [x] Added 4-stop range slider to SettingsTab per-project settings
+- [x] Updated ContextTab to derive budget from anchorBudgetScale prop
+- [x] Updated agent-dispatcher to look up project's budget scale
+
+#### Cleanup
+- [x] Removed Ollama-specific warning toast from AgentPane (budget slider handles generically)
+- [x] Removed unused notify import from AgentPane
+
+#### Verification
+- [x] vitest: 219/219 tests pass (no regressions)
+- [x] cargo test: 42/42 pass (no regressions)
