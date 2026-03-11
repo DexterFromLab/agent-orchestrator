@@ -20,6 +20,7 @@ Commands:
                      Register an agent
   allow <from> <to>  Add contact permission
   whoami             Show current agent identity
+  graph              Visual hierarchy with status dots and links
 """
 
 import sqlite3
@@ -685,6 +686,145 @@ def cmd_notify(args):
     db.close()
 
 
+def cmd_graph(args):
+    """Show visual hierarchy graph with agent status."""
+    db = get_db()
+
+    # Get current group
+    agent_id = os.environ.get("BTMSG_AGENT_ID")
+    group_id = None
+    if agent_id:
+        agent = get_agent(db, agent_id)
+        if agent:
+            group_id = agent['group_id']
+
+    if group_id:
+        agents = db.execute(
+            "SELECT * FROM agents WHERE group_id = ? ORDER BY tier, role, name",
+            (group_id,)
+        ).fetchall()
+    else:
+        agents = db.execute("SELECT * FROM agents ORDER BY group_id, tier, role, name").fetchall()
+
+    if not agents:
+        print(f"{C_DIM}No agents registered.{C_RESET}")
+        db.close()
+        return
+
+    # Build contact map
+    contacts_map = {}
+    for a in agents:
+        rows = db.execute(
+            "SELECT contact_id FROM contacts WHERE agent_id = ?", (a['id'],)
+        ).fetchall()
+        contacts_map[a['id']] = [r['contact_id'] for r in rows]
+
+    # Unread counts
+    unread = {}
+    for a in agents:
+        count = db.execute(
+            "SELECT COUNT(*) FROM messages WHERE to_agent = ? AND read = 0",
+            (a['id'],)
+        ).fetchone()[0]
+        unread[a['id']] = count
+
+    # Status dot
+    def dot(agent):
+        s = agent['status'] or 'stopped'
+        if s == 'active':
+            return f"{C_GREEN}●{C_RESET}"
+        elif s == 'sleeping':
+            return f"{C_YELLOW}●{C_RESET}"
+        else:
+            return f"{C_RED}●{C_RESET}"
+
+    # Agent label with status
+    def label(agent):
+        d = dot(agent)
+        name = agent['name']
+        role_c = ROLE_COLORS.get(agent['role'], C_RESET)
+        unread_str = f" {C_RED}✉{unread[agent['id']]}{C_RESET}" if unread.get(agent['id'], 0) > 0 else ""
+        model_str = f" {C_DIM}[{agent['model']}]{C_RESET}" if agent['model'] else ""
+        return f"{d} {C_BOLD}{name}{C_RESET} {role_c}({agent['role']}){C_RESET}{model_str}{unread_str}"
+
+    # Separate by tier
+    tier1 = [a for a in agents if a['tier'] == 1]
+    tier2 = [a for a in agents if a['tier'] == 2]
+
+    # Find manager, architect, tester
+    manager = next((a for a in tier1 if a['role'] == 'manager'), None)
+    architect = next((a for a in tier1 if a['role'] == 'architect'), None)
+    tester = next((a for a in tier1 if a['role'] == 'tester'), None)
+    other_tier1 = [a for a in tier1 if a['role'] not in ('manager', 'architect', 'tester')]
+
+    # Draw graph
+    group_name = group_id or "all"
+    print(f"\n{C_BOLD}  ╔══════════════════════════════════════════════════════╗{C_RESET}")
+    print(f"{C_BOLD}  ║  Agent Hierarchy — {group_name:<35s}║{C_RESET}")
+    print(f"{C_BOLD}  ╚══════════════════════════════════════════════════════╝{C_RESET}")
+
+    # USER at top
+    print(f"\n  {C_BOLD}{C_CYAN}👤 USER{C_RESET}")
+    print(f"  {C_DIM}  │{C_RESET}")
+
+    # TIER 1
+    print(f"  {C_DIM}  │  ┌─────────────────────────────────────────────┐{C_RESET}")
+    print(f"  {C_DIM}  │  │{C_RESET} {C_BOLD}TIER 1 — Management{C_RESET}                       {C_DIM}│{C_RESET}")
+    print(f"  {C_DIM}  │  │{C_RESET}                                             {C_DIM}│{C_RESET}")
+
+    if manager:
+        print(f"  {C_DIM}  ├──│{C_RESET}  {label(manager)}")
+        if architect:
+            print(f"  {C_DIM}     │    ├── {C_RESET}{label(architect)}")
+            if tester:
+                print(f"  {C_DIM}     │    │     └── {C_RESET}{label(tester)}")
+        elif tester:
+            print(f"  {C_DIM}     │    └── {C_RESET}{label(tester)}")
+        for a in other_tier1:
+            print(f"  {C_DIM}     │    ├── {C_RESET}{label(a)}")
+    else:
+        for a in tier1:
+            print(f"  {C_DIM}     │  {C_RESET}  {label(a)}")
+
+    print(f"  {C_DIM}     │{C_RESET}                                             {C_DIM}│{C_RESET}")
+    print(f"  {C_DIM}     └─────────────────────────────────────────────┘{C_RESET}")
+
+    if tier2:
+        # Connection lines from manager to tier 2
+        print(f"  {C_DIM}     │{C_RESET}")
+        print(f"  {C_DIM}     │  ┌─────────────────────────────────────────────┐{C_RESET}")
+        print(f"  {C_DIM}     │  │{C_RESET} {C_BOLD}TIER 2 — Execution{C_RESET}                        {C_DIM}│{C_RESET}")
+        print(f"  {C_DIM}     │  │{C_RESET}                                             {C_DIM}│{C_RESET}")
+
+        for i, a in enumerate(tier2):
+            is_last = i == len(tier2) - 1
+            connector = "└" if is_last else "├"
+            print(f"  {C_DIM}     ├──│{C_RESET}  {connector}── {label(a)}")
+
+        print(f"  {C_DIM}        │{C_RESET}                                             {C_DIM}│{C_RESET}")
+        print(f"  {C_DIM}        └─────────────────────────────────────────────┘{C_RESET}")
+
+    # Legend
+    print(f"\n  {C_DIM}Legend: {C_GREEN}●{C_RESET}{C_DIM} active  {C_YELLOW}●{C_RESET}{C_DIM} sleeping  {C_RED}●{C_RESET}{C_DIM} stopped  {C_RED}✉{C_RESET}{C_DIM} unread{C_RESET}")
+
+    # Communication lines summary
+    print(f"\n  {C_BOLD}Communication links:{C_RESET}")
+    for a in agents:
+        targets = contacts_map.get(a['id'], [])
+        if targets:
+            target_names = []
+            for t_id in targets:
+                t = get_agent(db, t_id)
+                if t:
+                    target_names.append(t['name'])
+            if target_names:
+                role_c = ROLE_COLORS.get(a['role'], C_RESET)
+                print(f"    {role_c}{a['name']}{C_RESET} → {', '.join(target_names)}")
+
+    print()
+    db.close()
+
+
 def cmd_help(args=None):
     """Show help."""
     print(__doc__)
@@ -703,6 +843,7 @@ COMMANDS = {
     'register': cmd_register,
     'allow': cmd_allow,
     'whoami': cmd_whoami,
+    'graph': cmd_graph,
     'unread': cmd_unread_count,
     'notify': cmd_notify,
     'help': cmd_help,
