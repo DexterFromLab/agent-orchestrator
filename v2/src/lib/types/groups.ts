@@ -26,7 +26,7 @@ export interface ProjectConfig {
   systemPrompt?: string;
 }
 
-const AGENT_ROLE_ICONS: Record<string, string> = {
+export const AGENT_ROLE_ICONS: Record<string, string> = {
   manager: '🎯',
   architect: '🏗',
   tester: '🧪',

@@ -6,13 +6,15 @@
     getActiveGroupId,
     getAllGroups,
     updateProject,
+    updateAgent,
     addProject,
     removeProject,
     addGroup,
     removeGroup,
     switchGroup,
   } from '../../stores/workspace.svelte';
-  import { deriveIdentifier } from '../../types/groups';
+  import { deriveIdentifier, type GroupAgentRole, AGENT_ROLE_ICONS } from '../../types/groups';
+  import { generateAgentPrompt } from '../../utils/agent-prompts';
   import { getSetting, setSetting } from '../../adapters/settings-bridge';
   import { getCurrentTheme, setTheme } from '../../stores/theme.svelte';
   import { THEME_LIST, getPalette, type ThemeId } from '../../styles/themes';
@@ -624,6 +626,117 @@
       </button>
     </div>
   </section>
+
+  {#if activeGroup && (activeGroup.agents?.length ?? 0) > 0}
+    <section class="settings-section">
+      <h2>Agents in "{activeGroup.name}"</h2>
+
+      <div class="agent-cards">
+        {#each activeGroup.agents ?? [] as agent (agent.id)}
+          <div class="agent-config-card">
+            <div class="card-top-row">
+              <span class="agent-config-icon">{AGENT_ROLE_ICONS[agent.role] ?? '🤖'}</span>
+              <input
+                class="card-name-input"
+                value={agent.name}
+                placeholder="Agent name"
+                onchange={e => updateAgent(activeGroupId, agent.id, { name: (e.target as HTMLInputElement).value })}
+              />
+              <span class="agent-role-badge">{agent.role}</span>
+              <label class="card-toggle" title={agent.enabled ? 'Enabled' : 'Disabled'}>
+                <input
+                  type="checkbox"
+                  checked={agent.enabled}
+                  onchange={e => updateAgent(activeGroupId, agent.id, { enabled: (e.target as HTMLInputElement).checked })}
+                />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+
+            <div class="card-field">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z"/></svg>
+                Working Directory
+              </span>
+              <div class="input-with-browse">
+                <input
+                  class="cwd-input"
+                  value={agent.cwd ?? ''}
+                  placeholder="Inherits from group"
+                  title={agent.cwd ?? 'Inherits from first project'}
+                  onchange={e => updateAgent(activeGroupId, agent.id, { cwd: (e.target as HTMLInputElement).value || undefined })}
+                />
+                <button class="browse-btn" title="Browse..." onclick={async () => { const d = await browseDirectory(); if (d) updateAgent(activeGroupId, agent.id, { cwd: d }); }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7v13h18V7H3zm0-2h7l2 2h9v1H3V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="card-field">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                Model
+              </span>
+              <input
+                class="card-field-input"
+                value={agent.model ?? ''}
+                placeholder="Default (provider default)"
+                onchange={e => updateAgent(activeGroupId, agent.id, { model: (e.target as HTMLInputElement).value || undefined })}
+              />
+            </div>
+
+            {#if agent.role === 'manager'}
+              <div class="card-field">
+                <span class="card-field-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  Wake Interval
+                </span>
+                <div class="scale-slider">
+                  <input
+                    type="range"
+                    min="1"
+                    max="30"
+                    step="1"
+                    value={agent.wakeIntervalMin ?? 3}
+                    oninput={e => updateAgent(activeGroupId, agent.id, { wakeIntervalMin: parseInt((e.target as HTMLInputElement).value) })}
+                  />
+                  <span class="scale-label">{agent.wakeIntervalMin ?? 3} min</span>
+                </div>
+              </div>
+            {/if}
+
+            <div class="card-field">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Custom Context
+              </span>
+              <textarea
+                class="agent-prompt-input"
+                value={agent.systemPrompt ?? ''}
+                placeholder="Additional instructions for this agent (appended to auto-generated context)"
+                rows="3"
+                onchange={e => updateAgent(activeGroupId, agent.id, { systemPrompt: (e.target as HTMLTextAreaElement).value || undefined })}
+              ></textarea>
+            </div>
+
+            <details class="prompt-preview">
+              <summary class="prompt-preview-toggle">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Preview full introductory prompt
+              </summary>
+              <pre class="prompt-preview-content">{generateAgentPrompt({
+                role: agent.role as GroupAgentRole,
+                agentId: agent.id,
+                agentName: agent.name,
+                group: activeGroup,
+                customPrompt: agent.systemPrompt,
+              })}</pre>
+            </details>
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
 
   {#if activeGroup}
     <section class="settings-section">
@@ -1726,5 +1839,119 @@
     padding: 0.25rem 0.5rem;
     background: var(--ctp-base);
     font-size: 0.78rem;
+  }
+
+  /* Agent config cards */
+  .agent-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .agent-config-card {
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-left: 3px solid var(--ctp-mauve);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: border-color 0.15s;
+  }
+
+  .agent-config-card:hover {
+    border-color: var(--ctp-surface2);
+    border-left-color: var(--ctp-mauve);
+  }
+
+  .agent-config-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .agent-role-badge {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ctp-mauve);
+    background: color-mix(in srgb, var(--ctp-mauve) 10%, transparent);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .card-field-input {
+    padding: 0.3125rem 0.5rem;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-size: 0.78rem;
+  }
+
+  .card-field-input:focus {
+    border-color: var(--ctp-blue);
+    outline: none;
+  }
+
+  .agent-prompt-input {
+    padding: 0.375rem 0.5rem;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-size: 0.75rem;
+    font-family: var(--ui-font-family, sans-serif);
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 3rem;
+  }
+
+  .agent-prompt-input:focus {
+    border-color: var(--ctp-blue);
+    outline: none;
+  }
+
+  .agent-prompt-input::placeholder {
+    color: var(--ctp-overlay0);
+  }
+
+  .prompt-preview {
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    overflow: hidden;
+  }
+
+  .prompt-preview-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3125rem 0.5rem;
+    font-size: 0.65rem;
+    color: var(--ctp-overlay0);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+
+  .prompt-preview-toggle:hover {
+    color: var(--ctp-subtext0);
+  }
+
+  .prompt-preview-content {
+    padding: 0.5rem;
+    margin: 0;
+    background: var(--ctp-base);
+    color: var(--ctp-subtext0);
+    font-size: 0.65rem;
+    font-family: var(--term-font-family, monospace);
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 20rem;
+    overflow-y: auto;
+    border-top: 1px solid var(--ctp-surface1);
   }
 </style>
