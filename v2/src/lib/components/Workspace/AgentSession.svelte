@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import type { ProjectConfig, GroupAgentRole } from '../../types/groups';
   import { generateAgentPrompt } from '../../utils/agent-prompts';
   import { getActiveGroup } from '../../stores/workspace.svelte';
@@ -24,6 +25,9 @@
   import { SessionId, ProjectId } from '../../types/ids';
   import AgentPane from '../Agent/AgentPane.svelte';
 
+  /** How often to re-inject the system prompt (default 1 hour) */
+  const REINJECTION_INTERVAL_MS = 60 * 60 * 1000;
+
   interface Props {
     project: ProjectConfig;
     onsessionid?: (id: string) => void;
@@ -34,21 +38,55 @@
   let providerId = $derived(project.provider ?? getDefaultProviderId());
   let providerMeta = $derived(getProvider(providerId));
   let group = $derived(getActiveGroup());
+  // Build system prompt: full agent prompt for Tier 1, custom context for Tier 2
   let agentPrompt = $derived.by(() => {
-    if (!project.isAgent || !project.agentRole || !group) return undefined;
-    return generateAgentPrompt({
-      role: project.agentRole as GroupAgentRole,
-      agentId: project.id,
-      agentName: project.name,
-      group,
-      customPrompt: project.systemPrompt,
-    });
+    if (project.isAgent && project.agentRole && group) {
+      return generateAgentPrompt({
+        role: project.agentRole as GroupAgentRole,
+        agentId: project.id,
+        agentName: project.name,
+        group,
+        customPrompt: project.systemPrompt,
+      });
+    }
+    // Tier 2: pass custom context directly (if set)
+    return project.systemPrompt || undefined;
   });
 
   // Inject BTMSG_AGENT_ID for agent projects so they can use btmsg/bttask CLIs
   let agentEnv = $derived.by(() => {
     if (!project.isAgent) return undefined;
     return { BTMSG_AGENT_ID: project.id };
+  });
+
+  // Periodic context re-injection timer
+  let lastPromptTime = $state(Date.now());
+  let contextRefreshPrompt = $state<string | undefined>(undefined);
+  let reinjectionTimer: ReturnType<typeof setInterval> | null = null;
+
+  function startReinjectionTimer() {
+    if (reinjectionTimer) clearInterval(reinjectionTimer);
+    lastPromptTime = Date.now();
+    reinjectionTimer = setInterval(() => {
+      const elapsed = Date.now() - lastPromptTime;
+      if (elapsed >= REINJECTION_INTERVAL_MS && !contextRefreshPrompt) {
+        const refreshMsg = project.isAgent
+          ? '[Context Refresh] Review your role and available tools above. Check your inbox with `btmsg inbox` and review the task board with `bttask board`.'
+          : '[Context Refresh] Review the instructions above and continue your work.';
+        contextRefreshPrompt = refreshMsg;
+      }
+    }, 60_000); // Check every minute
+  }
+
+  function handleAutoPromptConsumed() {
+    contextRefreshPrompt = undefined;
+    lastPromptTime = Date.now();
+  }
+
+  // Start timer and clean up
+  startReinjectionTimer();
+  onDestroy(() => {
+    if (reinjectionTimer) clearInterval(reinjectionTimer);
   });
 
   let sessionId = $state(SessionId(crypto.randomUUID()));
@@ -60,6 +98,8 @@
     sessionId = SessionId(crypto.randomUUID());
     hasRestoredHistory = false;
     lastState = null;
+    lastPromptTime = Date.now();
+    contextRefreshPrompt = undefined;
     registerSessionProject(sessionId, ProjectId(project.id), providerId);
     trackProject(ProjectId(project.id), sessionId);
     onsessionid?.(sessionId);
@@ -153,6 +193,8 @@
       useWorktrees={project.useWorktrees ?? false}
       agentSystemPrompt={agentPrompt}
       extraEnv={agentEnv}
+      autoPrompt={contextRefreshPrompt}
+      onautopromptconsumed={handleAutoPromptConsumed}
       onExit={handleNewSession}
     />
   {/if}

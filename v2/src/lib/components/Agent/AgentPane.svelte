@@ -58,10 +58,14 @@
     agentSystemPrompt?: string;
     /** Extra env vars injected into agent process (e.g. BTMSG_AGENT_ID) */
     extraEnv?: Record<string, string>;
+    /** Auto-triggered prompt (e.g. periodic context refresh). Picked up when agent is idle. */
+    autoPrompt?: string;
+    /** Called when autoPrompt has been consumed */
+    onautopromptconsumed?: () => void;
     onExit?: () => void;
   }
 
-  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, useWorktrees = false, agentSystemPrompt, extraEnv, onExit }: Props = $props();
+  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, useWorktrees = false, agentSystemPrompt, extraEnv, autoPrompt, onautopromptconsumed, onExit }: Props = $props();
 
   let session = $derived(getAgentSession(sessionId));
   let inputPrompt = $state(initialPrompt);
@@ -144,6 +148,16 @@
 
   // NOTE: Do NOT stop agents in onDestroy — it fires on layout changes/remounts,
   // not just explicit close. Stop-on-close is handled by workspace teardown.
+
+  // Auto-prompt: pick up externally triggered prompts (e.g. periodic context refresh)
+  $effect(() => {
+    if (!autoPrompt || isRunning) return;
+    // Only trigger if session exists and is idle (done/error)
+    if (!session || (session.status !== 'done' && session.status !== 'error')) return;
+    const prompt = autoPrompt;
+    onautopromptconsumed?.();
+    startQuery(prompt, true); // resume session with context refresh
+  });
 
   let promptRef = $state<HTMLTextAreaElement | undefined>();
 
