@@ -3,6 +3,7 @@
   import { PROJECT_ACCENTS } from '../../types/groups';
   import type { ProjectHealth } from '../../stores/health.svelte';
   import { acknowledgeConflicts } from '../../stores/conflicts.svelte';
+  import { ProjectId } from '../../types/ids';
 
   interface Props {
     project: ProjectConfig;
@@ -85,7 +86,7 @@
       <button
         class="info-conflict info-conflict-external"
         title="{health.externalConflictCount} external write{health.externalConflictCount > 1 ? 's' : ''} — files modified outside agent — click to dismiss"
-        onclick={(e: MouseEvent) => { e.stopPropagation(); acknowledgeConflicts(project.id); }}
+        onclick={(e: MouseEvent) => { e.stopPropagation(); acknowledgeConflicts(ProjectId(project.id)); }}
       >
         ⚡ {health.externalConflictCount} ext write{health.externalConflictCount > 1 ? 's' : ''} ✕
       </button>
@@ -95,7 +96,7 @@
       <button
         class="info-conflict"
         title="{health.fileConflictCount - (health.externalConflictCount ?? 0)} agent conflict{health.fileConflictCount - (health.externalConflictCount ?? 0) > 1 ? 's' : ''} — click to dismiss"
-        onclick={(e: MouseEvent) => { e.stopPropagation(); acknowledgeConflicts(project.id); }}
+        onclick={(e: MouseEvent) => { e.stopPropagation(); acknowledgeConflicts(ProjectId(project.id)); }}
       >
         ⚠ {health.fileConflictCount - (health.externalConflictCount ?? 0)} conflict{health.fileConflictCount - (health.externalConflictCount ?? 0) > 1 ? 's' : ''} ✕
       </button>

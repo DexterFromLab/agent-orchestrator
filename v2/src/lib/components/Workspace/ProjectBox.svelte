@@ -15,6 +15,7 @@
   import { getProjectHealth, setStallThreshold } from '../../stores/health.svelte';
   import { fsWatchProject, fsUnwatchProject, onFsWriteDetected, fsWatcherStatus } from '../../adapters/fs-watcher-bridge';
   import { recordExternalWrite } from '../../stores/conflicts.svelte';
+  import { ProjectId } from '../../types/ids';
   import { notify, dismissNotification } from '../../stores/notifications.svelte';
 
   interface Props {
@@ -89,7 +90,7 @@
     let unlisten: (() => void) | null = null;
     onFsWriteDetected((event) => {
       if (event.project_id !== projectId) return;
-      const isNew = recordExternalWrite(projectId, event.file_path, event.timestamp_ms);
+      const isNew = recordExternalWrite(ProjectId(projectId), event.file_path, event.timestamp_ms);
       if (isNew) {
         const shortName = event.file_path.split('/').pop() ?? event.file_path;
         notify('warning', `External write: ${shortName} — file also modified by agent`);

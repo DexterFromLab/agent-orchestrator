@@ -19,6 +19,7 @@
   import type { AgentMessage } from '../../adapters/claude-messages';
   import { getProvider, getDefaultProviderId } from '../../providers/registry.svelte';
   import { loadAnchorsForProject } from '../../stores/anchors.svelte';
+  import { SessionId, ProjectId } from '../../types/ids';
   import AgentPane from '../Agent/AgentPane.svelte';
 
   interface Props {
@@ -31,17 +32,17 @@
   let providerId = $derived(project.provider ?? getDefaultProviderId());
   let providerMeta = $derived(getProvider(providerId));
 
-  let sessionId = $state(crypto.randomUUID());
+  let sessionId = $state(SessionId(crypto.randomUUID()));
   let lastState = $state<ProjectAgentState | null>(null);
   let loading = $state(true);
   let hasRestoredHistory = $state(false);
 
   function handleNewSession() {
-    sessionId = crypto.randomUUID();
+    sessionId = SessionId(crypto.randomUUID());
     hasRestoredHistory = false;
     lastState = null;
-    registerSessionProject(sessionId, project.id, providerId);
-    trackProject(project.id, sessionId);
+    registerSessionProject(sessionId, ProjectId(project.id), providerId);
+    trackProject(ProjectId(project.id), sessionId);
     onsessionid?.(sessionId);
   }
 
@@ -58,7 +59,7 @@
       const state = await loadProjectAgentState(projectId);
       lastState = state;
       if (state?.last_session_id) {
-        sessionId = state.last_session_id as ReturnType<typeof crypto.randomUUID>;
+        sessionId = SessionId(state.last_session_id);
 
         // Restore cached messages into the agent store
         const records = await loadAgentMessages(projectId);
@@ -67,18 +68,18 @@
           hasRestoredHistory = true;
         }
       } else {
-        sessionId = crypto.randomUUID();
+        sessionId = SessionId(crypto.randomUUID());
       }
     } catch (e) {
       console.warn('Failed to load project agent state:', e);
-      sessionId = crypto.randomUUID();
+      sessionId = SessionId(crypto.randomUUID());
     } finally {
       loading = false;
       // Load persisted anchors for this project
-      loadAnchorsForProject(project.id);
+      loadAnchorsForProject(ProjectId(project.id));
       // Register session -> project mapping for persistence + health tracking
-      registerSessionProject(sessionId, project.id, providerId);
-      trackProject(project.id, sessionId);
+      registerSessionProject(sessionId, ProjectId(project.id), providerId);
+      trackProject(ProjectId(project.id), sessionId);
       onsessionid?.(sessionId);
     }
   }
