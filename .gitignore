@@ -7,7 +7,7 @@ debug/
 plugins/
 projects/
 .playwright-mcp/
-v2/.audit/
+.audit/
 .tribunal/
 .vscode/
 .local/
