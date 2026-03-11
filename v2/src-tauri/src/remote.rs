@@ -56,6 +56,8 @@ struct RemoteMachine {
     config: RemoteMachineConfig,
     status: String,
     connection: Option<WsConnection>,
+    /// Cancellation signal — set to true to stop reconnect loops for this machine
+    cancelled: Arc<std::sync::atomic::AtomicBool>,
 }
 
 pub struct RemoteManager {
@@ -87,6 +89,7 @@ impl RemoteManager {
             config,
             status: "disconnected".to_string(),
             connection: None,
+            cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         };
         self.machines.lock().await.insert(id.clone(), machine);
         id
@@ -95,6 +98,8 @@ impl RemoteManager {
     pub async fn remove_machine(&self, machine_id: &str) -> Result<(), String> {
         let mut machines = self.machines.lock().await;
         if let Some(machine) = machines.get_mut(machine_id) {
+            // Signal cancellation to stop any reconnect loops
+            machine.cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
             // Abort connection tasks before removing to prevent resource leaks
             if let Some(conn) = machine.connection.take() {
                 conn._handle.abort();
@@ -114,6 +119,8 @@ impl RemoteManager {
                 return Err("Already connected".to_string());
             }
             machine.status = "connecting".to_string();
+            // Reset cancellation flag for new connection
+            machine.cancelled.store(false, std::sync::atomic::Ordering::Relaxed);
             (machine.config.url.clone(), machine.config.token.clone())
         };
 
@@ -151,6 +158,11 @@ impl RemoteManager {
         let app_handle = app.clone();
         let mid = machine_id.to_string();
         let machines_ref = self.machines.clone();
+        let cancelled_flag = {
+            let machines = self.machines.lock().await;
+            machines.get(machine_id).map(|m| m.cancelled.clone())
+                .unwrap_or_else(|| Arc::new(std::sync::atomic::AtomicBool::new(false)))
+        };
         let reader_handle = tokio::spawn(async move {
             while let Some(msg) = ws_rx.next().await {
                 match msg {
@@ -240,12 +252,19 @@ impl RemoteManager {
             let reconnect_machines = machines_ref.clone();
             let reconnect_app = app_handle.clone();
             let reconnect_mid = mid.clone();
+            let reconnect_cancelled = cancelled_flag.clone();
             tokio::spawn(async move {
                 let mut delay = std::time::Duration::from_secs(1);
                 let max_delay = std::time::Duration::from_secs(30);
 
                 loop {
                     tokio::time::sleep(delay).await;
+
+                    // Check cancellation flag first (set by remove_machine/disconnect)
+                    if reconnect_cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+                        log::info!("Reconnection cancelled (machine removed) for {reconnect_mid}");
+                        break;
+                    }
 
                     // Check if machine still exists and wants reconnection
                     let should_reconnect = {
@@ -335,6 +354,8 @@ impl RemoteManager {
         let mut machines = self.machines.lock().await;
         let machine = machines.get_mut(machine_id)
             .ok_or_else(|| format!("Machine {machine_id} not found"))?;
+        // Signal cancellation to stop any reconnect loops
+        machine.cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
         if let Some(conn) = machine.connection.take() {
             conn._handle.abort();
         }
