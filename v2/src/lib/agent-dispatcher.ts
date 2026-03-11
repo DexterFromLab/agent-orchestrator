@@ -37,7 +37,6 @@ import {
 
 // Re-export public API consumed by other modules
 export { registerSessionProject, waitForPendingPersistence } from './utils/session-persistence';
-export { detectWorktreeFromCwd } from './utils/worktree-detection';
 
 let unlistenMsg: (() => void) | null = null;
 let unlistenExit: (() => void) | null = null;
