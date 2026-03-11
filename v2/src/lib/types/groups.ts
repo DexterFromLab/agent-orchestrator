@@ -16,6 +16,8 @@ export interface ProjectConfig {
   useWorktrees?: boolean;
   /** Anchor token budget scale (defaults to 'medium' = 6K tokens) */
   anchorBudgetScale?: AnchorBudgetScale;
+  /** Stall detection threshold in minutes (defaults to 15) */
+  stallThresholdMin?: number;
 }
 
 export interface GroupConfig {

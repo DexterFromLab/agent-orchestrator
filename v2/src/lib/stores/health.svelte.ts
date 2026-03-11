@@ -35,7 +35,7 @@ export type AttentionItem = ProjectHealth & { projectName: string; projectIcon: 
 
 // --- Configuration ---
 
-const STALL_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
+const DEFAULT_STALL_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
 const TICK_INTERVAL_MS = 5_000; // Update derived state every 5s
 const BURN_RATE_WINDOW_MS = 5 * 60 * 1000; // 5-minute window for burn rate calc
 
@@ -74,6 +74,7 @@ interface ProjectTracker {
 }
 
 let trackers = $state<Map<string, ProjectTracker>>(new Map());
+let stallThresholds = $state<Map<string, number>>(new Map()); // projectId → ms
 let tickTs = $state<number>(Date.now());
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -100,6 +101,15 @@ export function trackProject(projectId: string, sessionId: string | null): void 
 /** Remove a project from health tracking */
 export function untrackProject(projectId: string): void {
   trackers.delete(projectId);
+}
+
+/** Set per-project stall threshold in minutes (null to use default) */
+export function setStallThreshold(projectId: string, minutes: number | null): void {
+  if (minutes === null) {
+    stallThresholds.delete(projectId);
+  } else {
+    stallThresholds.set(projectId, minutes * 60 * 1000);
+  }
 }
 
 /** Update session ID for a tracked project */
@@ -177,6 +187,7 @@ export function stopHealthTick(): void {
 /** Clear all tracked projects */
 export function clearHealthTracking(): void {
   trackers = new Map();
+  stallThresholds = new Map();
 }
 
 // --- Derived health per project ---
@@ -217,7 +228,8 @@ function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
     idleDurationMs = 0;
   } else {
     idleDurationMs = now - tracker.lastActivityTs;
-    if (idleDurationMs >= STALL_THRESHOLD_MS) {
+    const stallMs = stallThresholds.get(tracker.projectId) ?? DEFAULT_STALL_THRESHOLD_MS;
+    if (idleDurationMs >= stallMs) {
       activityState = 'stalled';
     } else {
       activityState = 'idle';

@@ -808,6 +808,26 @@
               </label>
             </div>
 
+            <div class="card-field">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                Stall Threshold
+              </span>
+              <div class="scale-slider">
+                <input
+                  type="range"
+                  min="5"
+                  max="60"
+                  step="5"
+                  value={project.stallThresholdMin ?? 15}
+                  oninput={(e) => {
+                    updateProject(activeGroupId, project.id, { stallThresholdMin: parseInt((e.target as HTMLInputElement).value) });
+                  }}
+                />
+                <span class="scale-label">{project.stallThresholdMin ?? 15} min</span>
+              </div>
+            </div>
+
             <div class="card-footer">
               <button class="btn-remove" onclick={() => removeProject(activeGroupId, project.id)}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>

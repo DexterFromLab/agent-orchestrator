@@ -12,7 +12,7 @@
   import SshTab from './SshTab.svelte';
   import MemoriesTab from './MemoriesTab.svelte';
   import { getTerminalTabs } from '../../stores/workspace.svelte';
-  import { getProjectHealth } from '../../stores/health.svelte';
+  import { getProjectHealth, setStallThreshold } from '../../stores/health.svelte';
   import { fsWatchProject, fsUnwatchProject, onFsWriteDetected, fsWatcherStatus } from '../../adapters/fs-watcher-bridge';
   import { recordExternalWrite } from '../../stores/conflicts.svelte';
   import { notify, dismissNotification } from '../../stores/notifications.svelte';
@@ -51,6 +51,11 @@
   function toggleTerminal() {
     terminalExpanded = !terminalExpanded;
   }
+
+  // Sync per-project stall threshold to health store
+  $effect(() => {
+    setStallThreshold(project.id, project.stallThresholdMin ?? null);
+  });
 
   // S-1 Phase 2: start filesystem watcher for this project's CWD
   $effect(() => {
