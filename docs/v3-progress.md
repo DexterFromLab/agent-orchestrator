@@ -747,3 +747,20 @@ Ran nemezis-audit on Rust backend. 0 verified exploitable findings, 10 recon tar
 #### Results
 - [x] cargo check: clean
 - [x] cargo test: 49/49 pass
+
+### Session 2026-03-11 (SOLID Phase 1 Refactoring)
+
+#### SOLID Analysis
+- [x] Ran /solid on full v2 codebase (TypeScript + Rust)
+- [x] Identified 3 critical, 5 high, 5 medium issues; 8 good-practice modules
+
+#### Phase 1 Refactoring — High-impact, Low-risk
+- [x] **AttentionScorer extraction**: scoreAttention() pure function from health.svelte.ts → utils/attention-scorer.ts (14 tests)
+- [x] **Shared type guards**: str()/num() from 3 adapter copies → utils/type-guards.ts
+- [x] **lib.rs command module split**: 976 → 170 lines, 48 commands → 11 domain modules under commands/
+- [x] Skipped withRemoteSupport() HOF — parameter shapes differ, 3-line duplication doesn't justify abstraction
+
+#### Results
+- [x] vitest: 286/286 pass (14 new attention-scorer tests)
+- [x] cargo check: clean
+- [x] cargo test: 49/49 pass

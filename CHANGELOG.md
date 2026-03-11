@@ -8,10 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
-- `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (lib.rs)
+- `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (commands/claude.rs)
 
 ### Fixed
 - **Reconnect loop race in RemoteManager** — orphaned reconnect tasks continued running after `remove_machine()` or `disconnect()`. Added `cancelled: Arc<AtomicBool>` flag to `RemoteMachine`; set on removal/disconnect, checked each reconnect iteration. `connect()` resets flag for new connections (remote.rs)
+
+### Changed
+- **lib.rs command module split** — 976-line monolith with 48 Tauri commands split into 11 domain modules under `src-tauri/src/commands/` (pty, agent, watcher, session, persistence, knowledge, claude, groups, files, remote, misc). lib.rs reduced to ~170 lines (AppState + setup + handler registration)
+- **Attention scorer extraction** — `scoreAttention()` pure function extracted from inline health store code to `utils/attention-scorer.ts` with 14 tests. Priority chain: stalled > error > context critical > file conflict > context high
+- **Shared type guards** — deduplicated `str()`/`num()` runtime guards from claude-messages.ts, codex-messages.ts, ollama-messages.ts into shared `utils/type-guards.ts`
 
 ### Added
 - **Configurable stall threshold** — per-project range slider (5–60 min, step 5) in SettingsTab. `stallThresholdMin` in `ProjectConfig` (groups.json), `setStallThreshold()` API in health store with `stallThresholds` Map and `DEFAULT_STALL_THRESHOLD_MS` fallback. ProjectBox `$effect` syncs config → store on mount/change

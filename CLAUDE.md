@@ -36,7 +36,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/pty.rs` | PTY backend (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/groups.rs` | Groups config (load/save ~/.config/bterminal/groups.json) |
 | `v2/src-tauri/src/fs_watcher.rs` | ProjectFsWatcher (inotify per-project recursive file change detection, S-1 Phase 2) |
-| `v2/src-tauri/src/lib.rs` | Tauri commands (pty + agent + session + file + fs_watcher + settings + 12 remote + 4 claude + 2 groups) |
+| `v2/src-tauri/src/lib.rs` | AppState + setup + handler registration (~170 lines) |
+| `v2/src-tauri/src/commands/` | 11 domain command modules (pty, agent, watcher, session, persistence, knowledge, claude, groups, files, remote, misc) |
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |
 | `v2/src-tauri/src/remote.rs` | RemoteManager (WebSocket client connections to relays) |
@@ -79,6 +80,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/telemetry-bridge.ts` | Frontend telemetry bridge (routes events to Rust tracing via IPC) |
 | `docker/tempo/` | Docker compose: Tempo + Grafana for trace visualization (port 9715) |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
+| `v2/src/lib/utils/attention-scorer.ts` | Pure attention scoring function (extracted from health store, 14 tests) |
+| `v2/src/lib/utils/type-guards.ts` | Shared runtime guards: str(), num() for untyped wire format parsing |
 | `v2/src/lib/utils/agent-tree.ts` | Agent tree builder (hierarchy from messages) |
 | `v2/src/lib/utils/highlight.ts` | Shiki syntax highlighter (lazy singleton, 13 languages) |
 | `v2/src/lib/utils/detach.ts` | Detached pane mode (pop-out windows via URL params) |
