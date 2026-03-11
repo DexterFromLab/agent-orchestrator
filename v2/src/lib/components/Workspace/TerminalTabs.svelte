@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { ProjectConfig } from '../../types/groups';
   import {
     getTerminalTabs,
@@ -6,8 +7,32 @@
     removeTerminalTab,
     type TerminalTab,
   } from '../../stores/workspace.svelte';
+  import { listSshSessions, type SshSession } from '../../adapters/ssh-bridge';
   import TerminalPane from '../Terminal/TerminalPane.svelte';
   import AgentPreviewPane from '../Terminal/AgentPreviewPane.svelte';
+
+  /** Cached SSH sessions for building args */
+  let sshSessions = $state<SshSession[]>([]);
+
+  onMount(() => {
+    listSshSessions().then(s => { sshSessions = s; }).catch(() => {});
+  });
+
+  /** Resolved SSH args per tab, keyed by tab id */
+  let sshArgsCache = $derived.by(() => {
+    const cache: Record<string, string[]> = {};
+    for (const tab of tabs) {
+      if (tab.type !== 'ssh' || !tab.sshSessionId) continue;
+      const session = sshSessions.find(s => s.id === tab.sshSessionId);
+      if (!session) continue;
+      const args: string[] = [];
+      if (session.key_file) args.push('-i', session.key_file);
+      if (session.port && session.port !== 22) args.push('-p', String(session.port));
+      args.push(`${session.username}@${session.host}`);
+      cache[tab.id] = args;
+    }
+    return cache;
+  });
 
   interface Props {
     project: ProjectConfig;
@@ -100,17 +125,23 @@
 
   <div class="tab-content">
     {#each tabs as tab (tab.id)}
-      <div class="tab-pane" class:visible={activeTabId === tab.id}>
-        {#if activeTabId === tab.id}
-          {#if tab.type === 'agent-preview' && tab.agentSessionId}
+      <div class="tab-pane" style:display={activeTabId === tab.id ? 'block' : 'none'}>
+        {#if tab.type === 'agent-preview' && tab.agentSessionId}
+          {#if activeTabId === tab.id}
             <AgentPreviewPane sessionId={tab.agentSessionId} />
-          {:else}
-            <TerminalPane
-              cwd={project.cwd}
-              shell={tab.type === 'ssh' ? '/usr/bin/ssh' : undefined}
-              onExit={() => handleTabExit(tab.id)}
-            />
           {/if}
+        {:else if tab.type === 'ssh' && sshArgsCache[tab.id]}
+          <TerminalPane
+            cwd={project.cwd}
+            shell="/usr/bin/ssh"
+            args={sshArgsCache[tab.id]}
+            onExit={() => handleTabExit(tab.id)}
+          />
+        {:else if tab.type === 'shell'}
+          <TerminalPane
+            cwd={project.cwd}
+            onExit={() => handleTabExit(tab.id)}
+          />
         {/if}
       </div>
     {/each}
@@ -217,11 +248,6 @@
   .tab-pane {
     position: absolute;
     inset: 0;
-    display: none;
-  }
-
-  .tab-pane.visible {
-    display: block;
   }
 
   .empty-terminals {

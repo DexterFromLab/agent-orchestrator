@@ -83,7 +83,7 @@ pub fn discover_markdown_files(cwd: &str) -> Result<Vec<MdFileEntry>, String> {
     let mut entries = Vec::new();
 
     // Priority files at root
-    for name in &["CLAUDE.md", "README.md", "CHANGELOG.md", "TODO.md"] {
+    for name in &["CLAUDE.md", "README.md", "CHANGELOG.md", "TODO.md", "SETUP.md"] {
         let path = root.join(name);
         if path.is_file() {
             entries.push(MdFileEntry {
@@ -94,10 +94,12 @@ pub fn discover_markdown_files(cwd: &str) -> Result<Vec<MdFileEntry>, String> {
         }
     }
 
-    // docs/ directory (max 20 entries, depth 2)
-    let docs_dir = root.join("docs");
-    if docs_dir.is_dir() {
-        scan_md_dir(&docs_dir, &mut entries, 2, 20);
+    // docs/ or doc/ directory (max 20 entries, depth 2)
+    for dir_name in &["docs", "doc"] {
+        let docs_dir = root.join(dir_name);
+        if docs_dir.is_dir() {
+            scan_md_dir(&docs_dir, &mut entries, 2, 20);
+        }
     }
 
     Ok(entries)
@@ -221,5 +223,27 @@ mod tests {
         let result = discover_markdown_files(dir.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 2);
         assert!(result.iter().all(|e| !e.priority));
+    }
+
+    #[test]
+    fn test_discover_finds_doc_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let doc = dir.path().join("doc");
+        std::fs::create_dir(&doc).unwrap();
+        std::fs::write(doc.join("requirements.md"), "# Req").unwrap();
+        let result = discover_markdown_files(dir.path().to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "requirements.md");
+        assert!(!result[0].priority);
+    }
+
+    #[test]
+    fn test_discover_finds_setup_md() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("SETUP.md"), "# Setup").unwrap();
+        let result = discover_markdown_files(dir.path().to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "SETUP.md");
+        assert!(result[0].priority);
     }
 }
