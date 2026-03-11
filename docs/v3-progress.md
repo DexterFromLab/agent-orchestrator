@@ -764,3 +764,28 @@ Ran nemezis-audit on Rust backend. 0 verified exploitable findings, 10 recon tar
 - [x] vitest: 286/286 pass (14 new attention-scorer tests)
 - [x] cargo check: clean
 - [x] cargo test: 49/49 pass
+
+### Session 2026-03-11 (SOLID Phase 2 Refactoring)
+
+#### agent-dispatcher.ts Split (496→260 lines)
+- [x] Extracted utils/worktree-detection.ts — detectWorktreeFromCwd() pure function (17 lines, 5 tests)
+- [x] Extracted utils/session-persistence.ts — session maps + persistSessionForProject (107 lines)
+- [x] Extracted utils/auto-anchoring.ts — triggerAutoAnchor (48 lines)
+- [x] Extracted utils/subagent-router.ts — spawnSubagentPane + SUBAGENT_TOOL_NAMES (73 lines)
+- [x] Dispatcher is now thin coordinator with re-exports for backward compat
+
+#### session.rs Split (1,008 lines → 7 sub-modules)
+- [x] session/mod.rs — SessionDb struct + open() + migrate() + re-exports (153 lines)
+- [x] session/sessions.rs — Session CRUD (9 tests)
+- [x] session/layout.rs — LayoutState save/load (3 tests)
+- [x] session/settings.rs — Settings CRUD (5 tests)
+- [x] session/ssh.rs — SshSession CRUD (4 tests)
+- [x] session/agents.rs — AgentMessageRecord + ProjectAgentState
+- [x] session/metrics.rs — SessionMetric save/load
+- [x] session/anchors.rs — SessionAnchorRecord CRUD
+- [x] conn field: pub(in crate::session) for sub-module access
+
+#### Results
+- [x] vitest: 286/286 pass (5 worktree tests moved to new file)
+- [x] cargo check: clean
+- [x] cargo test: 49/49 pass

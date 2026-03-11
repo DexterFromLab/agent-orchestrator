@@ -41,7 +41,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |
 | `v2/src-tauri/src/remote.rs` | RemoteManager (WebSocket client connections to relays) |
-| `v2/src-tauri/src/session.rs` | SessionDb (rusqlite, sessions + layout + settings + ssh_sessions + agent_messages + project_agent_state + session_anchors) |
+| `v2/src-tauri/src/session/` | SessionDb module: mod.rs (struct + migrate), sessions.rs, layout.rs, settings.rs, ssh.rs, agents.rs, metrics.rs, anchors.rs |
 | `v2/src-tauri/src/watcher.rs` | FileWatcherManager (notify crate, file change events) |
 | `v2/src-tauri/src/ctx.rs` | CtxDb (read-only access to ~/.claude-context/context.db) |
 | `v2/src-tauri/src/memora.rs` | MemoraDb (read-only access to ~/.local/share/memora/memories.db, FTS5 search) |
@@ -64,7 +64,11 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/providers/ollama.ts` | Ollama provider metadata constant (OLLAMA_PROVIDER, qwen3:8b default) |
 | `v2/src/lib/adapters/codex-messages.ts` | Codex message adapter (ThreadEvent parser) |
 | `v2/src/lib/adapters/ollama-messages.ts` | Ollama message adapter (streaming chunk parser) |
-| `v2/src/lib/agent-dispatcher.ts` | Routes sidecar events to agent store + subagent routing + session persistence + toast notifications + CWD-based worktree detection |
+| `v2/src/lib/agent-dispatcher.ts` | Thin coordinator: routes sidecar events to agent store, delegates to extracted modules |
+| `v2/src/lib/utils/session-persistence.ts` | Session-project maps + persistSessionForProject + waitForPendingPersistence |
+| `v2/src/lib/utils/auto-anchoring.ts` | triggerAutoAnchor on first compaction event |
+| `v2/src/lib/utils/subagent-router.ts` | Subagent pane creation + toolUseToChildPane routing |
+| `v2/src/lib/utils/worktree-detection.ts` | detectWorktreeFromCwd pure function (3 provider patterns) |
 | `v2/src/lib/adapters/file-bridge.ts` | File watcher IPC wrapper |
 | `v2/src/lib/adapters/settings-bridge.ts` | Settings IPC wrapper (get/set/list) |
 | `v2/src/lib/adapters/ctx-bridge.ts` | ctx database IPC wrapper |

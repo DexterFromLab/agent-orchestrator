@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reconnect loop race in RemoteManager** — orphaned reconnect tasks continued running after `remove_machine()` or `disconnect()`. Added `cancelled: Arc<AtomicBool>` flag to `RemoteMachine`; set on removal/disconnect, checked each reconnect iteration. `connect()` resets flag for new connections (remote.rs)
 
 ### Changed
+- **agent-dispatcher.ts split (SOLID Phase 2)** — 496→260 lines. Extracted 4 modules: `utils/worktree-detection.ts` (pure function), `utils/session-persistence.ts` (session maps + persist), `utils/auto-anchoring.ts` (compaction anchor), `utils/subagent-router.ts` (spawn + route). Dispatcher is now a thin coordinator
+- **session.rs split (SOLID Phase 2)** — 1008-line monolith split into 7 sub-modules under `session/` directory: mod.rs (struct + migrate), sessions.rs, layout.rs, settings.rs, ssh.rs, agents.rs, metrics.rs, anchors.rs. `pub(in crate::session)` conn visibility. 21 new cargo tests
 - **lib.rs command module split** — 976-line monolith with 48 Tauri commands split into 11 domain modules under `src-tauri/src/commands/` (pty, agent, watcher, session, persistence, knowledge, claude, groups, files, remote, misc). lib.rs reduced to ~170 lines (AppState + setup + handler registration)
 - **Attention scorer extraction** — `scoreAttention()` pure function extracted from inline health store code to `utils/attention-scorer.ts` with 14 tests. Priority chain: stalled > error > context critical > file conflict > context high
 - **Shared type guards** — deduplicated `str()`/`num()` runtime guards from claude-messages.ts, codex-messages.ts, ollama-messages.ts into shared `utils/type-guards.ts`
