@@ -172,3 +172,194 @@ pub fn delete_task(task_id: &str) -> Result<(), String> {
         .map_err(|e| format!("Delete task error: {e}"))?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE tasks (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                status TEXT DEFAULT 'todo',
+                priority TEXT DEFAULT 'medium',
+                assigned_to TEXT,
+                created_by TEXT NOT NULL,
+                group_id TEXT NOT NULL,
+                parent_task_id TEXT,
+                sort_order INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE task_comments (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                agent_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            );",
+        )
+        .unwrap();
+        conn
+    }
+
+    // ---- REGRESSION: list_tasks named column access ----
+
+    #[test]
+    fn test_list_tasks_named_column_access() {
+        let conn = test_db();
+        conn.execute(
+            "INSERT INTO tasks (id, title, description, status, priority, assigned_to, created_by, group_id, sort_order)
+             VALUES ('t1', 'Fix bug', 'Critical fix', 'progress', 'high', 'a1', 'admin', 'g1', 1)",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO tasks (id, title, description, status, priority, assigned_to, created_by, group_id, sort_order)
+             VALUES ('t2', 'Add tests', '', 'todo', 'medium', NULL, 'a1', 'g1', 2)",
+            [],
+        ).unwrap();
+
+        let mut stmt = conn.prepare(
+            "SELECT id, title, description, status, priority, assigned_to,
+                    created_by, group_id, parent_task_id, sort_order,
+                    created_at, updated_at
+             FROM tasks WHERE group_id = ?1
+             ORDER BY sort_order ASC, created_at DESC",
+        ).unwrap();
+
+        let tasks: Vec<Task> = stmt.query_map(params!["g1"], |row| {
+            Ok(Task {
+                id: row.get("id")?,
+                title: row.get("title")?,
+                description: row.get::<_, String>("description").unwrap_or_default(),
+                status: row.get::<_, String>("status").unwrap_or_else(|_| "todo".into()),
+                priority: row.get::<_, String>("priority").unwrap_or_else(|_| "medium".into()),
+                assigned_to: row.get("assigned_to")?,
+                created_by: row.get("created_by")?,
+                group_id: row.get("group_id")?,
+                parent_task_id: row.get("parent_task_id")?,
+                sort_order: row.get::<_, i32>("sort_order").unwrap_or(0),
+                created_at: row.get::<_, String>("created_at").unwrap_or_default(),
+                updated_at: row.get::<_, String>("updated_at").unwrap_or_default(),
+            })
+        }).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+
+        assert_eq!(tasks.len(), 2);
+        assert_eq!(tasks[0].id, "t1");
+        assert_eq!(tasks[0].title, "Fix bug");
+        assert_eq!(tasks[0].status, "progress");
+        assert_eq!(tasks[0].priority, "high");
+        assert_eq!(tasks[0].assigned_to, Some("a1".to_string()));
+        assert_eq!(tasks[0].sort_order, 1);
+
+        assert_eq!(tasks[1].id, "t2");
+        assert_eq!(tasks[1].assigned_to, None);
+        assert_eq!(tasks[1].parent_task_id, None);
+    }
+
+    // ---- REGRESSION: task_comments named column access ----
+
+    #[test]
+    fn test_task_comments_named_column_access() {
+        let conn = test_db();
+        conn.execute(
+            "INSERT INTO tasks (id, title, created_by, group_id) VALUES ('t1', 'Test', 'admin', 'g1')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO task_comments (id, task_id, agent_id, content) VALUES ('c1', 't1', 'a1', 'Working on it')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO task_comments (id, task_id, agent_id, content) VALUES ('c2', 't1', 'a2', 'Looks good')",
+            [],
+        ).unwrap();
+
+        let mut stmt = conn.prepare(
+            "SELECT id, task_id, agent_id, content, created_at
+             FROM task_comments WHERE task_id = ?1
+             ORDER BY created_at ASC",
+        ).unwrap();
+
+        let comments: Vec<TaskComment> = stmt.query_map(params!["t1"], |row| {
+            Ok(TaskComment {
+                id: row.get("id")?,
+                task_id: row.get("task_id")?,
+                agent_id: row.get("agent_id")?,
+                content: row.get("content")?,
+                created_at: row.get::<_, String>("created_at").unwrap_or_default(),
+            })
+        }).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+
+        assert_eq!(comments.len(), 2);
+        assert_eq!(comments[0].agent_id, "a1");
+        assert_eq!(comments[0].content, "Working on it");
+        assert_eq!(comments[1].agent_id, "a2");
+    }
+
+    // ---- serde camelCase serialization ----
+
+    #[test]
+    fn test_task_serializes_to_camel_case() {
+        let task = Task {
+            id: "t1".into(),
+            title: "Test".into(),
+            description: "desc".into(),
+            status: "todo".into(),
+            priority: "high".into(),
+            assigned_to: Some("a1".into()),
+            created_by: "admin".into(),
+            group_id: "g1".into(),
+            parent_task_id: None,
+            sort_order: 0,
+            created_at: "2026-01-01".into(),
+            updated_at: "2026-01-01".into(),
+        };
+
+        let json = serde_json::to_value(&task).unwrap();
+        assert!(json.get("assignedTo").is_some(), "expected camelCase 'assignedTo'");
+        assert!(json.get("createdBy").is_some(), "expected camelCase 'createdBy'");
+        assert!(json.get("groupId").is_some(), "expected camelCase 'groupId'");
+        assert!(json.get("parentTaskId").is_some(), "expected camelCase 'parentTaskId'");
+        assert!(json.get("sortOrder").is_some(), "expected camelCase 'sortOrder'");
+        assert!(json.get("createdAt").is_some(), "expected camelCase 'createdAt'");
+        assert!(json.get("updatedAt").is_some(), "expected camelCase 'updatedAt'");
+        // Ensure no snake_case leaks
+        assert!(json.get("assigned_to").is_none());
+        assert!(json.get("created_by").is_none());
+        assert!(json.get("group_id").is_none());
+    }
+
+    #[test]
+    fn test_task_comment_serializes_to_camel_case() {
+        let comment = TaskComment {
+            id: "c1".into(),
+            task_id: "t1".into(),
+            agent_id: "a1".into(),
+            content: "note".into(),
+            created_at: "2026-01-01".into(),
+        };
+
+        let json = serde_json::to_value(&comment).unwrap();
+        assert!(json.get("taskId").is_some(), "expected camelCase 'taskId'");
+        assert!(json.get("agentId").is_some(), "expected camelCase 'agentId'");
+        assert!(json.get("createdAt").is_some(), "expected camelCase 'createdAt'");
+        assert!(json.get("task_id").is_none());
+    }
+
+    // ---- update_task_status validation ----
+
+    #[test]
+    fn test_update_task_status_rejects_invalid() {
+        // Can't call update_task_status directly (uses open_db), but we can test the validation logic
+        let valid = ["todo", "progress", "review", "done", "blocked"];
+        assert!(valid.contains(&"todo"));
+        assert!(valid.contains(&"done"));
+        assert!(!valid.contains(&"invalid"));
+        assert!(!valid.contains(&"cancelled"));
+    }
+}

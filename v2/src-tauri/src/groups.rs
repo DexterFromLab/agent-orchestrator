@@ -191,6 +191,7 @@ mod tests {
                     profile: "default".to_string(),
                     enabled: true,
                 }],
+                agents: vec![],
             }],
             active_group_id: "test".to_string(),
         };
