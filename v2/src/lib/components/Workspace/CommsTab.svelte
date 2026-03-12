@@ -54,8 +54,8 @@
     try {
       agents = await getGroupAgents(groupId);
       channels = await getChannels(groupId);
-    } catch {
-      // btmsg.db might not exist
+    } catch (e) {
+      console.error('[CommsTab] loadData failed:', e);
     }
   }
 
@@ -70,8 +70,8 @@
       } else if (currentView.type === 'channel') {
         channelMessages = await getChannelMessages(currentView.channelId, 100);
       }
-    } catch {
-      // silently fail
+    } catch (e) {
+      console.error('[CommsTab] loadMessages failed:', e);
     }
   }
 
@@ -91,7 +91,8 @@
   $effect(() => {
     void groupId;
     if (groupId) {
-      ensureAdmin(groupId).catch(() => {});
+      console.log('[CommsTab] groupId:', groupId);
+      ensureAdmin(groupId).catch((e) => console.error('[CommsTab] ensureAdmin failed:', e));
       loadData();
     }
   });

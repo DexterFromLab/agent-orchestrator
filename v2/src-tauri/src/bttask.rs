@@ -33,7 +33,7 @@ fn open_db() -> Result<Connection, String> {
         .map_err(|e| format!("Failed to open btmsg.db: {e}"))?;
     conn.query_row("PRAGMA journal_mode=WAL", [], |_| Ok(()))
         .map_err(|e| format!("Failed to set WAL mode: {e}"))?;
-    conn.pragma_update(None, "busy_timeout", 5000)
+    conn.query_row("PRAGMA busy_timeout = 5000", [], |_| Ok(()))
         .map_err(|e| format!("Failed to set busy_timeout: {e}"))?;
 
     // Migration: add version column if missing

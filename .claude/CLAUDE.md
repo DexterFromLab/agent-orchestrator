@@ -1,4 +1,4 @@
-# BTerminal — Claude Behavioral Guide
+# Agent Orchestrator — Claude Behavioral Guide
 
 ## Workflow
 
@@ -22,7 +22,7 @@
 ## Rules
 
 - Do not modify v1 code (`bterminal.py`) unless explicitly asked — it is production-stable.
-- v2/v3 work goes on the `v2-mission-control` branch, not master.
+- v2/v3 work goes on the `dexter_changes` branch (repo: agent-orchestrator), not master.
 - v2 architecture decisions must reference `docs/task_plan.md` Decisions Log.
 - v3 architecture decisions must reference `docs/v3-task_plan.md` Decisions Log.
 - When adding new decisions, append to the Decisions Log table with date.

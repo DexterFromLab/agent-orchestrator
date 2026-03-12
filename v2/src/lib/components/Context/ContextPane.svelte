@@ -32,7 +32,7 @@
     loading = true;
     try {
       // Register project if not already (INSERT OR IGNORE)
-      await ctxRegisterProject(projectName, `BTerminal project: ${projectName}`, projectCwd);
+      await ctxRegisterProject(projectName, `Agent Orchestrator project: ${projectName}`, projectCwd);
 
       const [ctx, shared, sums] = await Promise.all([
         ctxGetContext(projectName),

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "bterminal",
+  "productName": "agent-orchestrator",
   "version": "0.1.0",
-  "identifier": "com.dexterfromlab.bterminal",
+  "identifier": "com.dexterfromlab.agent-orchestrator",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:9700",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "BTerminal",
+        "title": "Agent Orchestrator",
         "width": 1920,
         "height": 1080,
         "resizable": true,
@@ -27,7 +27,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/DexterFromLab/BTerminal/releases/latest/download/latest.json"
+        "https://github.com/DexterFromLab/agent-orchestrator/releases/latest/download/latest.json"
       ],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJCRkZEMERDMTUwMzY5MjIKUldRaWFRTVYzTkQvdTYwRDh6YStaSE9rWUZYYkRGd3UvVUcydE1IQVdTM29uNTRPTlpjQmFqVFEK"
@@ -50,7 +50,7 @@
     ],
     "category": "DeveloperTool",
     "shortDescription": "Multi-session Claude agent dashboard",
-    "longDescription": "BTerminal is a terminal emulator with integrated Claude AI agent sessions, SSH management, and a tiling pane layout. Built with Tauri, Svelte 5, and xterm.js.",
+    "longDescription": "Agent Orchestrator is a multi-project agent dashboard with integrated Claude AI sessions, SSH management, and multi-agent orchestration. Built with Tauri, Svelte 5, and xterm.js.",
     "linux": {
       "deb": {
         "depends": [

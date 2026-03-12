@@ -155,7 +155,7 @@
       </button>
       <span class="sep"></span>
     {/if}
-    <span class="item version">BTerminal v3</span>
+    <span class="item version">Agent Orchestrator v3</span>
   </div>
 </div>
 
