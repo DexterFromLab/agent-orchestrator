@@ -29,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **E2E test fixtures** — `tests/e2e/fixtures.ts`: creates isolated temp environments with data/config dirs, git repos, and groups.json. `createTestFixture()`, `createMultiProjectFixture()`, `destroyTestFixture()`
 - **E2E results store** — `tests/e2e/results-db.ts`: JSON-based test run/step tracking (pivoted from better-sqlite3 due to Node 25 native compile failure)
 - **E2E Phase B scenarios** — 6 multi-project + LLM-judged test scenarios in `phase-b.test.ts`: multi-project grid rendering, independent tab switching, status bar fleet state, LLM-judged agent response quality, LLM-judged code generation, context tab verification
-- **LLM judge helper** — `tests/e2e/llm-judge.ts`: raw fetch to Anthropic API (claude-haiku-4-5), structured verdicts (pass/fail + reasoning + confidence), `assertWithJudge()` with configurable min confidence threshold, graceful skip when `ANTHROPIC_API_KEY` absent
+- **LLM judge helper** — `tests/e2e/llm-judge.ts`: dual-mode judge (CLI first, API fallback). CLI backend spawns `claude` with `--output-format text` (unsets CLAUDECODE). API backend uses raw fetch to Anthropic. Backend selectable via `LLM_JUDGE_BACKEND` env var. Structured verdicts (pass/fail + reasoning + confidence), `assertWithJudge()` with configurable min confidence threshold
+- **E2E testing documentation** — `docs/e2e-testing.md`: comprehensive guide covering all 3 pillars (test fixtures, test mode, LLM judge), spec phases A-C, CI integration, WebKit2GTK pitfalls, troubleshooting
 - **E2E CI workflow** — `.github/workflows/e2e.yml`: 3 jobs (vitest, cargo, e2e), xvfb-run for headless WebKit2GTK, path-filtered triggers on v2 source changes, LLM-judged tests gated on `ANTHROPIC_API_KEY` secret availability
 
 ### Fixed

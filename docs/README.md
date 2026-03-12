@@ -29,6 +29,11 @@ Project documentation lives here.
 | [v3-findings.md](v3-findings.md) | v3 adversarial review results and codebase reuse analysis |
 | [v3-progress.md](v3-progress.md) | v3 session progress log (All Phases 1-10 complete) |
 
+### Testing
+| Document | Description |
+|----------|-------------|
+| [e2e-testing.md](e2e-testing.md) | E2E testing facility: fixtures, test mode, LLM judge, spec phases, CI |
+
 ### Progress Logs
 | Document | Description |
 |----------|-------------|

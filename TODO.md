@@ -11,6 +11,7 @@
 
 ## Completed
 
+- [x] **LLM judge refactor + E2E docs** -- Refactored llm-judge.ts to dual-mode (CLI first, API fallback), env-configurable via LLM_JUDGE_BACKEND. Wrote comprehensive docs/e2e-testing.md covering fixtures, test mode, LLM judge, all spec phases, CI, troubleshooting. 444 vitest + 151 cargo + 109 E2E. | Done: 2026-03-12
 - [x] **v3 Hardening Sprint** -- Fixed subagent delegation (prompt + env var), added TLS to relay, WAL checkpoint (5min), Landlock logging, plugin sandbox tests (35), gitignore fix. Phase C E2E tests (27 new, 3 pre-existing fixes). 444 vitest + 151 cargo + 109 E2E. | Done: 2026-03-12
 - [x] **v3 Production Readiness — ALL tribunal items** -- Implemented all 13 features from tribunal assessment: sidecar supervisor, notifications, secrets, keyboard UX, agent health, search, plugins, sandbox, error classifier, audit log, team agent orchestration, optimistic locking, usage meter. 409 vitest + 109 cargo. | Done: 2026-03-12
 - [x] **Unified test runner + testing gate rule** -- Created v2/scripts/test-all.sh (vitest + cargo + optional E2E), added npm scripts (test:all, test:all:e2e, test:cargo), added .claude/rules/20-testing-gate.md requiring full suite after major changes. | Done: 2026-03-12

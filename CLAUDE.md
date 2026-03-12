@@ -30,6 +30,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `docs/v3-task_plan.md` | v3 Mission Control redesign: architecture decisions and strategies |
 | `docs/v3-findings.md` | v3 research findings and codebase reuse analysis |
 | `docs/v3-progress.md` | v3 session progress log |
+| `docs/e2e-testing.md` | E2E testing facility: fixtures, test mode, LLM judge, spec phases, CI |
 | `v2/Cargo.toml` | Cargo workspace root (members: src-tauri, bterminal-core, bterminal-relay) |
 | `v2/bterminal-core/` | Shared crate: EventSink trait, PtyManager, SidecarManager |
 | `v2/bterminal-relay/` | Standalone relay binary (WebSocket server, token auth, CLI) |
