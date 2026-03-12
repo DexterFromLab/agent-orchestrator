@@ -27,6 +27,7 @@
   import { getProvider, getDefaultProviderId } from '../../providers/registry.svelte';
   import { loadAnchorsForProject } from '../../stores/anchors.svelte';
   import { getSecret } from '../../adapters/secrets-bridge';
+  import { getUnreadCount } from '../../adapters/btmsg-bridge';
   import { getWakeEvent, consumeWakeEvent, updateManagerSession } from '../../stores/wake-scheduler.svelte';
   import { SessionId, ProjectId } from '../../types/ids';
   import AgentPane from '../Agent/AgentPane.svelte';
@@ -136,11 +137,43 @@
     stopAgent(sessionId).catch(() => {});
   });
 
+  // btmsg inbox polling — auto-wake agent when it receives messages from other agents
+  let msgPollTimer: ReturnType<typeof setInterval> | null = null;
+  let lastKnownUnread = 0;
+
+  function startMsgPoll() {
+    if (msgPollTimer) clearInterval(msgPollTimer);
+    msgPollTimer = setInterval(async () => {
+      if (contextRefreshPrompt) return; // Don't queue if already has a pending prompt
+      try {
+        const count = await getUnreadCount(project.id as unknown as AgentId);
+        if (count > 0 && count > lastKnownUnread) {
+          lastKnownUnread = count;
+          const wakeMsg = project.isAgent
+            ? `[New Message] You have ${count} unread message(s). Check your inbox with \`btmsg inbox\` and respond appropriately.`
+            : `[New Message] You have ${count} unread message(s). Check your inbox and respond.`;
+          contextRefreshPrompt = wakeMsg;
+          logAuditEvent(
+            project.id as unknown as AgentId,
+            'wake_event',
+            `Agent woken by ${count} unread btmsg message(s)`,
+          ).catch(() => {});
+        } else if (count === 0) {
+          lastKnownUnread = 0;
+        }
+      } catch {
+        // btmsg not available, ignore
+      }
+    }, 10_000); // Check every 10s
+  }
+
   // Start timer and clean up
   startReinjectionTimer();
+  startMsgPoll();
   onDestroy(() => {
     if (reinjectionTimer) clearInterval(reinjectionTimer);
     if (wakeCheckTimer) clearInterval(wakeCheckTimer);
+    if (msgPollTimer) clearInterval(msgPollTimer);
     unsubAgentStart();
     unsubAgentStop();
   });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
   import { getAllWorkItems, getActiveProjectId, setActiveProject } from '../../stores/workspace.svelte';
   import ProjectBox from './ProjectBox.svelte';
 
@@ -15,14 +15,16 @@
   // Track slot elements for auto-scroll
   let slotEls = $state<Record<string, HTMLElement>>({});
 
-  // Auto-scroll to active project when it changes
+  // Auto-scroll to active project only when activeProjectId changes
+  // (untrack slotEls so agent re-renders don't trigger unwanted scrolls)
   $effect(() => {
     const id = activeProjectId;
     if (!id) return;
-    const el = slotEls[id];
-    if (!el) return;
-    // Use smooth scroll; block: nearest avoids jumping if already visible
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    untrack(() => {
+      const el = slotEls[id];
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    });
   });
 
   let observer: ResizeObserver | undefined;

@@ -64,7 +64,6 @@
       await setAgentStatus(agent.id, newStatus);
       await pollBtmsg(); // Refresh immediately
       if (newStatus === 'active') {
-        setActiveProject(agent.id);
         emitAgentStart(agent.id);
       } else {
         emitAgentStop(agent.id);
