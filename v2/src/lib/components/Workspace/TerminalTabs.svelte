@@ -94,7 +94,7 @@
   }
 </script>
 
-<div class="terminal-tabs">
+<div class="terminal-tabs" data-testid="terminal-tabs">
   <div class="tab-bar">
     {#each tabs as tab (tab.id)}
       <div
@@ -113,7 +113,7 @@
         >×</button>
       </div>
     {/each}
-    <button class="tab-add" onclick={addShellTab} title="New shell">+</button>
+    <button class="tab-add" data-testid="tab-add" onclick={addShellTab} title="New shell">+</button>
     {#if agentSessionId}
       <button
         class="tab-add tab-agent-preview"

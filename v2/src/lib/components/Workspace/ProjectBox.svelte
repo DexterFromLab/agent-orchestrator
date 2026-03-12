@@ -163,6 +163,8 @@
   class="project-box"
   class:active
   style="--accent: var({accentVar})"
+  data-testid="project-box"
+  data-project-id={project.id}
 >
   <ProjectHeader
     {project}
@@ -172,7 +174,7 @@
     onclick={onactivate}
   />
 
-  <div class="project-tabs">
+  <div class="project-tabs" data-testid="project-tabs">
     <button
       class="ptab"
       class:active={activeTab === 'model'}
@@ -282,7 +284,7 @@
   </div>
 
   <div class="terminal-section" style:display={activeTab === 'model' ? 'flex' : 'none'}>
-      <button class="terminal-toggle" onclick={toggleTerminal}>
+      <button class="terminal-toggle" data-testid="terminal-toggle" onclick={toggleTerminal}>
         <span class="toggle-chevron" class:expanded={terminalExpanded}>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
             <path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>

@@ -42,7 +42,7 @@
   }
 </script>
 
-<div class="status-bar">
+<div class="status-bar" data-testid="status-bar">
   <div class="left">
     {#if activeGroup}
       <span class="item group-name" title="Active group">{activeGroup.name}</span>

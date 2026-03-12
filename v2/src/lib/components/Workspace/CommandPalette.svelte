@@ -43,11 +43,12 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="palette-backdrop" onclick={onclose} onkeydown={handleKeydown}>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="palette" onclick={(e) => e.stopPropagation()} onkeydown={handleKeydown}>
+    <div class="palette" data-testid="command-palette" onclick={(e) => e.stopPropagation()} onkeydown={handleKeydown}>
       <input
         bind:this={inputEl}
         bind:value={query}
         class="palette-input"
+        data-testid="palette-input"
         placeholder="Switch group..."
         onkeydown={handleKeydown}
       />

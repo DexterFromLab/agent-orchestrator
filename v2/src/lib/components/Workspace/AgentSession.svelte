@@ -222,7 +222,7 @@
   }
 </script>
 
-<div class="agent-session">
+<div class="agent-session" data-testid="agent-session">
   {#if loading}
     <div class="loading-state">Loading session...</div>
   {:else}

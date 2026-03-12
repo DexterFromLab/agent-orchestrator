@@ -375,7 +375,7 @@
   });
 </script>
 
-<div class="agent-pane">
+<div class="agent-pane" data-testid="agent-pane" data-agent-status={session?.status ?? 'idle'}
   {#if parentSession}
     <div class="parent-link">
       <span class="parent-badge">SUB</span>
@@ -405,7 +405,7 @@
     {/if}
   {/if}
 
-  <div class="agent-pane-scroll" bind:this={scrollContainer} onscroll={handleScroll}>
+  <div class="agent-pane-scroll" data-testid="agent-messages" bind:this={scrollContainer} onscroll={handleScroll}>
     {#if !session || session.messages.length === 0}
       <div class="welcome-state">
         <div class="welcome-icon">
@@ -547,7 +547,7 @@
           {#if !autoScroll}
             <button class="scroll-btn" onclick={() => { autoScroll = true; scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior }); }}>↓ Bottom</button>
           {/if}
-          <button class="stop-btn" onclick={handleStop}>Stop</button>
+          <button class="stop-btn" data-testid="agent-stop" onclick={handleStop}>Stop</button>
         </div>
       {:else if session.status === 'done'}
         <div class="done-bar">
@@ -623,6 +623,7 @@
         bind:value={inputPrompt}
         placeholder={isRunning ? 'Agent is running...' : 'Ask Claude something... (/ for skills)'}
         class="prompt-input"
+        data-testid="agent-prompt"
         rows="1"
         disabled={isRunning}
         oninput={(e) => {
@@ -660,6 +661,7 @@
       ></textarea>
       <button
         class="submit-icon-btn"
+        data-testid="agent-submit"
         onclick={handleUnifiedSubmit}
         disabled={!inputPrompt.trim() || isRunning}
         aria-label="Send message"

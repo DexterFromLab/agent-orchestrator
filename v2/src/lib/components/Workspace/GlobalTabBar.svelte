@@ -20,7 +20,7 @@
   }
 </script>
 
-<nav class="sidebar-rail">
+<nav class="sidebar-rail" data-testid="sidebar-rail">
   <button
     class="rail-btn"
     class:active={getActiveTab() === 'comms' && expanded}
@@ -46,6 +46,7 @@
     class:active={getActiveTab() === 'settings' && expanded}
     onclick={() => handleTabClick('settings')}
     title="Settings (Ctrl+,)"
+    data-testid="settings-btn"
   >
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
       <path
