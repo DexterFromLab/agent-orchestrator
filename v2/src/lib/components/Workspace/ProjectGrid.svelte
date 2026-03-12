@@ -16,14 +16,21 @@
   let slotEls = $state<Record<string, HTMLElement>>({});
 
   // Auto-scroll to active project only when activeProjectId changes
-  // (untrack slotEls so agent re-renders don't trigger unwanted scrolls)
+  // Uses direct scrollLeft instead of scrollIntoView to avoid bubbling to parent containers
   $effect(() => {
     const id = activeProjectId;
-    if (!id) return;
+    if (!id || !containerEl) return;
     untrack(() => {
       const el = slotEls[id];
       if (!el) return;
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      // Only scroll if the slot is not already visible
+      const cRect = containerEl!.getBoundingClientRect();
+      const eRect = el.getBoundingClientRect();
+      if (eRect.left >= cRect.left && eRect.right <= cRect.right) return;
+      containerEl!.scrollTo({
+        left: el.offsetLeft - containerEl!.offsetLeft,
+        behavior: 'smooth',
+      });
     });
   });
 
@@ -75,7 +82,7 @@
     gap: 0.25rem;
     height: 100%;
     overflow-x: auto;
-    scroll-snap-type: x mandatory;
+    /* scroll-snap disabled: was causing horizontal jumps when agents auto-scroll */
     padding: 0.25rem;
   }
 

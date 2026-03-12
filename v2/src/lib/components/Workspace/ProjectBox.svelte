@@ -390,7 +390,7 @@
     display: grid;
     grid-template-rows: auto auto 1fr auto;
     min-width: 30rem;
-    scroll-snap-align: start;
+    /* scroll-snap-align removed: see ProjectGrid */
     background: var(--ctp-base);
     border: 1px solid var(--ctp-surface0);
     border-radius: 0.375rem;

@@ -286,7 +286,10 @@
     );
     if (!msg) return;
     autoScroll = false;
-    scrollContainer.querySelector('#msg-' + CSS.escape(msg.id))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const el = scrollContainer.querySelector('#msg-' + CSS.escape(msg.id));
+    if (el instanceof HTMLElement) {
+      scrollContainer.scrollTop = el.offsetTop - scrollContainer.clientHeight / 2 + el.offsetHeight / 2;
+    }
   }
 
   // Scroll anchoring: two-phase pattern
@@ -300,7 +303,7 @@
   });
   $effect(() => {
     if (session?.messages.length !== undefined && wasNearBottom && autoScroll) {
-      scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+      if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
   });
 
@@ -585,7 +588,7 @@
             <span class="burn-rate" title="Current session burn rate">${burnRatePerHr.toFixed(2)}/hr</span>
           {/if}
           {#if !autoScroll}
-            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior }); }}>↓ Bottom</button>
+            <button class="scroll-btn" onclick={() => { autoScroll = true; if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight; }}>↓ Bottom</button>
           {/if}
           <button class="stop-btn" data-testid="agent-stop" onclick={handleStop}>Stop</button>
         </div>
@@ -607,7 +610,7 @@
           {/if}
           <UsageMeter inputTokens={session.inputTokens} outputTokens={session.outputTokens} contextLimit={DEFAULT_CONTEXT_LIMIT} />
           {#if !autoScroll}
-            <button class="scroll-btn" onclick={() => { autoScroll = true; scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior }); }}>↓ Bottom</button>
+            <button class="scroll-btn" onclick={() => { autoScroll = true; if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight; }}>↓ Bottom</button>
           {/if}
         </div>
       {:else if session.status === 'error'}
