@@ -559,7 +559,7 @@ describe('Scenario C9 — Files Tab & Code Editor', () => {
 describe('Scenario C10 — LLM-Judged Settings Completeness', () => {
   it('should have comprehensive settings panel', async function () {
     if (!isJudgeAvailable()) {
-      console.log('Skipping — ANTHROPIC_API_KEY not set');
+      console.log('Skipping — LLM judge not available (no CLI or API key)');
       this.skip();
       return;
     }
@@ -597,7 +597,7 @@ describe('Scenario C10 — LLM-Judged Settings Completeness', () => {
 describe('Scenario C11 — LLM-Judged Status Bar Completeness', () => {
   it('should render a comprehensive status bar', async function () {
     if (!isJudgeAvailable()) {
-      console.log('Skipping — ANTHROPIC_API_KEY not set');
+      console.log('Skipping — LLM judge not available (no CLI or API key)');
       this.skip();
       return;
     }

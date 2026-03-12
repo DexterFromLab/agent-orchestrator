@@ -109,9 +109,15 @@ impl AppConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Serialize all tests that mutate env vars to prevent race conditions.
+    // Rust runs tests in parallel; set_var/remove_var are process-global.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_production_paths_use_dirs() {
+        let _lock = ENV_LOCK.lock().unwrap();
         // Without BTERMINAL_TEST=1, paths should use dirs:: defaults
         std::env::remove_var("BTERMINAL_TEST");
         std::env::remove_var("BTERMINAL_TEST_DATA_DIR");
@@ -129,6 +135,7 @@ mod tests {
 
     #[test]
     fn test_btmsg_db_path() {
+        let _lock = ENV_LOCK.lock().unwrap();
         std::env::remove_var("BTERMINAL_TEST");
         let config = AppConfig::from_env();
         let path = config.btmsg_db_path();
@@ -138,6 +145,7 @@ mod tests {
 
     #[test]
     fn test_groups_json_path() {
+        let _lock = ENV_LOCK.lock().unwrap();
         std::env::remove_var("BTERMINAL_TEST");
         let config = AppConfig::from_env();
         let path = config.groups_json_path();
@@ -146,6 +154,7 @@ mod tests {
 
     #[test]
     fn test_test_mode_uses_overrides() {
+        let _lock = ENV_LOCK.lock().unwrap();
         std::env::set_var("BTERMINAL_TEST", "1");
         std::env::set_var("BTERMINAL_TEST_DATA_DIR", "/tmp/bt-test-data");
         std::env::set_var("BTERMINAL_TEST_CONFIG_DIR", "/tmp/bt-test-config");
@@ -168,6 +177,7 @@ mod tests {
 
     #[test]
     fn test_test_mode_without_overrides_uses_defaults() {
+        let _lock = ENV_LOCK.lock().unwrap();
         std::env::set_var("BTERMINAL_TEST", "1");
         std::env::remove_var("BTERMINAL_TEST_DATA_DIR");
         std::env::remove_var("BTERMINAL_TEST_CONFIG_DIR");
@@ -183,6 +193,7 @@ mod tests {
 
     #[test]
     fn test_test_mode_memora_in_data_dir() {
+        let _lock = ENV_LOCK.lock().unwrap();
         std::env::set_var("BTERMINAL_TEST", "1");
         std::env::set_var("BTERMINAL_TEST_DATA_DIR", "/tmp/bt-test-data");
 

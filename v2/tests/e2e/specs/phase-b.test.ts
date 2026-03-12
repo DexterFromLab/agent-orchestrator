@@ -217,7 +217,7 @@ describe('Scenario B3 — Status Bar Fleet State', () => {
 // ─── Scenario B4: LLM-judged agent response (requires API key) ──────
 
 describe('Scenario B4 — LLM-Judged Agent Response', () => {
-  const SKIP_MSG = 'Skipping — ANTHROPIC_API_KEY not set';
+  const SKIP_MSG = 'Skipping — LLM judge not available (no CLI or API key)';
 
   it('should send prompt and get meaningful response', async function () {
     if (!isJudgeAvailable()) {
@@ -297,7 +297,7 @@ describe('Scenario B4 — LLM-Judged Agent Response', () => {
 // ─── Scenario B5: LLM-judged code generation quality ─────────────────
 
 describe('Scenario B5 — LLM-Judged Code Generation', () => {
-  const SKIP_MSG = 'Skipping — ANTHROPIC_API_KEY not set';
+  const SKIP_MSG = 'Skipping — LLM judge not available (no CLI or API key)';
 
   it('should generate valid code when asked', async function () {
     if (!isJudgeAvailable()) {
