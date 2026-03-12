@@ -25,7 +25,7 @@ use session::SessionDb;
 use sidecar::{SidecarConfig, SidecarManager};
 use fs_watcher::ProjectFsWatcher;
 use watcher::FileWatcherManager;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::Manager;
 
@@ -102,6 +102,40 @@ fn install_cli_tools(resource_dir: &Path, dev_root: &Path) {
             }
         }
     }
+}
+
+/// Run `PRAGMA wal_checkpoint(TRUNCATE)` on a SQLite database to reclaim WAL file space.
+/// Returns Ok(()) on success or Err with a diagnostic message.
+pub(crate) fn checkpoint_wal(path: &Path) -> Result<(), String> {
+    use rusqlite::{Connection, OpenFlags};
+
+    if !path.exists() {
+        return Ok(()); // DB doesn't exist yet — nothing to checkpoint
+    }
+
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE)
+        .map_err(|e| format!("WAL checkpoint: failed to open {}: {e}", path.display()))?;
+    conn.query_row("PRAGMA busy_timeout = 5000", [], |_| Ok(()))
+        .map_err(|e| format!("WAL checkpoint: failed to set busy_timeout: {e}"))?;
+    conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))
+        .map_err(|e| format!("WAL checkpoint failed on {}: {e}", path.display()))?;
+    Ok(())
+}
+
+/// Spawn a background task that checkpoints WAL on both databases every 5 minutes.
+fn spawn_wal_checkpoint_task(sessions_db_path: PathBuf, btmsg_db_path: PathBuf) {
+    tokio::spawn(async move {
+        let interval = std::time::Duration::from_secs(300);
+        loop {
+            tokio::time::sleep(interval).await;
+            for (label, path) in [("sessions.db", &sessions_db_path), ("btmsg.db", &btmsg_db_path)] {
+                match checkpoint_wal(path) {
+                    Ok(()) => tracing::info!("WAL checkpoint completed for {label}"),
+                    Err(e) => tracing::warn!("WAL checkpoint error for {label}: {e}"),
+                }
+            }
+        }
+    });
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -346,6 +380,11 @@ pub fn run() {
                 Ok(()) => log::info!("Sidecar startup initiated"),
                 Err(e) => log::warn!("Sidecar startup failed (agent features unavailable): {e}"),
             }
+
+            // Start periodic WAL checkpoint task (every 5 minutes)
+            let sessions_db_path = config.data_dir.join("sessions.db");
+            let btmsg_db_path = config.btmsg_db_path();
+            spawn_wal_checkpoint_task(sessions_db_path, btmsg_db_path);
 
             app.manage(AppState {
                 pty_manager,

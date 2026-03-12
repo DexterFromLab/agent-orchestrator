@@ -1724,6 +1724,41 @@ mod tests {
         assert!(json.get("agent_id").is_none(), "should not have snake_case");
     }
 
+    // ---- WAL checkpoint tests ----
+
+    #[test]
+    fn test_checkpoint_wal_on_temp_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test_wal.db");
+
+        // Create a WAL-mode database with some data
+        {
+            let conn = Connection::open(&db_path).unwrap();
+            conn.query_row("PRAGMA journal_mode=WAL", [], |_| Ok(())).unwrap();
+            conn.execute_batch("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT);").unwrap();
+            for i in 0..100 {
+                conn.execute("INSERT INTO t (val) VALUES (?)", params![format!("row-{i}")]).unwrap();
+            }
+            // Keep connection open while we checkpoint from another connection
+            // to simulate the real scenario (app holds a conn, background task checkpoints)
+
+            // Run checkpoint from a separate connection (like the background task does)
+            let result = crate::checkpoint_wal(&db_path);
+            assert!(result.is_ok(), "checkpoint_wal should succeed: {:?}", result);
+        }
+
+        // Verify data is still intact after checkpoint
+        let conn = Connection::open(&db_path).unwrap();
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM t", [], |row| row.get(0)).unwrap();
+        assert_eq!(count, 100, "all rows should survive checkpoint");
+    }
+
+    #[test]
+    fn test_checkpoint_wal_nonexistent_db_is_ok() {
+        let result = crate::checkpoint_wal(std::path::Path::new("/tmp/nonexistent_bterminal_test.db"));
+        assert!(result.is_ok(), "checkpoint_wal should return Ok for missing DB");
+    }
+
     #[test]
     fn test_contact_permissions_bidirectional() {
         let conn = test_db();

@@ -152,11 +152,18 @@ impl SandboxConfig {
             .restrict_self()
             .map_err(|e| format!("Landlock: restrict_self failed: {e}"))?;
 
+        // Landlock enforcement states:
+        // - Enforced: kernel 6.2+ with ABI V3 (full filesystem restriction)
+        // - NotEnforced: kernel 5.13–6.1 (Landlock exists but ABI too old for V3)
+        // - Error (caught above): kernel <5.13 (no Landlock LSM available)
         let enforced = status.ruleset != RulesetStatus::NotEnforced;
         if enforced {
             log::info!("Landlock sandbox applied ({} rw, {} ro paths)", self.rw_paths.len(), self.ro_paths.len());
         } else {
-            log::warn!("Landlock sandbox was not enforced (kernel may lack support)");
+            log::warn!(
+                "Landlock not enforced — sidecar runs without filesystem restrictions. \
+                 Kernel 6.2+ required for enforcement."
+            );
         }
 
         Ok(enforced)
