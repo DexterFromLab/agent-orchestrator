@@ -56,8 +56,38 @@
         customPrompt: project.systemPrompt,
       });
     }
-    // Tier 2: pass custom context directly (if set)
-    return project.systemPrompt || undefined;
+    // Tier 2: include btmsg/bttask instructions + custom context
+    const tier2Parts: string[] = [];
+    tier2Parts.push(`You are a project agent working on "${project.name}".
+Your agent ID is \`${project.id}\`. You communicate with other agents using CLI tools.
+
+## Communication: btmsg
+\`\`\`bash
+btmsg inbox            # Check for unread messages (DO THIS FIRST!)
+btmsg send <agent-id> "message"   # Send a message
+btmsg reply <msg-id> "reply"      # Reply to a message
+btmsg contacts         # See who you can message
+\`\`\`
+
+## Task Board: bttask
+\`\`\`bash
+bttask board                       # View task board
+bttask show <task-id>              # Task details
+bttask status <task-id> progress   # Mark as in progress
+bttask status <task-id> done       # Mark as done
+bttask comment <task-id> "update"  # Add a comment
+\`\`\`
+
+## Your Workflow
+1. **Check inbox:** \`btmsg inbox\` — read and respond to messages
+2. **Check tasks:** \`bttask board\` — see what's assigned to you
+3. **Work:** Execute your assigned tasks in this project
+4. **Update:** Report progress via \`bttask status\` and \`bttask comment\`
+5. **Report:** Message the Manager when done or blocked`);
+    if (project.systemPrompt) {
+      tier2Parts.push(project.systemPrompt);
+    }
+    return tier2Parts.join('\n\n');
   });
 
   // Provider-specific API keys loaded from system keyring
@@ -73,21 +103,18 @@
     }
   });
 
-  // Inject BTMSG_AGENT_ID for agent projects so they can use btmsg/bttask CLIs
+  // Inject BTMSG_AGENT_ID for all projects (Tier 1 and Tier 2) so they can use btmsg/bttask CLIs
   // Manager agents also get CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS to enable subagent delegation
   // Provider-specific API keys are injected from the system keyring
   let agentEnv = $derived.by(() => {
-    const env: Record<string, string> = {};
-    if (project.isAgent) {
-      env.BTMSG_AGENT_ID = project.id;
-      if (project.agentRole === 'manager') {
-        env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = '1';
-      }
+    const env: Record<string, string> = { BTMSG_AGENT_ID: project.id };
+    if (project.isAgent && project.agentRole === 'manager') {
+      env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = '1';
     }
     if (openrouterKey) {
       env.OPENROUTER_API_KEY = openrouterKey;
     }
-    return Object.keys(env).length > 0 ? env : undefined;
+    return env;
   });
 
   // Periodic context re-injection timer
@@ -125,10 +152,7 @@
     if (projectId !== project.id) return;
     // Only auto-start if not already running and no pending prompt
     if (contextRefreshPrompt) return;
-    const startPrompt = project.isAgent
-      ? 'Start your work. Check your inbox with `btmsg inbox` and review the task board with `bttask board`. Take action on any pending items.'
-      : 'Review the instructions above and begin your work.';
-    contextRefreshPrompt = startPrompt;
+    contextRefreshPrompt = 'Start your work. Check your inbox with `btmsg inbox` and review the task board with `bttask board`. Take action on any pending items.';
   });
 
   // Listen for stop-button events from GroupAgentsPanel
@@ -149,10 +173,7 @@
         const count = await getUnreadCount(project.id as unknown as AgentId);
         if (count > 0 && count > lastKnownUnread) {
           lastKnownUnread = count;
-          const wakeMsg = project.isAgent
-            ? `[New Message] You have ${count} unread message(s). Check your inbox with \`btmsg inbox\` and respond appropriately.`
-            : `[New Message] You have ${count} unread message(s). Check your inbox and respond.`;
-          contextRefreshPrompt = wakeMsg;
+          contextRefreshPrompt = `[New Message] You have ${count} unread message(s). Check your inbox with \`btmsg inbox\` and respond appropriately.`;
           logAuditEvent(
             project.id as unknown as AgentId,
             'wake_event',
