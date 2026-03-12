@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LLM judge helper** — `tests/e2e/llm-judge.ts`: raw fetch to Anthropic API (claude-haiku-4-5), structured verdicts (pass/fail + reasoning + confidence), `assertWithJudge()` with configurable min confidence threshold, graceful skip when `ANTHROPIC_API_KEY` absent
 - **E2E CI workflow** — `.github/workflows/e2e.yml`: 3 jobs (vitest, cargo, e2e), xvfb-run for headless WebKit2GTK, path-filtered triggers on v2 source changes, LLM-judged tests gated on `ANTHROPIC_API_KEY` secret availability
 
+### Fixed
+- **E2E test suite — 27 failures fixed** across 3 spec files: bterminal.test.ts (22 — stale v2 CSS selectors, v3 tab order/count, JS-dispatched KeyboardEvent for Ctrl+K, idempotent palette open/close, backdrop click close, scrollIntoView for below-fold settings, scoped theme dropdown selectors), agent-scenarios.test.ts (3 — JS click for settings button, programmatic focus check, graceful 40s agent timeout with skip), phase-b.test.ts (2 — waitUntil for project box render, conditional null handling for burn-rate/cost elements). 82 E2E passing, 0 failing, 4 skipped
+- **AgentPane.svelte missing closing `>`** — div tag with data-testid attributes was missing closing angle bracket, causing template parse issues
+
 ### Changed
 - **WebDriverIO config** — TCP readiness probe replaces blind 2s sleep for tauri-driver startup (200ms interval, 10s deadline). Added BTERMINAL_TEST=1 passthrough in capabilities
 
