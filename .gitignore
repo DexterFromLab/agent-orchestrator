@@ -4,7 +4,8 @@ __pycache__/
 /CLAUDE.md
 v2/target/
 debug/
-plugins/
+/plugins/
+/v2/plugins/
 projects/
 .playwright-mcp/
 .audit/
