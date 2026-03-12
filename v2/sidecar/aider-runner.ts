@@ -145,19 +145,83 @@ function shouldSuppress(line: string): boolean {
   return t === '' || SUPPRESS_RE.some(p => p.test(t));
 }
 
-// --- Output line classification ---
-// Thinking blocks: ► THINKING ... ► ANSWER
-let inThinking = false;
+// --- Turn output parsing ---
+// Parses complete turn output into structured blocks:
+// thinking, answer text, shell commands, cost info
 
-function classifyLine(line: string): 'thinking' | 'shell' | 'cost' | 'prompt' | 'text' {
-  const t = line.trim();
-  if (t === '► THINKING' || t === '►  THINKING') { inThinking = true; return 'thinking'; }
-  if (t === '► ANSWER' || t === '►  ANSWER') { inThinking = false; return 'thinking'; }
-  if (inThinking) return 'thinking';
-  if (t.startsWith('$ ') || t.startsWith('Running ')) return 'shell';
-  if (/^Tokens: .+Cost:/.test(t)) return 'cost';
-  if (PROMPT_RE.test(t)) return 'prompt';
-  return 'text';
+interface TurnBlock {
+  type: 'thinking' | 'text' | 'shell' | 'cost';
+  content: string;
+}
+
+function parseTurnOutput(buffer: string): TurnBlock[] {
+  const blocks: TurnBlock[] = [];
+  const lines = buffer.split('\n');
+
+  let thinkingLines: string[] = [];
+  let answerLines: string[] = [];
+  let inThinking = false;
+  let inAnswer = false;
+
+  for (const line of lines) {
+    const t = line.trim();
+
+    // Skip suppressed lines
+    if (shouldSuppress(line)) continue;
+
+    // Prompt markers — skip
+    if (PROMPT_RE.test(t)) continue;
+
+    // Thinking block markers
+    if (t === '► THINKING' || t === '►  THINKING') {
+      inThinking = true;
+      inAnswer = false;
+      continue;
+    }
+    if (t === '► ANSWER' || t === '►  ANSWER') {
+      if (thinkingLines.length > 0) {
+        blocks.push({ type: 'thinking', content: thinkingLines.join('\n') });
+        thinkingLines = [];
+      }
+      inThinking = false;
+      inAnswer = true;
+      continue;
+    }
+
+    // Cost line
+    if (/^Tokens: .+Cost:/.test(t)) {
+      blocks.push({ type: 'cost', content: t });
+      continue;
+    }
+
+    // Shell command
+    if (t.startsWith('$ ') || t.startsWith('Running ')) {
+      // Flush accumulated answer text first
+      if (answerLines.length > 0) {
+        blocks.push({ type: 'text', content: answerLines.join('\n') });
+        answerLines = [];
+      }
+      blocks.push({ type: 'shell', content: t.replace(/^(Running |\$ )/, '') });
+      continue;
+    }
+
+    // Accumulate into thinking or answer
+    if (inThinking) {
+      thinkingLines.push(line);
+    } else {
+      answerLines.push(line);
+    }
+  }
+
+  // Flush remaining
+  if (thinkingLines.length > 0) {
+    blocks.push({ type: 'thinking', content: thinkingLines.join('\n') });
+  }
+  if (answerLines.length > 0) {
+    blocks.push({ type: 'text', content: answerLines.join('\n').trim() });
+  }
+
+  return blocks;
 }
 
 // --- Main query handler ---
@@ -182,7 +246,6 @@ async function handleQuery(msg: QueryMessage) {
     existing.lineBuffer = '';
     existing.turnStartTime = Date.now();
     existing.turns++;
-    inThinking = false;
 
     send({ type: 'agent_started', sessionId });
 
@@ -277,34 +340,40 @@ async function handleQuery(msg: QueryMessage) {
         session.ready = true;
         session.turns = 1;
         session.turnStartTime = Date.now();
-        inThinking = false;
         log(`Aider ready, sending initial prompt (${fullPrompt.length} chars)`);
         child.stdin?.write(fullPrompt + '\n');
       }
       return;
     }
 
-    // Phase 2: accumulate output, emit complete lines
-    session.lineBuffer += text;
+    // Phase 2: accumulate entire turn output, emit as batched blocks
     session.turnBuffer += text;
 
-    // Process complete lines only
-    const parts = session.lineBuffer.split('\n');
-    session.lineBuffer = parts.pop() || ''; // keep incomplete last part
+    // Only process when turn is complete (aider shows prompt again)
+    if (!looksLikePrompt(session.turnBuffer)) return;
 
-    for (const line of parts) {
-      if (shouldSuppress(line)) continue;
+    const duration = Date.now() - session.turnStartTime;
+    const blocks = parseTurnOutput(session.turnBuffer);
 
-      const cls = classifyLine(line);
-
-      switch (cls) {
+    // Emit structured blocks
+    for (const block of blocks) {
+      switch (block.type) {
         case 'thinking':
-          // Emit thinking as a collapsed block
           send({
             type: 'agent_event',
             sessionId,
-            event: { type: 'assistant', message: { role: 'assistant', content: line } },
+            event: { type: 'thinking', content: block.content },
           });
+          break;
+
+        case 'text':
+          if (block.content) {
+            send({
+              type: 'agent_event',
+              sessionId,
+              event: { type: 'assistant', message: { role: 'assistant', content: block.content } },
+            });
+          }
           break;
 
         case 'shell':
@@ -312,60 +381,41 @@ async function handleQuery(msg: QueryMessage) {
             type: 'agent_event',
             sessionId,
             event: {
-              type: 'tool_call',
-              content: {
-                toolName: 'shell',
-                toolUseId: `shell-${Date.now()}`,
-                input: { command: line.replace(/^(Running |\$ )/, '') },
-              },
+              type: 'tool_use',
+              id: `shell-${Date.now()}`,
+              name: 'Bash',
+              input: { command: block.content },
             },
           });
           break;
 
         case 'cost':
-          // Parse cost and include in result
-          break;
-
-        case 'prompt':
-          // Prompt marker — turn is complete
-          break;
-
-        case 'text':
-          send({
-            type: 'agent_event',
-            sessionId,
-            event: { type: 'assistant', message: { role: 'assistant', content: line } },
-          });
+          // Parsed below for the result event
           break;
       }
     }
 
-    // Check if turn is complete (aider showing prompt again)
-    if (looksLikePrompt(session.turnBuffer)) {
-      const duration = Date.now() - session.turnStartTime;
-      const costMatch = session.turnBuffer.match(/Cost: \$([0-9.]+) message, \$([0-9.]+) session/);
-      const costUsd = costMatch ? parseFloat(costMatch[2]) : 0;
+    // Extract cost and emit result
+    const costMatch = session.turnBuffer.match(/Cost: \$([0-9.]+) message, \$([0-9.]+) session/);
+    const costUsd = costMatch ? parseFloat(costMatch[2]) : 0;
 
-      send({
-        type: 'agent_event',
-        sessionId,
-        event: {
-          type: 'result',
-          subtype: 'result',
-          result: '',
-          cost_usd: costUsd,
-          duration_ms: duration,
-          num_turns: session.turns,
-          is_error: false,
-          session_id: sessionId,
-        },
-      });
+    send({
+      type: 'agent_event',
+      sessionId,
+      event: {
+        type: 'result',
+        subtype: 'result',
+        result: '',
+        cost_usd: costUsd,
+        duration_ms: duration,
+        num_turns: session.turns,
+        is_error: false,
+        session_id: sessionId,
+      },
+    });
 
-      send({ type: 'agent_stopped', sessionId, exitCode: 0, signal: null });
-      session.turnBuffer = '';
-      session.lineBuffer = '';
-      inThinking = false;
-    }
+    send({ type: 'agent_stopped', sessionId, exitCode: 0, signal: null });
+    session.turnBuffer = '';
   });
 
   child.stderr?.on('data', (data: Buffer) => {

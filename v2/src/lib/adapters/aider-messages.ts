@@ -5,6 +5,8 @@ import type {
   AgentMessage,
   InitContent,
   TextContent,
+  ThinkingContent,
+  ToolCallContent,
   CostContent,
   ErrorContent,
 } from './claude-messages';
@@ -16,8 +18,10 @@ import { str, num } from '../utils/type-guards';
  *
  * The Aider runner emits events in this format:
  * - {type:'system', subtype:'init', model, session_id, cwd}
- * - {type:'assistant', message:{role:'assistant', content:'...'}}
- * - {type:'result', subtype:'result', result:'...', cost_usd, duration_ms, is_error}
+ * - {type:'assistant', message:{role:'assistant', content:'...'}} — batched text block
+ * - {type:'thinking', content:'...'} — thinking/reasoning block
+ * - {type:'tool_use', id, name, input} — shell command execution
+ * - {type:'result', subtype:'result', cost_usd, duration_ms, is_error}
  * - {type:'error', message:'...'}
  */
 export function adaptAiderMessage(raw: Record<string, unknown>): AgentMessage[] {
@@ -46,6 +50,14 @@ export function adaptAiderMessage(raw: Record<string, unknown>): AgentMessage[] 
         timestamp,
       }];
 
+    case 'thinking':
+      return [{
+        id: uuid,
+        type: 'thinking',
+        content: { text: str(raw.content) } satisfies ThinkingContent,
+        timestamp,
+      }];
+
     case 'assistant': {
       const msg = typeof raw.message === 'object' && raw.message !== null
         ? raw.message as Record<string, unknown>
@@ -59,6 +71,18 @@ export function adaptAiderMessage(raw: Record<string, unknown>): AgentMessage[] 
         timestamp,
       }];
     }
+
+    case 'tool_use':
+      return [{
+        id: uuid,
+        type: 'tool_call',
+        content: {
+          toolUseId: str(raw.id),
+          name: str(raw.name, 'shell'),
+          input: raw.input,
+        } satisfies ToolCallContent,
+        timestamp,
+      }];
 
     case 'result':
       return [{
