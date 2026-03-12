@@ -3,6 +3,10 @@
   import { getActiveGroup, getEnabledProjects, setActiveProject } from '../../stores/workspace.svelte';
   import { getHealthAggregates, getAttentionQueue, type ProjectHealth } from '../../stores/health.svelte';
   import { getTotalConflictCount } from '../../stores/conflicts.svelte';
+  import { onMount } from 'svelte';
+  import { checkForUpdates, installUpdate, type UpdateInfo } from '../../utils/updater';
+  import { message as dialogMessage, confirm } from '@tauri-apps/plugin-dialog';
+  import NotificationCenter from '../Notifications/NotificationCenter.svelte';
 
   let agentSessions = $derived(getAgentSessions());
   let activeGroup = $derived(getActiveGroup());
@@ -18,6 +22,35 @@
 
   let totalConflicts = $derived(getTotalConflictCount());
   let showAttention = $state(false);
+
+  // Auto-update state
+  let updateInfo = $state<UpdateInfo | null>(null);
+  let installing = $state(false);
+
+  onMount(() => {
+    // Check for updates 10s after startup
+    const timer = setTimeout(async () => {
+      const info = await checkForUpdates();
+      if (info.available) updateInfo = info;
+    }, 10_000);
+    return () => clearTimeout(timer);
+  });
+
+  async function handleUpdateClick() {
+    if (!updateInfo) return;
+    const notes = updateInfo.notes
+      ? `Release notes:\n\n${updateInfo.notes}\n\nInstall and restart?`
+      : `Install v${updateInfo.version} and restart?`;
+    const confirmed = await confirm(notes, { title: `Update available: v${updateInfo.version}`, kind: 'info' });
+    if (confirmed) {
+      installing = true;
+      try {
+        await installUpdate();
+      } catch {
+        installing = false;
+      }
+    }
+  }
 
   function projectName(projectId: string): string {
     return enabledProjects.find(p => p.id === projectId)?.name ?? projectId.slice(0, 8);
@@ -103,6 +136,23 @@
     {/if}
     {#if totalCost > 0}
       <span class="item cost">${totalCost.toFixed(4)}</span>
+      <span class="sep"></span>
+    {/if}
+    <NotificationCenter />
+    <span class="sep"></span>
+    {#if updateInfo?.available}
+      <button
+        class="item update-btn"
+        onclick={handleUpdateClick}
+        disabled={installing}
+        title="Click to install v{updateInfo.version}"
+      >
+        {#if installing}
+          Installing...
+        {:else}
+          Update v{updateInfo.version}
+        {/if}
+      </button>
       <span class="sep"></span>
     {/if}
     <span class="item version">BTerminal v3</span>
@@ -243,6 +293,32 @@
   .tokens { color: var(--ctp-overlay1); }
   .cost { color: var(--ctp-yellow); }
   .version { color: var(--ctp-overlay0); }
+
+  /* Update badge */
+  .update-btn {
+    background: color-mix(in srgb, var(--ctp-green) 15%, transparent);
+    border: 1px solid var(--ctp-green);
+    border-radius: 0.25rem;
+    color: var(--ctp-green);
+    font: inherit;
+    font-size: 0.625rem;
+    font-weight: 600;
+    padding: 0 0.375rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    line-height: 1.25rem;
+  }
+
+  .update-btn:hover {
+    background: color-mix(in srgb, var(--ctp-green) 25%, transparent);
+  }
+
+  .update-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 
   /* Attention panel dropdown */
   .attention-panel {
