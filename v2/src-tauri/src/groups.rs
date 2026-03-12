@@ -25,6 +25,24 @@ pub struct ProjectConfig {
     pub cwd: String,
     pub profile: String,
     pub enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub use_worktrees: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor_budget_scale: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stall_threshold_min: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_agent: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_prompt: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +52,8 @@ pub struct GroupAgentConfig {
     pub name: String,
     pub role: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
@@ -42,6 +62,10 @@ pub struct GroupAgentConfig {
     pub enabled: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wake_interval_min: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wake_strategy: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wake_threshold: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,16 +1,31 @@
 // Aider Runner — Node.js sidecar entry point for Aider coding agent
 // Spawned by Rust SidecarManager, communicates via stdio NDJSON
-// Spawns `aider` CLI as subprocess in non-interactive mode
+// Runs aider in interactive mode — persistent process with stdin/stdout chat
+// Pre-fetches btmsg/bttask context so the LLM has actionable data immediately.
 
 import { stdin, stdout, stderr } from 'process';
 import { createInterface } from 'readline';
-import { spawn, type ChildProcess } from 'child_process';
+import { spawn, execSync, type ChildProcess } from 'child_process';
 import { accessSync, constants } from 'fs';
 import { join } from 'path';
 
 const rl = createInterface({ input: stdin });
 
-const sessions = new Map<string, { process: ChildProcess; controller: AbortController }>();
+interface AiderSession {
+  process: ChildProcess;
+  controller: AbortController;
+  sessionId: string;
+  model: string;
+  lineBuffer: string;        // partial line accumulator for streaming
+  turnBuffer: string;        // full turn output
+  turnStartTime: number;
+  turns: number;
+  ready: boolean;
+  env: Record<string, string>;
+  cwd: string;
+}
+
+const sessions = new Map<string, AiderSession>();
 
 function send(msg: Record<string, unknown>) {
   stdout.write(JSON.stringify(msg) + '\n');
@@ -63,22 +78,125 @@ async function handleMessage(msg: Record<string, unknown>) {
   }
 }
 
-async function handleQuery(msg: QueryMessage) {
-  const { sessionId, prompt, cwd, model, systemPrompt, extraEnv, providerConfig } = msg;
+// --- Context pre-fetching ---
+// Execute btmsg/bttask CLIs to gather context BEFORE sending prompt to LLM.
+// This way the LLM gets real data to act on instead of suggesting commands.
 
-  if (sessions.has(sessionId)) {
-    send({ type: 'error', sessionId, message: 'Session already running' });
+function runCmd(cmd: string, env: Record<string, string>, cwd: string): string | null {
+  try {
+    const result = execSync(cmd, { env, cwd, timeout: 5000, encoding: 'utf-8' }).trim();
+    log(`[prefetch] ${cmd} → ${result.length} chars`);
+    return result || null;
+  } catch (e: unknown) {
+    log(`[prefetch] ${cmd} FAILED: ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  }
+}
+
+function prefetchContext(env: Record<string, string>, cwd: string): string {
+  log(`[prefetch] BTMSG_AGENT_ID=${env.BTMSG_AGENT_ID ?? 'NOT SET'}, cwd=${cwd}`);
+  const parts: string[] = [];
+
+  const inbox = runCmd('btmsg inbox', env, cwd);
+  if (inbox) {
+    parts.push(`## Your Inbox\n\`\`\`\n${inbox}\n\`\`\``);
+  } else {
+    parts.push('## Your Inbox\nNo messages (or btmsg unavailable).');
+  }
+
+  const board = runCmd('bttask board', env, cwd);
+  if (board) {
+    parts.push(`## Task Board\n\`\`\`\n${board}\n\`\`\``);
+  } else {
+    parts.push('## Task Board\nNo tasks (or bttask unavailable).');
+  }
+
+  return parts.join('\n\n');
+}
+
+// --- Prompt detection ---
+// Aider with --no-pretty --no-fancy-input shows prompts like:
+//   >  or  aider>  or  repo-name>
+const PROMPT_RE = /^[a-zA-Z0-9._-]*> $/;
+
+function looksLikePrompt(buffer: string): boolean {
+  // Check the last non-empty line
+  const lines = buffer.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const l = lines[i];
+    if (l.trim() === '') continue;
+    return PROMPT_RE.test(l);
+  }
+  return false;
+}
+
+// Lines to suppress from UI (aider startup noise)
+const SUPPRESS_RE = [
+  /^Aider v\d/,
+  /^Main model:/,
+  /^Weak model:/,
+  /^Git repo:/,
+  /^Repo-map:/,
+  /^Use \/help/,
+];
+
+function shouldSuppress(line: string): boolean {
+  const t = line.trim();
+  return t === '' || SUPPRESS_RE.some(p => p.test(t));
+}
+
+// --- Output line classification ---
+// Thinking blocks: ► THINKING ... ► ANSWER
+let inThinking = false;
+
+function classifyLine(line: string): 'thinking' | 'shell' | 'cost' | 'prompt' | 'text' {
+  const t = line.trim();
+  if (t === '► THINKING' || t === '►  THINKING') { inThinking = true; return 'thinking'; }
+  if (t === '► ANSWER' || t === '►  ANSWER') { inThinking = false; return 'thinking'; }
+  if (inThinking) return 'thinking';
+  if (t.startsWith('$ ') || t.startsWith('Running ')) return 'shell';
+  if (/^Tokens: .+Cost:/.test(t)) return 'cost';
+  if (PROMPT_RE.test(t)) return 'prompt';
+  return 'text';
+}
+
+// --- Main query handler ---
+
+async function handleQuery(msg: QueryMessage) {
+  const { sessionId, prompt, cwd: cwdOpt, model, systemPrompt, extraEnv, providerConfig } = msg;
+  const cwd = cwdOpt || process.cwd();
+
+  // Build environment
+  const env: Record<string, string> = { ...process.env as Record<string, string> };
+  if (extraEnv) Object.assign(env, extraEnv);
+  if (providerConfig?.openrouterApiKey && typeof providerConfig.openrouterApiKey === 'string') {
+    env.OPENROUTER_API_KEY = providerConfig.openrouterApiKey;
+  }
+
+  const existing = sessions.get(sessionId);
+
+  // Follow-up prompt on existing session
+  if (existing && existing.process.exitCode === null) {
+    log(`Continuing session ${sessionId} with follow-up prompt`);
+    existing.turnBuffer = '';
+    existing.lineBuffer = '';
+    existing.turnStartTime = Date.now();
+    existing.turns++;
+    inThinking = false;
+
+    send({ type: 'agent_started', sessionId });
+
+    // Pre-fetch fresh context for follow-up turns too
+    const ctx = prefetchContext(existing.env, existing.cwd);
+    const fullPrompt = `${ctx}\n\nNow act on the above. Your current task:\n${prompt}`;
+    existing.process.stdin?.write(fullPrompt + '\n');
     return;
   }
 
-  // Find aider binary
+  // New session — spawn aider
   const aiderPath = which('aider');
   if (!aiderPath) {
-    send({
-      type: 'agent_error',
-      sessionId,
-      message: 'Aider not found. Install with: pipx install aider-chat',
-    });
+    send({ type: 'agent_error', sessionId, message: 'Aider not found. Install with: pipx install aider-chat' });
     return;
   }
 
@@ -87,31 +205,18 @@ async function handleQuery(msg: QueryMessage) {
 
   const controller = new AbortController();
 
-  // Build aider command args
   const args: string[] = [
     '--model', aiderModel,
-    '--message', prompt,
-    '--yes-always',       // Auto-accept all file changes
-    '--no-pretty',        // Plain text output (no terminal formatting)
-    '--no-stream',        // Complete response (easier to parse)
-    '--no-git',           // Let the outer project handle git
-    '--no-auto-commits',  // Don't auto-commit changes
-    '--no-check-model-accepts-settings', // Don't warn about model settings
+    '--yes-always',
+    '--no-pretty',
+    '--no-fancy-input',
+    '--no-stream',                     // Complete responses (no token fragments)
+    '--no-git',
+    '--no-auto-commits',
+    '--suggest-shell-commands',
+    '--no-check-model-accepts-settings',
   ];
 
-  // Add system prompt via --read or environment
-  if (systemPrompt) {
-    // Aider doesn't have --system-prompt flag, pass via environment
-    // The model will receive it as part of the conversation
-    args.push('--message', `[System Context] ${systemPrompt}\n\n${prompt}`);
-    // Remove the earlier --message prompt since we're combining
-    const msgIdx = args.indexOf('--message');
-    if (msgIdx !== -1) {
-      args.splice(msgIdx, 2); // Remove first --message and its value
-    }
-  }
-
-  // Extra aider flags from providerConfig
   if (providerConfig?.editFormat && typeof providerConfig.editFormat === 'string') {
     args.push('--edit-format', providerConfig.editFormat);
   }
@@ -119,104 +224,162 @@ async function handleQuery(msg: QueryMessage) {
     args.push('--architect');
   }
 
-  // Build environment
-  const env: Record<string, string> = { ...process.env as Record<string, string> };
-
-  // Pass through API keys from extraEnv
-  if (extraEnv) {
-    Object.assign(env, extraEnv);
-  }
-
-  // OpenRouter API key from environment or providerConfig
-  if (providerConfig?.openrouterApiKey && typeof providerConfig.openrouterApiKey === 'string') {
-    env.OPENROUTER_API_KEY = providerConfig.openrouterApiKey;
-  }
-
   send({ type: 'agent_started', sessionId });
-
-  // Emit init event
   send({
     type: 'agent_event',
     sessionId,
-    event: {
-      type: 'system',
-      subtype: 'init',
-      session_id: sessionId,
-      model: aiderModel,
-      cwd: cwd || process.cwd(),
-    },
+    event: { type: 'system', subtype: 'init', session_id: sessionId, model: aiderModel, cwd },
   });
 
-  // Spawn aider process
   const child = spawn(aiderPath, args, {
-    cwd: cwd || process.cwd(),
+    cwd,
     env,
     stdio: ['pipe', 'pipe', 'pipe'],
     signal: controller.signal,
   });
 
-  sessions.set(sessionId, { process: child, controller });
+  const session: AiderSession = {
+    process: child,
+    controller,
+    sessionId,
+    model: aiderModel,
+    lineBuffer: '',
+    turnBuffer: '',
+    turnStartTime: Date.now(),
+    turns: 0,
+    ready: false,
+    env,
+    cwd,
+  };
+  sessions.set(sessionId, session);
 
-  let stdoutBuffer = '';
-  let stderrBuffer = '';
+  // Pre-fetch btmsg/bttask context
+  const prefetched = prefetchContext(env, cwd);
 
-  // Stream stdout as text chunks
+  // Build full initial prompt — our context FIRST, with explicit override
+  const promptParts: string[] = [];
+  promptParts.push(`IMPORTANT: You are an autonomous agent in a multi-agent system. Your PRIMARY job is to act on messages and tasks below, NOT to ask the user for files. You can run shell commands to accomplish tasks. If you need to read files, use shell commands like \`cat\`, \`find\`, \`ls\`. If you need to send messages, use \`btmsg send <agent-id> "message"\`. If you need to update tasks, use \`bttask status <task-id> done\`.`);
+  if (systemPrompt) promptParts.push(systemPrompt);
+  promptParts.push(prefetched);
+  promptParts.push(`---\n\nNow act on the above. Your current task:\n${prompt}`);
+  const fullPrompt = promptParts.join('\n\n');
+
+  // Startup buffer — wait for first prompt before sending
+  let startupBuffer = '';
+
   child.stdout?.on('data', (data: Buffer) => {
     const text = data.toString();
-    stdoutBuffer += text;
 
-    // Emit each line as a text event
-    const lines = text.split('\n');
-    for (const line of lines) {
-      if (!line) continue;
-      send({
-        type: 'agent_event',
-        sessionId,
-        event: {
-          type: 'assistant',
-          message: { role: 'assistant', content: line },
-        },
-      });
+    // Phase 1: wait for aider startup to finish
+    if (!session.ready) {
+      startupBuffer += text;
+      if (looksLikePrompt(startupBuffer)) {
+        session.ready = true;
+        session.turns = 1;
+        session.turnStartTime = Date.now();
+        inThinking = false;
+        log(`Aider ready, sending initial prompt (${fullPrompt.length} chars)`);
+        child.stdin?.write(fullPrompt + '\n');
+      }
+      return;
     }
-  });
 
-  // Capture stderr for logging
-  child.stderr?.on('data', (data: Buffer) => {
-    const text = data.toString();
-    stderrBuffer += text;
-    // Log but don't emit to UI (same pattern as other runners)
-    for (const line of text.split('\n')) {
-      if (line.trim()) log(`[stderr] ${line}`);
+    // Phase 2: accumulate output, emit complete lines
+    session.lineBuffer += text;
+    session.turnBuffer += text;
+
+    // Process complete lines only
+    const parts = session.lineBuffer.split('\n');
+    session.lineBuffer = parts.pop() || ''; // keep incomplete last part
+
+    for (const line of parts) {
+      if (shouldSuppress(line)) continue;
+
+      const cls = classifyLine(line);
+
+      switch (cls) {
+        case 'thinking':
+          // Emit thinking as a collapsed block
+          send({
+            type: 'agent_event',
+            sessionId,
+            event: { type: 'assistant', message: { role: 'assistant', content: line } },
+          });
+          break;
+
+        case 'shell':
+          send({
+            type: 'agent_event',
+            sessionId,
+            event: {
+              type: 'tool_call',
+              content: {
+                toolName: 'shell',
+                toolUseId: `shell-${Date.now()}`,
+                input: { command: line.replace(/^(Running |\$ )/, '') },
+              },
+            },
+          });
+          break;
+
+        case 'cost':
+          // Parse cost and include in result
+          break;
+
+        case 'prompt':
+          // Prompt marker — turn is complete
+          break;
+
+        case 'text':
+          send({
+            type: 'agent_event',
+            sessionId,
+            event: { type: 'assistant', message: { role: 'assistant', content: line } },
+          });
+          break;
+      }
     }
-  });
 
-  // Handle process exit
-  child.on('close', (code: number | null, signal: string | null) => {
-    sessions.delete(sessionId);
+    // Check if turn is complete (aider showing prompt again)
+    if (looksLikePrompt(session.turnBuffer)) {
+      const duration = Date.now() - session.turnStartTime;
+      const costMatch = session.turnBuffer.match(/Cost: \$([0-9.]+) message, \$([0-9.]+) session/);
+      const costUsd = costMatch ? parseFloat(costMatch[2]) : 0;
 
-    // Emit final result as a single text block
-    if (stdoutBuffer.trim()) {
       send({
         type: 'agent_event',
         sessionId,
         event: {
           type: 'result',
           subtype: 'result',
-          result: stdoutBuffer.trim(),
-          cost_usd: 0,
-          duration_ms: 0,
-          num_turns: 1,
-          is_error: code !== 0 && code !== null,
+          result: '',
+          cost_usd: costUsd,
+          duration_ms: duration,
+          num_turns: session.turns,
+          is_error: false,
           session_id: sessionId,
         },
       });
-    }
 
+      send({ type: 'agent_stopped', sessionId, exitCode: 0, signal: null });
+      session.turnBuffer = '';
+      session.lineBuffer = '';
+      inThinking = false;
+    }
+  });
+
+  child.stderr?.on('data', (data: Buffer) => {
+    for (const line of data.toString().split('\n')) {
+      if (line.trim()) log(`[stderr] ${line}`);
+    }
+  });
+
+  child.on('close', (code: number | null, signal: string | null) => {
+    sessions.delete(sessionId);
     if (controller.signal.aborted) {
       send({ type: 'agent_stopped', sessionId, exitCode: null, signal: 'SIGTERM' });
     } else if (code !== 0 && code !== null) {
-      const errorDetail = stderrBuffer.trim() || `Aider exited with code ${code}`;
-      send({ type: 'agent_error', sessionId, message: errorDetail });
+      send({ type: 'agent_error', sessionId, message: `Aider exited with code ${code}` });
     } else {
       send({ type: 'agent_stopped', sessionId, exitCode: code, signal });
     }
@@ -238,8 +401,12 @@ function handleStop(msg: StopMessage) {
   }
 
   log(`Stopping Aider session ${sessionId}`);
-  session.controller.abort();
-  session.process.kill('SIGTERM');
+  session.process.stdin?.write('/exit\n');
+  const killTimer = setTimeout(() => {
+    session.controller.abort();
+    session.process.kill('SIGTERM');
+  }, 3000);
+  session.process.once('close', () => clearTimeout(killTimer));
 }
 
 function which(name: string): string | null {
