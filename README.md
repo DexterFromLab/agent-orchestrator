@@ -1,173 +1,140 @@
-# BTerminal
+# Agent Orchestrator
 
-Terminal with session panel (MobaXterm-style), built with GTK 3 + VTE. Catppuccin Mocha theme.
+Multi-project agent dashboard for orchestrating Claude AI teams across multiple codebases simultaneously. Built with Tauri 2.x (Rust) + Svelte 5 + Claude Agent SDK.
 
-> **v2 complete, v3 all phases complete.** v2: Multi-session Claude agent dashboard using Tauri 2.x + Svelte 5. v3: Multi-project mission control dashboard (All Phases 1-10 complete + sidebar redesign) -- project groups with per-project Claude sessions, session continuity (persist/restore agent messages), team agents panel, terminal tabs, **VSCode-style left sidebar** (vertical icon rail + expandable drawer panel + always-visible workspace), command palette with group switching. Features: **project groups** (up to 5 projects per group, horizontal layout, adaptive viewport count), **per-project Claude sessions** with session continuity, **team agents panel** (compact subagent cards), **terminal tabs** (shell/SSH/agent per project), agent panes with structured output, tree visualization with subtree cost and session resume, **subagent/agent-teams support**, **multi-machine support** (bterminal-relay WebSocket server + RemoteManager), **Claude profile/account switching** (switcher-claude integration), **skill discovery and autocomplete** (type `/` in agent prompt), SSH session management, ctx context database viewer, SQLite session persistence with layout restore, live markdown file viewer with Shiki syntax highlighting, 17 themes in 3 groups (4 Catppuccin + 7 Editor + 6 Deep Dark: Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight), **global font controls** (separate UI font [sans-serif] + terminal font [monospace] with live preview), .deb + AppImage packaging, GitHub Actions CI, 138 vitest + 36 cargo tests. Branch `v2-mission-control`. See [docs/v3-task_plan.md](docs/v3-task_plan.md) for v3 architecture.
+![Agent Orchestrator](screenshot.png)
 
-![BTerminal](screenshot.png)
+## What it does
 
-## Features
+Agent Orchestrator lets you run multiple Claude Code agents in parallel, organized into project groups. Each agent gets its own terminal, file browser, and Claude session. Agents communicate with each other via built-in messaging (btmsg) and coordinate work through a shared task board (bttask).
 
-- **SSH sessions** — saved configs (host, port, user, key, folder, color), CRUD with side panel
-- **Claude Code sessions** — saved Claude Code configs with sudo, resume, skip-permissions and initial prompt
-- **SSH macros** — multi-step macros (text, key, delay) assigned to sessions, run from sidebar
-- **Tabs** — multiple terminals in tabs, Ctrl+T new, Ctrl+Shift+W close, Ctrl+PageUp/Down switch
-- **Sudo askpass** — Claude Code with sudo: password entered once, temporary askpass helper, auto-cleanup
-- **Folder grouping** — SSH and Claude Code sessions can be grouped in folders on the sidebar
-- **ctx — Context manager** — SQLite-based cross-session context database for Claude Code projects
-- **Catppuccin Mocha** — full theme: terminal, sidebar, tabs, session colors
+## Key Features
+
+### Multi-Agent Orchestration
+- **Project groups** — up to 5 projects side-by-side, adaptive layout (5 @ultrawide, 3 @1920px)
+- **Tier 1 agents** — Manager, Architect, Tester, Reviewer with role-specific tabs and auto-generated system prompts
+- **Tier 2 agents** — per-project Claude sessions with custom context
+- **btmsg** — inter-agent messaging CLI + UI (Activity Feed, DMs, Channels)
+- **bttask** — Kanban task board with role-based visibility (Manager CRUD, others read-only)
+- **Auto-wake scheduler** — 3 strategies (persistent, on-demand, smart) with configurable wake signals
+
+### Per-Project Workspace
+- **Claude sessions** with session continuity, anchors, and structured output
+- **Terminal tabs** — shell, SSH, agent preview per project
+- **File browser** — CodeMirror 6 editor (15 languages), PDF viewer, CSV table
+- **Docs viewer** — live Markdown with Shiki syntax highlighting
+- **Context tab** — LLM context window visualization (token meter, turn breakdown)
+- **Metrics panel** — live health, SVG sparkline history, session stats
+
+### Multi-Provider Support
+- **Claude** (primary) — via Agent SDK sidecar
+- **Codex** — OpenAI Codex SDK adapter
+- **Ollama** — local models via native fetch
+
+### Production Hardening
+- **Sidecar supervisor** — crash recovery with exponential backoff
+- **Landlock sandbox** — Linux kernel process isolation for sidecar
+- **FTS5 search** — full-text search with Spotlight-style overlay (Ctrl+F)
+- **Plugin system** — sandboxed runtime with permission gates
+- **Secrets management** — system keyring integration
+- **Notifications** — OS + in-app notification center
+- **Agent health monitoring** — heartbeats, dead letter queue, audit log
+- **Optimistic locking** — bttask concurrent access protection
+- **Error classification** — 6 error types with auto-retry logic
+- **TLS relay** — encrypted WebSocket for remote machines
+- **WAL checkpoint** — periodic SQLite maintenance (5min interval)
+
+### Developer Experience
+- **17 themes** — Catppuccin (4), Editor (7), Deep Dark (6)
+- **Keyboard-first UX** — Command Palette (Ctrl+K), 18+ commands, vi-style navigation
+- **Claude profiles** — per-project account switching
+- **Skill discovery** — type `/` in agent prompt for autocomplete
+- **ctx integration** — SQLite context database for cross-session memory
+
+### Testing
+- **444 vitest** + **151 cargo** + **109 E2E** tests
+- **E2E engine** — WebDriverIO + tauri-driver, Phase A/B/C scenarios
+- **LLM judge** — dual-mode CLI/API for semantic assertion (claude-haiku)
+- **CI** — GitHub Actions with xvfb + LLM-judged test gating
+
+## Architecture
+
+```
+Agent Orchestrator (Tauri 2.x)
+├── Rust backend (src-tauri/)
+│   ├── Commands: groups, sessions, btmsg, bttask, search, secrets, plugins, notifications
+│   ├── bterminal-core: PtyManager, SidecarManager, EventSink trait
+│   └── bterminal-relay: WebSocket server for remote machines (+ TLS)
+├── Svelte 5 frontend (src/)
+│   ├── Workspace: ProjectGrid, ProjectBox (per-project tabs), StatusBar
+│   ├── Stores: workspace, agents, health, conflicts, wake-scheduler, plugins
+│   ├── Adapters: claude-bridge, btmsg-bridge, bttask-bridge, groups-bridge
+│   └── Agent dispatcher: sidecar event routing, session persistence, auto-anchoring
+└── Node.js sidecar (sidecar/)
+    ├── claude-runner.mjs (Agent SDK)
+    ├── codex-runner.mjs (OpenAI Codex)
+    └── ollama-runner.mjs (local models)
+```
 
 ## Installation
 
-```bash
-git clone https://github.com/DexterFromLab/BTerminal.git
-cd BTerminal
-./install.sh
-```
-
-The installer will:
-1. Install system dependencies (python3-gi, GTK3, VTE)
-2. Copy files to `~/.local/share/bterminal/`
-3. Create symlinks: `bterminal` and `ctx` in `~/.local/bin/`
-4. Initialize context database at `~/.claude-context/context.db`
-5. Add desktop entry to application menu
-
-### v2 Installation (Tauri — build from source)
-
-Requires Node.js 20+, Rust 1.77+, and system libraries (WebKit2GTK 4.1, GTK3, etc.).
+Requires Node.js 20+, Rust 1.77+, WebKit2GTK 4.1, GTK3.
 
 ```bash
-git clone https://github.com/DexterFromLab/BTerminal.git
-cd BTerminal
-./install-v2.sh
+git clone https://github.com/DexterFromLab/agent-orchestrator.git
+cd agent-orchestrator/v2
+npm install
+npm run build:sidecar
+npm run tauri:dev
 ```
 
-The installer checks all dependencies, offers to install missing system packages via apt, builds the Tauri app, and installs the binary as `bterminal-v2` in `~/.local/bin/`.
-
-Pre-built .deb and AppImage packages are available from [GitHub Releases](https://github.com/DexterFromLab/BTerminal/releases) (built via CI on version tags).
-
-### v1 Manual dependency install (Debian/Ubuntu/Pop!_OS)
+### Build for distribution
 
 ```bash
-sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-vte-2.91
+npm run tauri:build
+# Output: .deb + AppImage in target/release/bundle/
 ```
-
-## Usage
-
-```bash
-bterminal
-```
-
-## Context Manager (ctx)
-
-`ctx` is a SQLite-based tool for managing persistent context across Claude Code sessions.
-
-```bash
-ctx init myproject "Project description" /path/to/project
-ctx get myproject                    # Load full context (shared + project)
-ctx set myproject key "value"        # Save a context entry
-ctx shared set preferences "value"   # Save shared context (available in all projects)
-ctx summary myproject "What was done" # Save session summary
-ctx search "query"                   # Full-text search across everything
-ctx list                             # List all projects
-ctx history myproject                # Show session history
-ctx --help                           # All commands
-```
-
-### Integration with Claude Code
-
-Add a `CLAUDE.md` to your project root:
-
-```markdown
-On session start, load context:
-  ctx get myproject
-
-Save important discoveries: ctx set myproject <key> <value>
-Before ending session: ctx summary myproject "<what was done>"
-```
-
-Claude Code reads `CLAUDE.md` automatically and will maintain the context database.
 
 ## Configuration
 
-Config files in `~/.config/bterminal/`:
+Config: `~/.config/bterminal/groups.json` — project groups, agents, prompts (human-editable JSON).
 
-| File | Description |
-|------|-------------|
-| `sessions.json` | Saved SSH sessions + macros |
-| `claude_sessions.json` | Saved Claude Code configs |
+Database: `~/.local/share/bterminal/` — sessions.db (sessions, metrics, anchors), btmsg.db (messages, tasks, agents).
 
-Context database: `~/.claude-context/context.db`
+## Multi-Machine Support
+
+```
+Agent Orchestrator --WebSocket/TLS--> bterminal-relay (Remote Machine)
+                                      ├── PtyManager (remote terminals)
+                                      └── SidecarManager (remote agents)
+```
+
+```bash
+cd v2 && cargo build --release -p bterminal-relay
+./target/release/bterminal-relay --port 9750 --token <secret> --tls-cert cert.pem --tls-key key.pem
+```
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+T` | New tab (local shell) |
-| `Ctrl+Shift+W` | Close tab |
-| `Ctrl+Shift+C` | Copy |
-| `Ctrl+Shift+V` | Paste |
-| `Ctrl+PageUp/Down` | Previous/next tab |
-
-## Multi-Machine Support (v2)
-
-BTerminal v2 can manage agents and terminals running on remote machines via the `bterminal-relay` binary.
-
-### Architecture
-
-```
-BTerminal (Controller) --WebSocket--> bterminal-relay (Remote Machine)
-                                      ├── PtyManager (remote terminals)
-                                      └── SidecarManager (remote agents)
-```
-
-### Running the Relay
-
-On each remote machine:
-
-```bash
-# Build the relay binary
-cd v2 && cargo build --release -p bterminal-relay
-
-# Start with token auth
-./target/release/bterminal-relay --port 9750 --token <secret>
-
-# Dev mode (allow unencrypted ws://)
-./target/release/bterminal-relay --port 9750 --token <secret> --insecure
-```
-
-Add remote machines in BTerminal Settings > Remote Machines (label, URL, token). Remote panes auto-group by machine label in the sidebar. Connections automatically reconnect with exponential backoff (1s-30s cap) on disconnect.
-
-See [docs/multi-machine.md](docs/multi-machine.md) for full architecture details.
-
-## Telemetry (v2)
-
-BTerminal supports OpenTelemetry tracing with optional export to Tempo + Grafana.
-
-```bash
-# Start the tracing stack
-cd docker/tempo && docker compose up -d
-# Grafana at http://localhost:9715
-
-# Run BTerminal with OTLP export enabled
-BTERMINAL_OTLP_ENDPOINT=http://localhost:4318 npm run tauri dev
-```
-
-Without `BTERMINAL_OTLP_ENDPOINT`, telemetry falls back to console-only tracing (no network calls). Key Tauri commands (PTY, agent, remote) are instrumented with `#[tracing::instrument]`. Frontend events (agent lifecycle, errors, cost) route to Rust tracing via IPC bridge.
+| `Ctrl+K` | Command Palette |
+| `Ctrl+M` | Messages (CommsTab) |
+| `Ctrl+B` | Toggle sidebar |
+| `Ctrl+,` | Settings |
+| `Ctrl+F` | Full-text search |
+| `Ctrl+1-5` | Focus project by index |
+| `Escape` | Close overlay/sidebar |
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [docs/task_plan.md](docs/task_plan.md) | v2 architecture decisions, error handling, testing strategy |
-| [docs/phases.md](docs/phases.md) | v2 implementation phases (1-7 + multi-machine A-D) with checklists |
-| [docs/findings.md](docs/findings.md) | Research findings (Agent SDK, Tauri, xterm.js, performance) |
-| [docs/progress.md](docs/progress.md) | Session-by-session progress log (recent) |
-| [docs/progress-archive.md](docs/progress-archive.md) | Archived progress log (2026-03-05 to 2026-03-06 early) |
-| [docs/multi-machine.md](docs/multi-machine.md) | Multi-machine architecture (implemented, WebSocket relay, reconnection) |
-| [docs/v3-task_plan.md](docs/v3-task_plan.md) | v3 Mission Control redesign: architecture decisions and strategies |
-| [docs/v3-findings.md](docs/v3-findings.md) | v3 research findings and codebase reuse analysis |
-| [docs/v3-progress.md](docs/v3-progress.md) | v3 session progress log (All Phases 1-10 complete) |
+| [docs/v3-task_plan.md](docs/v3-task_plan.md) | Architecture decisions and strategies |
+| [docs/v3-progress.md](docs/v3-progress.md) | Session progress log |
+| [docs/v3-release-notes.md](docs/v3-release-notes.md) | v3.0 release notes |
+| [docs/e2e-testing.md](docs/e2e-testing.md) | E2E testing facility documentation |
+| [docs/multi-machine.md](docs/multi-machine.md) | Multi-machine relay architecture |
 
 ## License
 
