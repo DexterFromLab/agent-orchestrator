@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Sidecar crash recovery/supervision** — `bterminal-core/src/supervisor.rs`: SidecarSupervisor wraps SidecarManager with auto-restart, exponential backoff (1s base, 30s cap, 5 retries), SidecarHealth enum (Healthy/Degraded/Failed), 5min stability window. 17 tests
+- **Notification system** — OS desktop notifications via `notify-rust` + in-app NotificationCenter.svelte (bell icon, unread badge, history max 100, 6 notification types). Agent dispatcher emits on complete/error/crash. notifications-bridge.ts adapter
+- **Secrets management** — `keyring` crate with linux-native (libsecret). SecretsManager in secrets.rs: store/get/delete/list with `__bterminal_keys__` metadata tracking. SettingsTab Secrets section. secrets-bridge.ts adapter. No plaintext fallback
+- **Keyboard-first UX** — Alt+1-5 project jump, Ctrl+H/L vi-nav, Ctrl+Shift+1-9 tab switch, Ctrl+J terminal toggle, Ctrl+Shift+K focus agent, Ctrl+Shift+F search overlay. `isEditing()` guard prevents conflicts. CommandPalette rewritten: 18+ commands, 6 categories, fuzzy filter, arrow nav, keyboard shortcuts overlay
+- **Agent health monitoring** — heartbeats table + dead_letter_queue table in btmsg.db. 15s heartbeat polling in ProjectBox. Stale detection (5min threshold). ProjectHeader heart indicator (green/yellow/red). StatusBar health badge
+- **FTS5 full-text search** — rusqlite upgraded to `bundled-full`. SearchDb with 3 FTS5 virtual tables (search_messages, search_tasks, search_btmsg). SearchOverlay.svelte: Spotlight-style Ctrl+Shift+F overlay, 300ms debounce, grouped results with FTS5 highlight snippets
+- **Plugin system** — `~/.config/bterminal/plugins/` with plugin.json manifest. plugins.rs: discovery, path-traversal-safe file reading, permission validation. plugin-host.ts: sandboxed `new Function()` execution, permission-gated API (palette, btmsg:read, bttask:read, events). plugins.svelte.ts store. SettingsTab plugins section. Example hello plugin
+- **Landlock sandbox** — `bterminal-core/src/sandbox.rs`: SandboxConfig with RW/RO paths, applied via `pre_exec()` in sidecar child process. Requires kernel 6.2+ (graceful fallback). Per-project toggle in SettingsTab
+- **Error classification** — `error-classifier.ts`: classifyApiError() with 6 types (rate_limit, auth, quota, overloaded, network, unknown), actionable messages, retry delays. 20 tests
+- **Audit log** — audit_log table in btmsg.db. AuditLogTab.svelte: Manager-only tab, filter by type+agent, 5s auto-refresh. audit-bridge.ts adapter. Events: agent_start/stop/error, task changes, wake events, prompt injection
+- **Usage meter** — UsageMeter.svelte: compact inline cost/token meter with color thresholds (50/75/90%), hover tooltip. Integrated in AgentPane cost bar
+- **Team agent orchestration** — install_cli_tools() copies btmsg/bttask to ~/.local/bin on startup. register_agents_from_groups() with bidirectional contacts. ensure_review_channels_for_group() creates #review-queue/#review-log per group
+- **Optimistic locking for bttask** — `version` column in tasks table. `WHERE id=? AND version=?` in update_task_status(). Conflict detection in TaskBoardTab. Both Rust + Python CLI updated
 - **Unified test runner** — `v2/scripts/test-all.sh` runs vitest + cargo tests with optional E2E (`--e2e` flag). npm scripts: `test:all`, `test:all:e2e`, `test:cargo`. Summary output with color-coded pass/fail
 - **Testing gate rule** — `.claude/rules/20-testing-gate.md` requires running full test suite after every major change (new features, refactors touching 3+ files, store/adapter/bridge/backend changes)
 - **E2E test mode infrastructure** — `BTERMINAL_TEST=1` env var disables file watchers (watcher.rs, fs_watcher.rs), wake scheduler, and allows data/config dir overrides via `BTERMINAL_TEST_DATA_DIR`/`BTERMINAL_TEST_CONFIG_DIR`. New `is_test_mode` Tauri command bridges test state to frontend

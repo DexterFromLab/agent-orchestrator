@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control (All Phases 1-10 Complete + Sidebar Redesign + Multi-Agent Orchestration): multi-project dashboard with project groups, per-project Claude sessions with session continuity, team agents panel, terminal tabs, VSCode-style left sidebar, multi-agent orchestration (Tier 1 management agents: Manager/Architect/Tester with role-specific tabs, btmsg inter-agent messaging, bttask kanban task board, BTMSG_AGENT_ID env passthrough, periodic system prompt re-injection, custom context for all tiers).
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control (All Phases 1-10 Complete + Production Readiness): multi-project dashboard with project groups, per-project Claude sessions with session continuity, team agents panel, terminal tabs, VSCode-style left sidebar, multi-agent orchestration (Tier 1 management agents: Manager/Architect/Tester/Reviewer with role-specific tabs, btmsg inter-agent messaging, bttask kanban task board with optimistic locking). Production features: sidecar crash recovery/supervision, FTS5 full-text search, plugin system, Landlock sandboxing, secrets management (system keyring), OS + in-app notifications, keyboard-first UX (18+ palette commands), agent health monitoring + dead letter queue, audit logging, error classification.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -37,9 +37,15 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src-tauri/src/groups.rs` | Groups config (load/save ~/.config/bterminal/groups.json) |
 | `v2/src-tauri/src/fs_watcher.rs` | ProjectFsWatcher (inotify per-project recursive file change detection, S-1 Phase 2) |
 | `v2/src-tauri/src/lib.rs` | AppState + setup + handler registration (~170 lines) |
-| `v2/src-tauri/src/commands/` | 12 domain command modules (pty, agent, watcher, session, persistence, knowledge, claude, groups, files, remote, misc, bttask) |
-| `v2/src-tauri/src/btmsg.rs` | Agent messaging backend (agents, DMs, channels, contacts ACL; SQLite WAL mode, named column access) |
-| `v2/src-tauri/src/bttask.rs` | Task board backend (list, create, update status, delete, comments, review_queue_count; shared btmsg.db; auto-posts to #review-queue channel on task→review transition) |
+| `v2/src-tauri/src/commands/` | 16 domain command modules (pty, agent, watcher, session, persistence, knowledge, claude, groups, files, remote, misc, bttask, notifications, plugins, search, secrets) |
+| `v2/src-tauri/src/btmsg.rs` | Agent messaging backend (agents, DMs, channels, contacts ACL, heartbeats, dead_letter_queue, audit_log; SQLite WAL mode, named column access) |
+| `v2/src-tauri/src/bttask.rs` | Task board backend (list, create, update status with optimistic locking, delete, comments, review_queue_count; shared btmsg.db) |
+| `v2/src-tauri/src/search.rs` | FTS5 full-text search (SearchDb, 3 virtual tables: search_messages/tasks/btmsg, index/search/rebuild) |
+| `v2/src-tauri/src/secrets.rs` | SecretsManager (keyring crate, linux-native/libsecret, store/get/delete/list with metadata tracking) |
+| `v2/src-tauri/src/plugins.rs` | Plugin discovery (scan config dir for plugin.json, path-traversal-safe file reading, permission validation) |
+| `v2/src-tauri/src/notifications.rs` | Desktop notifications (notify-rust, graceful fallback if daemon unavailable) |
+| `v2/bterminal-core/src/supervisor.rs` | SidecarSupervisor (auto-restart, exponential backoff 1s-30s, 5 retries, SidecarHealth enum, 17 tests) |
+| `v2/bterminal-core/src/sandbox.rs` | Landlock sandbox (SandboxConfig RW/RO paths, pre_exec() integration, kernel 6.2+ graceful fallback) |
 | `v2/src-tauri/src/sidecar.rs` | SidecarManager (thin re-export from bterminal-core) |
 | `v2/src-tauri/src/event_sink.rs` | TauriEventSink (implements EventSink for AppHandle) |
 | `v2/src-tauri/src/remote.rs` | RemoteManager (WebSocket client connections to relays) |
@@ -106,7 +112,19 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/utils/highlight.ts` | Shiki syntax highlighter (lazy singleton, 13 languages) |
 | `v2/src/lib/utils/detach.ts` | Detached pane mode (pop-out windows via URL params) |
 | `v2/src/lib/utils/updater.ts` | Tauri auto-updater utility |
-| `v2/src/lib/stores/notifications.svelte.ts` | Toast notification store (notify, dismiss) |
+| `v2/src/lib/stores/notifications.svelte.ts` | Notification store (toast + history, 6 NotificationTypes, unread badge, max 100 history) |
+| `v2/src/lib/stores/plugins.svelte.ts` | Plugin store (command registry, event bus, loadAllPlugins/unloadAllPlugins) |
+| `v2/src/lib/adapters/audit-bridge.ts` | Audit log IPC adapter (logAuditEvent, getAuditLog, AuditEntry, AuditEventType) |
+| `v2/src/lib/adapters/notifications-bridge.ts` | Desktop notification IPC wrapper (sendDesktopNotification) |
+| `v2/src/lib/adapters/plugins-bridge.ts` | Plugin discovery IPC wrapper (discoverPlugins, readPluginFile) |
+| `v2/src/lib/adapters/search-bridge.ts` | FTS5 search IPC wrapper (initSearch, searchAll, rebuildIndex, indexMessage) |
+| `v2/src/lib/adapters/secrets-bridge.ts` | Secrets IPC wrapper (storeSecret, getSecret, deleteSecret, listSecrets, hasKeyring) |
+| `v2/src/lib/utils/error-classifier.ts` | API error classification (6 types: rate_limit/auth/quota/overloaded/network/unknown, retry logic, 20 tests) |
+| `v2/src/lib/plugins/plugin-host.ts` | Sandboxed plugin runtime (new Function(), permission-gated API, load/unload lifecycle) |
+| `v2/src/lib/components/Agent/UsageMeter.svelte` | Compact inline usage meter (color thresholds 50/75/90%, hover tooltip) |
+| `v2/src/lib/components/Notifications/NotificationCenter.svelte` | Bell icon + dropdown notification panel (unread badge, history, mark read/clear) |
+| `v2/src/lib/components/Workspace/AuditLogTab.svelte` | Manager audit log tab (filter by type+agent, 5s auto-refresh, max 200 entries) |
+| `v2/src/lib/components/Workspace/SearchOverlay.svelte` | FTS5 search overlay (Ctrl+Shift+F, Spotlight-style, 300ms debounce, grouped results) |
 | `v2/src/lib/stores/theme.svelte.ts` | Theme store (17 themes: 4 Catppuccin + 7 Editor + 6 Deep Dark, UI + terminal font restoration on startup) |
 | `v2/src/lib/styles/themes.ts` | Theme palette definitions (17 themes), ThemeId/ThemePalette/ThemeMeta types, THEME_LIST |
 | `v2/src/lib/styles/catppuccin.css` | CSS custom properties: 26 --ctp-* color vars + --ui-font-* + --term-font-* |
@@ -167,8 +185,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 - SQLite session persistence (rusqlite, WAL mode) + layout restore on startup
 - File watcher (notify crate) for live markdown viewer
 - OpenTelemetry: tracing + tracing-subscriber + opentelemetry 0.28 + tracing-opentelemetry 0.29, OTLP/HTTP to Tempo, BTERMINAL_OTLP_ENDPOINT env var
-- Rust deps (src-tauri): tauri, bterminal-core (path), rusqlite (bundled), dirs, notify, serde, tokio, tokio-tungstenite, futures-util, tracing, tracing-subscriber, opentelemetry, opentelemetry_sdk, opentelemetry-otlp, tracing-opentelemetry, tauri-plugin-updater, tauri-plugin-dialog
-- Rust deps (bterminal-core): portable-pty, uuid, serde, serde_json, log
+- Rust deps (src-tauri): tauri, bterminal-core (path), rusqlite (bundled-full, FTS5), dirs, notify, serde, tokio, tokio-tungstenite, futures-util, tracing, tracing-subscriber, opentelemetry, opentelemetry_sdk, opentelemetry-otlp, tracing-opentelemetry, tauri-plugin-updater, tauri-plugin-dialog, notify-rust, keyring (linux-native)
+- Rust deps (bterminal-core): portable-pty, uuid, serde, serde_json, log, landlock
 - Rust deps (bterminal-relay): bterminal-core, tokio, tokio-tungstenite, clap, env_logger, futures-util
 - npm deps: @anthropic-ai/claude-agent-sdk, @xterm/xterm, @xterm/addon-canvas, @xterm/addon-fit, @tauri-apps/api, @tauri-apps/plugin-updater, @tauri-apps/plugin-dialog, marked, shiki, pdfjs-dist, vitest (dev)
 - Source: `v2/` directory

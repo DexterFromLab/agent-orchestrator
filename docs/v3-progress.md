@@ -1006,3 +1006,38 @@ Reviewed and integrated Dexter's multi-agent orchestration branch (dexter_change
 - [x] Vitest: 388 passed, 0 failed (was 345, +43 from prior sessions)
 - [x] Cargo: 68 passed, 0 failed
 - [x] No regressions
+
+---
+
+### Session: v3 Production Readiness — Tribunal Implementation (2026-03-12)
+
+Implemented ALL 13 features from tribunal assessment in 3 parallel waves (11 sub-agents total). 60+ files changed, 3861 insertions.
+
+#### Wave 1: Core Infrastructure (3 agents)
+- [x] **Sidecar supervisor** — `bterminal-core/src/supervisor.rs`: SidecarSupervisor with exponential backoff (1s-30s, 5 retries), SidecarHealth enum, 5min stability window, 17 tests
+- [x] **FTS5 search** — rusqlite `bundled-full`, SearchDb with 3 FTS5 virtual tables, SearchOverlay.svelte (Ctrl+Shift+F), search-bridge.ts
+- [x] **Secrets management** — `keyring` crate (linux-native/libsecret), SecretsManager, secrets-bridge.ts, SettingsTab section
+
+#### Wave 2: Features (5 agents)
+- [x] **Notification system** — notify-rust + NotificationCenter.svelte (bell icon, history, 6 types), notifications-bridge.ts
+- [x] **Keyboard-first UX** — Alt+1-5 jump, Ctrl+H/L vi-nav, Ctrl+Shift+1-9 tabs, Ctrl+J terminal, CommandPalette rewrite (18+ cmds, 6 categories)
+- [x] **Agent health monitoring** — heartbeats + dead_letter_queue tables, 15s poll, ProjectHeader heart indicator, StatusBar badge
+- [x] **Plugin system** — plugins.rs discovery, plugin-host.ts sandboxed runtime, plugins.svelte.ts store, example plugin
+- [x] **Landlock sandbox** — bterminal-core/src/sandbox.rs, SandboxConfig, pre_exec() integration, per-project toggle
+
+#### Wave 3: Integration (3 agents)
+- [x] **Error classification** — error-classifier.ts (6 types, retry logic), 20 tests
+- [x] **Audit log** — audit_log table, AuditLogTab.svelte, audit-bridge.ts
+- [x] **Team agent orchestration** — install_cli_tools(), register_agents_from_groups(), bidirectional contacts, review channels
+- [x] **Optimistic locking** — version column in bttask, conflict detection in Rust + Python CLI
+- [x] **Usage meter** — UsageMeter.svelte, AgentPane integration
+
+#### Key Fixes
+- PRAGMA journal_mode=WAL: changed to query_row for bundled-full compatibility (session/mod.rs, btmsg.rs, bttask.rs)
+- SidecarConfig: changed to `Mutex<SidecarConfig>` for interior mutability (sandbox updates)
+- New Cargo deps: notify-rust 4, keyring 3 (linux-native), landlock 0.4
+
+#### Verification
+- [x] Vitest: 409 passed, 0 failed (+21 from prior)
+- [x] Cargo: 109 passed, 0 failed (+41 from prior)
+- [x] No regressions
