@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { getActiveGroup } from '../../stores/workspace.svelte';
+  import { getActiveGroup, emitAgentStart } from '../../stores/workspace.svelte';
   import {
     type BtmsgAgent,
     type BtmsgMessage,
@@ -17,6 +17,7 @@
     getChannelMessages,
     sendChannelMessage,
     createChannel,
+    setAgentStatus,
   } from '../../adapters/btmsg-bridge';
 
   const ADMIN_ID = 'admin';
@@ -127,6 +128,13 @@
     try {
       if (currentView.type === 'dm') {
         await sendMessage(ADMIN_ID, currentView.agentId, text);
+        // Auto-wake agent if stopped
+        const recipient = agents.find(a => a.id === currentView.agentId);
+        if (recipient && recipient.status !== 'active') {
+          await setAgentStatus(currentView.agentId, 'active');
+          emitAgentStart(currentView.agentId);
+          await pollBtmsg();
+        }
       } else if (currentView.type === 'channel') {
         await sendChannelMessage(currentView.channelId, ADMIN_ID, text);
       } else {
@@ -138,6 +146,11 @@
     } catch (e) {
       console.warn('Failed to send message:', e);
     }
+  }
+
+  /** Refresh agent list (reused by poll and wake logic) */
+  async function pollBtmsg() {
+    await loadData();
   }
 
   function handleKeydown(e: KeyboardEvent) {

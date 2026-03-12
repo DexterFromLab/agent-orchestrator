@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { getActiveGroup, getEnabledProjects, setActiveProject } from '../../stores/workspace.svelte';
+  import { getActiveGroup, getEnabledProjects, setActiveProject, emitAgentStart, emitAgentStop } from '../../stores/workspace.svelte';
   import type { GroupAgentConfig, GroupAgentStatus, ProjectConfig } from '../../types/groups';
   import { getGroupAgents, setAgentStatus, type BtmsgAgent } from '../../adapters/btmsg-bridge';
   import type { AgentId } from '../../types/ids';
@@ -63,6 +63,12 @@
     try {
       await setAgentStatus(agent.id, newStatus);
       await pollBtmsg(); // Refresh immediately
+      if (newStatus === 'active') {
+        setActiveProject(agent.id);
+        emitAgentStart(agent.id);
+      } else {
+        emitAgentStop(agent.id);
+      }
     } catch (e) {
       console.warn('Failed to set agent status:', e);
     }

@@ -82,6 +82,42 @@ export function emitTerminalToggle(projectId: string): void {
   }
 }
 
+// --- Agent start event (play button in GroupAgentsPanel) ---
+
+type AgentStartCallback = (projectId: string) => void;
+let agentStartCallbacks: AgentStartCallback[] = [];
+
+export function onAgentStart(cb: AgentStartCallback): () => void {
+  agentStartCallbacks.push(cb);
+  return () => {
+    agentStartCallbacks = agentStartCallbacks.filter(c => c !== cb);
+  };
+}
+
+export function emitAgentStart(projectId: string): void {
+  for (const cb of agentStartCallbacks) {
+    cb(projectId);
+  }
+}
+
+// --- Agent stop event (stop button in GroupAgentsPanel) ---
+
+type AgentStopCallback = (projectId: string) => void;
+let agentStopCallbacks: AgentStopCallback[] = [];
+
+export function onAgentStop(cb: AgentStopCallback): () => void {
+  agentStopCallbacks.push(cb);
+  return () => {
+    agentStopCallbacks = agentStopCallbacks.filter(c => c !== cb);
+  };
+}
+
+export function emitAgentStop(projectId: string): void {
+  for (const cb of agentStopCallbacks) {
+    cb(projectId);
+  }
+}
+
 // --- Getters ---
 
 export function getGroupsConfig(): GroupsFile | null {

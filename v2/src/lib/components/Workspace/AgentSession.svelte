@@ -12,6 +12,8 @@
     type AgentMessageRecord,
   } from '../../adapters/groups-bridge';
   import { registerSessionProject } from '../../agent-dispatcher';
+  import { onAgentStart, onAgentStop } from '../../stores/workspace.svelte';
+  import { stopAgent } from '../../adapters/agent-bridge';
   import { trackProject, updateProjectSession } from '../../stores/health.svelte';
   import {
     createAgentSession,
@@ -97,11 +99,30 @@
     lastPromptTime = Date.now();
   }
 
+  // Listen for play-button start events from GroupAgentsPanel
+  const unsubAgentStart = onAgentStart((projectId) => {
+    if (projectId !== project.id) return;
+    // Only auto-start if not already running and no pending prompt
+    if (contextRefreshPrompt) return;
+    const startPrompt = project.isAgent
+      ? 'Start your work. Check your inbox with `btmsg inbox` and review the task board with `bttask board`. Take action on any pending items.'
+      : 'Review the instructions above and begin your work.';
+    contextRefreshPrompt = startPrompt;
+  });
+
+  // Listen for stop-button events from GroupAgentsPanel
+  const unsubAgentStop = onAgentStop((projectId) => {
+    if (projectId !== project.id) return;
+    stopAgent(sessionId).catch(() => {});
+  });
+
   // Start timer and clean up
   startReinjectionTimer();
   onDestroy(() => {
     if (reinjectionTimer) clearInterval(reinjectionTimer);
     if (wakeCheckTimer) clearInterval(wakeCheckTimer);
+    unsubAgentStart();
+    unsubAgentStop();
   });
 
   // Wake scheduler integration — poll for wake events (Manager agents only)

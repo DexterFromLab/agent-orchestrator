@@ -215,38 +215,41 @@ pub fn send_message(from_agent: &str, to_agent: &str, content: &str) -> Result<S
     }
 
     // Check if recipient is stale (no heartbeat in 5 min) — route to dead letter queue
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
-    let cutoff = now - STALE_HEARTBEAT_SECS;
+    // Skip heartbeat check for admin (tier 0) — admin messages always go through
+    if sender_tier > 0 {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        let cutoff = now - STALE_HEARTBEAT_SECS;
 
-    let recipient_stale: bool = db
-        .query_row(
-            "SELECT COALESCE(h.timestamp, 0) < ?1 FROM agents a \
-             LEFT JOIN heartbeats h ON a.id = h.agent_id \
-             WHERE a.id = ?2",
-            params![cutoff, to_agent],
-            |row| row.get(0),
-        )
-        .unwrap_or(false);
+        let recipient_stale: bool = db
+            .query_row(
+                "SELECT COALESCE(h.timestamp, 0) < ?1 FROM agents a \
+                 LEFT JOIN heartbeats h ON a.id = h.agent_id \
+                 WHERE a.id = ?2",
+                params![cutoff, to_agent],
+                |row| row.get(0),
+            )
+            .unwrap_or(false);
 
-    if recipient_stale {
-        // Queue to dead letter instead of delivering
-        let error_msg = format!("Recipient '{}' is stale (no heartbeat in {} seconds)", to_agent, STALE_HEARTBEAT_SECS);
-        db.execute(
-            "INSERT INTO dead_letter_queue (from_agent, to_agent, content, error) VALUES (?1, ?2, ?3, ?4)",
-            params![from_agent, to_agent, content, error_msg],
-        )
-        .map_err(|e| format!("Dead letter insert error: {e}"))?;
+        if recipient_stale {
+            // Queue to dead letter instead of delivering
+            let error_msg = format!("Recipient '{}' is stale (no heartbeat in {} seconds)", to_agent, STALE_HEARTBEAT_SECS);
+            db.execute(
+                "INSERT INTO dead_letter_queue (from_agent, to_agent, content, error) VALUES (?1, ?2, ?3, ?4)",
+                params![from_agent, to_agent, content, error_msg],
+            )
+            .map_err(|e| format!("Dead letter insert error: {e}"))?;
 
-        // Also log audit event
-        let _ = db.execute(
-            "INSERT INTO audit_log (agent_id, event_type, detail) VALUES (?1, 'dead_letter', ?2)",
-            params![from_agent, format!("Message to '{}' routed to dead letter queue: {}", to_agent, error_msg)],
-        );
+            // Also log audit event
+            let _ = db.execute(
+                "INSERT INTO audit_log (agent_id, event_type, detail) VALUES (?1, 'dead_letter', ?2)",
+                params![from_agent, format!("Message to '{}' routed to dead letter queue: {}", to_agent, error_msg)],
+            );
 
-        return Err(error_msg);
+            return Err(error_msg);
+        }
     }
 
     let msg_id = uuid::Uuid::new_v4().to_string();

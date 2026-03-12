@@ -151,14 +151,15 @@
   // NOTE: Do NOT stop agents in onDestroy — it fires on layout changes/remounts,
   // not just explicit close. Stop-on-close is handled by workspace teardown.
 
-  // Auto-prompt: pick up externally triggered prompts (e.g. periodic context refresh)
+  // Auto-prompt: pick up externally triggered prompts (e.g. periodic context refresh, play button)
   $effect(() => {
     if (!autoPrompt || isRunning) return;
-    // Only trigger if session exists and is idle (done/error)
-    if (!session || (session.status !== 'done' && session.status !== 'error')) return;
+    // Allow: no session yet (first start) or session completed (done/error)
+    if (session && session.status !== 'done' && session.status !== 'error') return;
     const prompt = autoPrompt;
+    const resume = !!session; // new query if first start, resume if existing session
     onautopromptconsumed?.();
-    startQuery(prompt, true); // resume session with context refresh
+    startQuery(prompt, resume);
   });
 
   let promptRef = $state<HTMLTextAreaElement | undefined>();
