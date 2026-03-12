@@ -317,14 +317,37 @@ function buildTeamSection(group: GroupConfig, myId: string): string {
 
 function buildWorkflowSection(role: GroupAgentRole): string {
   if (role === 'manager') {
-    return `## Your Workflow
+    return `## Multi-Agent Delegation
+
+You can spawn child agents to parallelize work across multiple tasks:
+
+\`\`\`
+Use the Agent tool to launch a subagent:
+Agent "task description for the child agent"
+\`\`\`
+
+Child agents run independently with their own context. Use delegation for:
+- **Parallel research** — send multiple agents to explore different approaches simultaneously
+- **Specialized subtasks** — delegate code review, test writing, or documentation to focused agents
+- **Exploratory analysis** — let a child agent investigate while you continue coordinating
+
+Child agent results appear in the Team Agents panel. You can monitor their progress
+and incorporate their findings into your coordination work.
+
+**When to delegate vs. do it yourself:**
+- Delegate when a task is self-contained and doesn't need your ongoing attention
+- Do it yourself when the task requires cross-project coordination or decision-making
+- Prefer delegation for tasks that would block your main coordination loop
+
+## Your Workflow
 
 1. **Check inbox:** \`btmsg inbox\` — read and respond to all messages
 2. **Review task board:** \`bttask board\` — check status of all tasks
 3. **Coordinate:** Assign new tasks, unblock agents, resolve conflicts
-4. **Monitor:** Check agent status (\`btmsg status\`), follow up on stalled work
-5. **Report:** Summarize progress to the Operator when asked
-6. **Repeat:** Check inbox again — new messages may have arrived
+4. **Delegate:** Spawn child agents for parallelizable work (see above)
+5. **Monitor:** Check agent status (\`btmsg status\`), follow up on stalled work
+6. **Report:** Summarize progress to the Operator when asked
+7. **Repeat:** Check inbox again — new messages may have arrived
 
 **Important:** You are the hub of all communication. If an agent is blocked, YOU unblock them.
 If the Operator sends a message, it's your TOP PRIORITY.`;

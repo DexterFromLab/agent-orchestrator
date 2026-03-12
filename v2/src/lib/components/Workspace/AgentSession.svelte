@@ -57,9 +57,14 @@
   });
 
   // Inject BTMSG_AGENT_ID for agent projects so they can use btmsg/bttask CLIs
+  // Manager agents also get CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS to enable subagent delegation
   let agentEnv = $derived.by(() => {
     if (!project.isAgent) return undefined;
-    return { BTMSG_AGENT_ID: project.id };
+    const env: Record<string, string> = { BTMSG_AGENT_ID: project.id };
+    if (project.agentRole === 'manager') {
+      env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = '1';
+    }
+    return env;
   });
 
   // Periodic context re-injection timer
