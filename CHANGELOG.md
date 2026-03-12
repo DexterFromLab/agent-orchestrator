@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (commands/claude.rs)
 - **Sidecar env allowlist hardening** — added `ANTHROPIC_*` to Rust-level `strip_provider_env_var()` as defense-in-depth (Claude CLI uses credentials file, not env for auth). Dual-layer stripping documented: Rust layer (first checkpoint) + JS runner layer (per-provider)
+- **Plugin sandbox hardening** — 13 shadowed globals in `new Function()` sandbox (window, document, fetch, globalThis, self, XMLHttpRequest, WebSocket, Function, importScripts, require, process, Deno, __TAURI__, __TAURI_INTERNALS__). `this` bound to undefined via `.call()`. 35 tests covering all shadows, permissions, and lifecycle. Known escape vectors documented in JSDoc
+- **WAL checkpoint** — periodic `PRAGMA wal_checkpoint(TRUNCATE)` every 5 minutes on sessions.db + btmsg.db to prevent unbounded WAL growth under sustained multi-agent load. 2 tests
+- **TLS support for bterminal-relay** — optional `--tls-cert` and `--tls-key` CLI args. Server wraps TCP streams with native-tls. Client already supports `wss://` URLs. Generic handler refactor avoids code duplication
+- **Landlock fallback logging** — improved warning message with kernel version requirement (6.2+) and documented 3 enforcement states
 
 ### Fixed
 - **btmsg.rs column index mismatch** — `get_agents()` used `SELECT a.*` with positional index 7 for `status`, but column 7 is actually `system_prompt`. Converted all query functions in btmsg.rs and bttask.rs from positional to named column access (`row.get("column_name")`). Added SQL aliases for JOIN columns
@@ -50,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ArchitectureTab PlantUML encoding** — `rawDeflate()` was a no-op, `encode64()` did hex encoding. Collapsed into single `plantumlEncode()` using PlantUML's `~h` hex encoding
 - **TestingTab Tauri 2.x asset URL** — used `asset://localhost/` (Tauri 1.x). Fixed to `convertFileSrc()` from `@tauri-apps/api/core`
 - **Reconnect loop race in RemoteManager** — orphaned reconnect tasks continued running after `remove_machine()` or `disconnect()`. Added `cancelled: Arc<AtomicBool>` flag to `RemoteMachine`; set on removal/disconnect, checked each reconnect iteration. `connect()` resets flag for new connections (remote.rs)
+- **Subagent delegation not triggering** — Manager system prompt had no documentation of Agent tool / delegation capability. Added "Multi-Agent Delegation" section with usage examples and guidelines. Also inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` env var for Manager agents
+- **Gitignore ignoring source code** — root `.gitignore` `plugins/` rule matched `v2/src/lib/plugins/` (source code). Narrowed to `/plugins/` and `/v2/plugins/` (runtime dirs only)
 
 ### Added
 - **Reviewer agent role** — Tier 1 specialist with reviewer workflow in `agent-prompts.ts` (8-step process: inbox → review-queue → analyze → verdict → status update → review-log → report). Rust `bttask.rs` auto-posts to `#review-queue` btmsg channel on task→review transition via `notify_review_channel()` + `ensure_review_channels()` (idempotent). `reviewQueueDepth` in `attention-scorer.ts` (10pts/task, cap 50). `review_queue_count()` Rust function + Tauri command + `reviewQueueCount()` IPC bridge. ProjectBox: 'Tasks' tab for reviewer (reuses TaskBoardTab), 10s review queue polling → `setReviewQueueDepth()` in health store. 7 new vitest + 4 new cargo tests. 388 vitest + 76 cargo total

@@ -1041,3 +1041,36 @@ Implemented ALL 13 features from tribunal assessment in 3 parallel waves (11 sub
 - [x] Vitest: 409 passed, 0 failed (+21 from prior)
 - [x] Cargo: 109 passed, 0 failed (+41 from prior)
 - [x] No regressions
+
+---
+
+### Session: v3 Hardening Sprint (2026-03-12)
+
+Executed tribunal-recommended hybrid S-2/S-1 hardening sprint. Fixed 3 security/resilience issues, added TLS, fixed gitignore bug.
+
+#### Subagent Delegation Fix
+- [x] Root cause: Manager system prompt had no mention of Agent tool / delegation capability
+- [x] Added "Multi-Agent Delegation" section to Manager workflow in `agent-prompts.ts`
+- [x] Inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` env var for Manager agents in `AgentSession.svelte`
+
+#### TLS for bterminal-relay
+- [x] Added `--tls-cert` and `--tls-key` optional CLI args to relay binary
+- [x] `build_tls_acceptor()` using `native_tls::Identity::from_pkcs8`
+- [x] Refactored to generic `accept_ws_with_auth<S>` and `run_ws_session<S>` (avoids code duplication)
+- [x] Client side already supports `wss://` via `connect_async` with native-tls feature — no changes needed
+- [x] Certificate pinning deferred to v3.1 per tribunal risk matrix
+
+#### Security Hardening
+- [x] **WAL checkpoint** — `checkpoint_wal()` + `spawn_wal_checkpoint_task()` in lib.rs. Runs `PRAGMA wal_checkpoint(TRUNCATE)` every 5 minutes on sessions.db + btmsg.db. 2 tests
+- [x] **Landlock logging** — Improved fallback message: "Kernel 6.2+ required for enforcement" + 3-state enforcement comments
+- [x] **Plugin sandbox** — Already hardened (13 shadowed globals, `this` binding to undefined). Documented known `new Function()` escape vectors in JSDoc
+
+#### Gitignore Fix
+- [x] Root `.gitignore` had `plugins/` which matched `v2/src/lib/plugins/` (source code). Narrowed to `/plugins/` and `/v2/plugins/` (runtime dirs only)
+- [x] Tracked previously-ignored `plugin-host.ts` source file
+- [x] Added `plugin-host.test.ts` with 35 tests (sandbox globals, permissions, lifecycle)
+
+#### Verification
+- [x] Vitest: 444 passed, 0 failed (+35 plugin sandbox tests)
+- [x] Cargo: 111 passed, 0 failed (+2 WAL checkpoint tests)
+- [x] Full workspace compiles clean
