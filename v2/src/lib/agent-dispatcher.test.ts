@@ -18,6 +18,7 @@ const {
   mockAddPane,
   mockGetPanes,
   mockNotify,
+  mockAddNotification,
 } = vi.hoisted(() => ({
   capturedCallbacks: {
     msg: null as ((msg: any) => void) | null,
@@ -37,6 +38,7 @@ const {
   mockAddPane: vi.fn(),
   mockGetPanes: vi.fn().mockReturnValue([]),
   mockNotify: vi.fn(),
+  mockAddNotification: vi.fn(),
 }));
 
 vi.mock('./adapters/agent-bridge', () => ({
@@ -171,6 +173,7 @@ vi.mock('./stores/layout.svelte', () => ({
 
 vi.mock('./stores/notifications.svelte', () => ({
   notify: (...args: unknown[]) => mockNotify(...args),
+  addNotification: (...args: unknown[]) => mockAddNotification(...args),
 }));
 
 vi.mock('./stores/conflicts.svelte', () => ({

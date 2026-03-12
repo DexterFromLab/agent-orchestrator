@@ -23,6 +23,7 @@ import {
   sendChannelMessage,
   createChannel,
   addChannelMember,
+  registerAgents,
   type BtmsgAgent,
   type BtmsgMessage,
   type BtmsgFeedMessage,
@@ -227,6 +228,17 @@ describe('btmsg-bridge', () => {
       mockInvoke.mockResolvedValue(undefined);
       await addChannelMember('ch1', AgentId('a1'));
       expect(mockInvoke).toHaveBeenCalledWith('btmsg_add_channel_member', { channelId: 'ch1', agentId: 'a1' });
+    });
+
+    it('registerAgents invokes btmsg_register_agents with groups config', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      const config = {
+        version: 1,
+        groups: [{ id: 'g1', name: 'Test', projects: [], agents: [] }],
+        activeGroupId: 'g1',
+      };
+      await registerAgents(config as any);
+      expect(mockInvoke).toHaveBeenCalledWith('btmsg_register_agents', { config });
     });
   });
 

@@ -95,10 +95,11 @@ describe('bttask-bridge', () => {
       expect(mockInvoke).toHaveBeenCalledWith('bttask_comments', { taskId: 't1' });
     });
 
-    it('updateTaskStatus invokes bttask_update_status', async () => {
-      mockInvoke.mockResolvedValue(undefined);
-      await updateTaskStatus('t1', 'done');
-      expect(mockInvoke).toHaveBeenCalledWith('bttask_update_status', { taskId: 't1', status: 'done' });
+    it('updateTaskStatus invokes bttask_update_status with version', async () => {
+      mockInvoke.mockResolvedValue(2);
+      const newVersion = await updateTaskStatus('t1', 'done', 1);
+      expect(newVersion).toBe(2);
+      expect(mockInvoke).toHaveBeenCalledWith('bttask_update_status', { taskId: 't1', status: 'done', version: 1 });
     });
 
     it('addTaskComment invokes bttask_add_comment', async () => {
