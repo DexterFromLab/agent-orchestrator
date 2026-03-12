@@ -83,9 +83,9 @@ bterminal-relay enables running agent sessions across multiple Linux machines vi
 | Suite | Tests | Status |
 |-------|-------|--------|
 | Vitest (frontend) | 444 | Pass |
-| Cargo (backend) | 111 | Pass |
-| E2E (WebDriverIO) | 82 | Pass |
-| **Total** | **637** | **All passing** |
+| Cargo (backend) | 151 | Pass |
+| E2E (WebDriverIO) | 109 | Pass |
+| **Total** | **704** | **All passing** |
 
 ### Breaking Changes from v2
 

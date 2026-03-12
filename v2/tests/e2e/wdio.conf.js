@@ -29,6 +29,7 @@ export const config = {
     resolve(__dirname, 'specs/bterminal.test.ts'),
     resolve(__dirname, 'specs/agent-scenarios.test.ts'),
     resolve(__dirname, 'specs/phase-b.test.ts'),
+    resolve(__dirname, 'specs/phase-c.test.ts'),
   ],
 
   // ── Capabilities ──

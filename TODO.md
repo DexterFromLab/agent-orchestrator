@@ -11,7 +11,7 @@
 
 ## Completed
 
-- [x] **v3 Hardening Sprint** -- Fixed subagent delegation (prompt + env var), added TLS to relay, WAL checkpoint (5min), Landlock logging, plugin sandbox tests (35), gitignore fix. 444 vitest + 111 cargo. | Done: 2026-03-12
+- [x] **v3 Hardening Sprint** -- Fixed subagent delegation (prompt + env var), added TLS to relay, WAL checkpoint (5min), Landlock logging, plugin sandbox tests (35), gitignore fix. Phase C E2E tests (27 new, 3 pre-existing fixes). 444 vitest + 151 cargo + 109 E2E. | Done: 2026-03-12
 - [x] **v3 Production Readiness — ALL tribunal items** -- Implemented all 13 features from tribunal assessment: sidecar supervisor, notifications, secrets, keyboard UX, agent health, search, plugins, sandbox, error classifier, audit log, team agent orchestration, optimistic locking, usage meter. 409 vitest + 109 cargo. | Done: 2026-03-12
 - [x] **Unified test runner + testing gate rule** -- Created v2/scripts/test-all.sh (vitest + cargo + optional E2E), added npm scripts (test:all, test:all:e2e, test:cargo), added .claude/rules/20-testing-gate.md requiring full suite after major changes. | Done: 2026-03-12
 - [x] **E2E testing — Phase B+ & test fixes** -- Phase B: LLM judge (llm-judge.ts, claude-haiku-4-5), 6 multi-project scenarios, CI workflow (3 jobs). Test fixes: 27 failures across 3 spec files. 388 vitest + 68 cargo + 82 E2E (0 fail, 4 skip). | Done: 2026-03-12

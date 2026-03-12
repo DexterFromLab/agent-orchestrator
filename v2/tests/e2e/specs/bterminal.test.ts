@@ -302,29 +302,31 @@ describe('BTerminal — Command Palette', () => {
     await closeCommandPalette();
   });
 
-  it('should show palette items with group names and project counts', async () => {
+  it('should show palette items with command labels and categories', async () => {
     await openCommandPalette();
 
     const items = await browser.$$('.palette-item');
     expect(items.length).toBeGreaterThanOrEqual(1);
 
-    // Each item should have group name and project count
-    const groupName = await browser.$('.palette-item .group-name');
-    await expect(groupName).toBeDisplayed();
-    const nameText = await groupName.getText();
-    expect(nameText.length).toBeGreaterThan(0);
+    // Each command item should have a label
+    const cmdLabel = await browser.$('.palette-item .cmd-label');
+    await expect(cmdLabel).toBeDisplayed();
+    const labelText = await cmdLabel.getText();
+    expect(labelText.length).toBeGreaterThan(0);
 
-    const projectCount = await browser.$('.palette-item .project-count');
-    await expect(projectCount).toBeDisplayed();
+    // Commands should be grouped under category headers
+    const categories = await browser.$$('.palette-category');
+    expect(categories.length).toBeGreaterThanOrEqual(1);
 
     await closeCommandPalette();
   });
 
-  it('should mark active group in palette', async () => {
+  it('should highlight selected item in palette', async () => {
     await openCommandPalette();
 
-    const activeItem = await browser.$('.palette-item.active');
-    await expect(activeItem).toBeDisplayed();
+    // First item should be selected by default
+    const selectedItem = await browser.$('.palette-item.selected');
+    await expect(selectedItem).toBeExisting();
 
     await closeCommandPalette();
   });
@@ -782,14 +784,15 @@ describe('BTerminal — Keyboard Shortcuts', () => {
     await panel.waitForDisplayed({ timeout: 3000, reverse: true });
   });
 
-  it('should show command palette with group list', async () => {
+  it('should show command palette with categorized commands', async () => {
     await openCommandPalette();
 
     const items = await browser.$$('.palette-item');
     expect(items.length).toBeGreaterThanOrEqual(1);
 
-    const groupName = await browser.$('.palette-item .group-name');
-    await expect(groupName).toBeDisplayed();
+    // Commands should have labels
+    const cmdLabel = await browser.$('.palette-item .cmd-label');
+    await expect(cmdLabel).toBeDisplayed();
 
     await closeCommandPalette();
   });
