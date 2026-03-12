@@ -13,7 +13,10 @@
     "tauri:dev": "cargo tauri dev",
     "tauri:build": "cargo tauri build",
     "test": "vitest run",
+    "test:cargo": "cd src-tauri && cargo test",
     "test:e2e": "wdio run tests/e2e/wdio.conf.js",
+    "test:all": "bash scripts/test-all.sh",
+    "test:all:e2e": "bash scripts/test-all.sh --e2e",
     "build:sidecar": "esbuild sidecar/claude-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/claude-runner.mjs && esbuild sidecar/codex-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/codex-runner.mjs && esbuild sidecar/ollama-runner.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/ollama-runner.mjs"
   },
   "devDependencies": {
