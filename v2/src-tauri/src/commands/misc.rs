@@ -30,6 +30,11 @@ pub fn open_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn is_test_mode() -> bool {
+    std::env::var("BTERMINAL_TEST").map_or(false, |v| v == "1")
+}
+
+#[tauri::command]
 pub fn frontend_log(level: String, message: String, context: Option<serde_json::Value>) {
     match level.as_str() {
         "error" => tracing::error!(source = "frontend", ?context, "{message}"),

@@ -13,6 +13,7 @@ mod session;
 mod telemetry;
 mod watcher;
 
+use bterminal_core::config::AppConfig;
 use event_sink::TauriEventSink;
 use pty::PtyManager;
 use remote::RemoteManager;
@@ -32,6 +33,7 @@ pub(crate) struct AppState {
     pub ctx_db: Arc<ctx::CtxDb>,
     pub memora_db: Arc<memora::MemoraDb>,
     pub remote_manager: Arc<RemoteManager>,
+    pub app_config: Arc<AppConfig>,
     _telemetry: telemetry::TelemetryGuard,
 }
 
@@ -40,8 +42,25 @@ pub fn run() {
     // Force dark GTK theme for native dialogs (file chooser, etc.)
     std::env::set_var("GTK_THEME", "Adwaita:dark");
 
+    // Resolve all paths via AppConfig (respects BTERMINAL_TEST_* env vars)
+    let app_config = AppConfig::from_env();
+    if app_config.is_test_mode() {
+        log::info!(
+            "Test mode enabled: data_dir={}, config_dir={}",
+            app_config.data_dir.display(),
+            app_config.config_dir.display()
+        );
+    }
+
+    // Initialize subsystem paths from AppConfig (before any db access)
+    btmsg::init(app_config.btmsg_db_path());
+    bttask::init(app_config.btmsg_db_path());
+    groups::init(app_config.groups_json_path());
+
     // Initialize tracing + optional OTLP export (before any tracing macros)
     let telemetry_guard = telemetry::init();
+
+    let app_config_arc = Arc::new(app_config);
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -151,6 +170,7 @@ pub fn run() {
             // Misc
             commands::misc::cli_get_group,
             commands::misc::open_url,
+            commands::misc::is_test_mode,
             commands::misc::frontend_log,
         ])
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -160,6 +180,8 @@ pub fn run() {
             // already sets up tracing-subscriber (which bridges the `log` crate via
             // tracing's compatibility layer). Adding plugin-log would panic with
             // "attempted to set a logger after the logging system was already initialized".
+
+            let config = app_config_arc.clone();
 
             // Create TauriEventSink for core managers
             let sink: Arc<dyn bterminal_core::event::EventSink> =
@@ -178,28 +200,38 @@ pub fn run() {
                 .parent()
                 .unwrap()
                 .to_path_buf();
+            // Forward test mode env vars to sidecar processes
+            let mut env_overrides = std::collections::HashMap::new();
+            if config.is_test_mode() {
+                env_overrides.insert("BTERMINAL_TEST".into(), "1".into());
+                if let Ok(v) = std::env::var("BTERMINAL_TEST_DATA_DIR") {
+                    env_overrides.insert("BTERMINAL_TEST_DATA_DIR".into(), v);
+                }
+                if let Ok(v) = std::env::var("BTERMINAL_TEST_CONFIG_DIR") {
+                    env_overrides.insert("BTERMINAL_TEST_CONFIG_DIR".into(), v);
+                }
+            }
+
             let sidecar_config = SidecarConfig {
                 search_paths: vec![
                     resource_dir.join("sidecar"),
                     dev_root.join("sidecar"),
                 ],
+                env_overrides,
             };
 
             let pty_manager = Arc::new(PtyManager::new(sink.clone()));
             let sidecar_manager = Arc::new(SidecarManager::new(sink, sidecar_config));
 
-            // Initialize session database
-            let data_dir = dirs::data_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join("bterminal");
+            // Initialize session database using AppConfig data_dir
             let session_db = Arc::new(
-                SessionDb::open(&data_dir).expect("Failed to open session database"),
+                SessionDb::open(config.sessions_db_dir()).expect("Failed to open session database"),
             );
 
             let file_watcher = Arc::new(FileWatcherManager::new());
             let fs_watcher = Arc::new(ProjectFsWatcher::new());
-            let ctx_db = Arc::new(ctx::CtxDb::new());
-            let memora_db = Arc::new(memora::MemoraDb::new());
+            let ctx_db = Arc::new(ctx::CtxDb::new_with_path(config.ctx_db_path.clone()));
+            let memora_db = Arc::new(memora::MemoraDb::new_with_path(config.memora_db_path.clone()));
             let remote_manager = Arc::new(RemoteManager::new());
 
             // Start local sidecar
@@ -217,6 +249,7 @@ pub fn run() {
                 ctx_db,
                 memora_db,
                 remote_manager,
+                app_config: config,
                 _telemetry: telemetry_guard,
             });
 

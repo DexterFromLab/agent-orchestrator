@@ -44,6 +44,8 @@ fn default_provider() -> String {
 #[derive(Debug, Clone)]
 pub struct SidecarConfig {
     pub search_paths: Vec<PathBuf>,
+    /// Extra env vars forwarded to sidecar processes (e.g. BTERMINAL_TEST=1 for test isolation)
+    pub env_overrides: std::collections::HashMap<String, String>,
 }
 
 struct SidecarCommand {
@@ -94,6 +96,7 @@ impl SidecarManager {
             .args(&cmd.args)
             .env_clear()
             .envs(clean_env)
+            .envs(self.config.env_overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

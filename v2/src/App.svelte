@@ -12,6 +12,8 @@
   import { registerMemoryAdapter } from './lib/adapters/memory-adapter';
   import { MemoraAdapter } from './lib/adapters/memora-bridge';
   import { loadWorkspace, getActiveTab, setActiveTab, setActiveProject, getEnabledProjects } from './lib/stores/workspace.svelte';
+  import { disableWakeScheduler } from './lib/stores/wake-scheduler.svelte';
+  import { invoke } from '@tauri-apps/api/core';
 
   // Workspace components
   import GlobalTabBar from './lib/components/Workspace/GlobalTabBar.svelte';
@@ -81,6 +83,11 @@
     memora.checkAvailability();
     startAgentDispatcher();
     startHealthTick();
+
+    // Disable wake scheduler in test mode to prevent timer interference
+    invoke<boolean>('is_test_mode').then(isTest => {
+      if (isTest) disableWakeScheduler();
+    });
 
     if (!detached) {
       loadWorkspace().then(() => { loaded = true; });

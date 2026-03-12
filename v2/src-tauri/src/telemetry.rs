@@ -34,8 +34,11 @@ pub fn init() -> TelemetryGuard {
         .with_target(true)
         .compact();
 
+    // In test mode, never export telemetry (avoid contaminating production data)
+    let is_test = std::env::var("BTERMINAL_TEST").map_or(false, |v| v == "1");
+
     match std::env::var("BTERMINAL_OTLP_ENDPOINT") {
-        Ok(endpoint) if !endpoint.is_empty() => {
+        Ok(endpoint) if !endpoint.is_empty() && !is_test => {
             match build_otlp_provider(&endpoint) {
                 Ok(provider) => {
                     let otel_layer = tracing_opentelemetry::layer()

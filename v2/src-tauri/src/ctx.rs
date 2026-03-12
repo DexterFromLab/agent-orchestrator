@@ -1,8 +1,10 @@
 // ctx — Read-only access to the Claude Code context manager database
 // Database: ~/.claude-context/context.db (managed by ctx CLI tool)
+// Path configurable via new_with_path() for test isolation.
 
 use rusqlite::{Connection, params};
 use serde::Serialize;
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize)]
@@ -22,10 +24,11 @@ pub struct CtxSummary {
 
 pub struct CtxDb {
     conn: Mutex<Option<Connection>>,
+    path: PathBuf,
 }
 
 impl CtxDb {
-    fn db_path() -> std::path::PathBuf {
+    fn default_db_path() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_default()
             .join(".claude-context")
@@ -33,8 +36,11 @@ impl CtxDb {
     }
 
     pub fn new() -> Self {
-        let db_path = Self::db_path();
+        Self::new_with_path(Self::default_db_path())
+    }
 
+    /// Create a CtxDb with a custom database path (for test isolation).
+    pub fn new_with_path(db_path: PathBuf) -> Self {
         let conn = if db_path.exists() {
             Connection::open_with_flags(
                 &db_path,
@@ -44,12 +50,12 @@ impl CtxDb {
             None
         };
 
-        Self { conn: Mutex::new(conn) }
+        Self { conn: Mutex::new(conn), path: db_path }
     }
 
     /// Create the context database directory and schema, then open a read-only connection.
     pub fn init_db(&self) -> Result<(), String> {
-        let db_path = Self::db_path();
+        let db_path = &self.path;
 
         // Create parent directory
         if let Some(parent) = db_path.parent() {
@@ -136,7 +142,7 @@ impl CtxDb {
     /// Register a project in the ctx database (creates if not exists).
     /// Opens a brief read-write connection; the main self.conn stays read-only.
     pub fn register_project(&self, name: &str, description: &str, work_dir: Option<&str>) -> Result<(), String> {
-        let db_path = Self::db_path();
+        let db_path = &self.path;
         let conn = Connection::open(&db_path)
             .map_err(|e| format!("ctx database not found: {e}"))?;
 
@@ -257,7 +263,7 @@ mod tests {
 
     /// Create a CtxDb with conn set to None, simulating a missing database.
     fn make_missing_db() -> CtxDb {
-        CtxDb { conn: Mutex::new(None) }
+        CtxDb { conn: Mutex::new(None), path: PathBuf::from("/nonexistent/context.db") }
     }
 
     #[test]

@@ -36,8 +36,16 @@ export interface WakeEvent {
 
 let registrations = $state<Map<string, ManagerRegistration>>(new Map());
 let pendingWakes = $state<Map<string, WakeEvent>>(new Map());
+/** When true, registerManager() becomes a no-op (set in test mode) */
+let schedulerDisabled = false;
 
 // --- Public API ---
+
+/** Disable the wake scheduler (call during app init in test mode) */
+export function disableWakeScheduler(): void {
+  schedulerDisabled = true;
+  clearWakeScheduler();
+}
 
 /** Register a Manager agent for wake scheduling */
 export function registerManager(
@@ -48,6 +56,8 @@ export function registerManager(
   intervalMin: number,
   threshold: number,
 ): void {
+  if (schedulerDisabled) return;
+
   // Unregister first to clear any existing timer
   unregisterManager(agentId);
 

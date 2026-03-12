@@ -96,7 +96,10 @@ async fn main() {
     }
     search_paths.push(std::path::PathBuf::from("sidecar"));
 
-    let sidecar_config = SidecarConfig { search_paths };
+    let sidecar_config = SidecarConfig {
+        search_paths,
+        env_overrides: std::collections::HashMap::new(),
+    };
     let token = Arc::new(cli.token);
 
     // Rate limiting state for auth failures

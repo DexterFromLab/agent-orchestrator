@@ -1,8 +1,18 @@
 // Project group configuration
 // Reads/writes ~/.config/bterminal/groups.json
+// Path configurable via init() for test isolation.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::OnceLock;
+
+static CONFIG_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Set the groups.json path. Must be called before any config access.
+/// Called from lib.rs setup with AppConfig-resolved path.
+pub fn init(path: PathBuf) {
+    let _ = CONFIG_PATH.set(path);
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -62,10 +72,12 @@ impl Default for GroupsFile {
 }
 
 fn config_path() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("bterminal")
-        .join("groups.json")
+    CONFIG_PATH.get().cloned().unwrap_or_else(|| {
+        dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("bterminal")
+            .join("groups.json")
+    })
 }
 
 pub fn load_groups() -> Result<GroupsFile, String> {

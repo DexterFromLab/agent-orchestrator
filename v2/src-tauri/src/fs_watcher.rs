@@ -73,6 +73,12 @@ impl ProjectFsWatcher {
         project_id: &str,
         cwd: &str,
     ) -> Result<(), String> {
+        // In test mode, skip inotify watchers to avoid resource contention and flaky events
+        if std::env::var("BTERMINAL_TEST").map_or(false, |v| v == "1") {
+            log::info!("Test mode: skipping fs watcher for project {project_id}");
+            return Ok(());
+        }
+
         let cwd_path = Path::new(cwd);
         if !cwd_path.is_dir() {
             return Err(format!("Not a directory: {cwd}"));

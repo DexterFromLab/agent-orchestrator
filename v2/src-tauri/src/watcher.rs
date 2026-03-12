@@ -37,6 +37,12 @@ impl FileWatcherManager {
         pane_id: &str,
         path: &str,
     ) -> Result<String, String> {
+        // In test mode, skip file watching to avoid inotify noise and flaky events
+        if std::env::var("BTERMINAL_TEST").map_or(false, |v| v == "1") {
+            return std::fs::read_to_string(path)
+                .map_err(|e| format!("Failed to read file: {e}"));
+        }
+
         let file_path = PathBuf::from(path);
         if !file_path.exists() {
             return Err(format!("File not found: {path}"));

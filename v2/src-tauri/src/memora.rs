@@ -26,7 +26,7 @@ pub struct MemoraDb {
 }
 
 impl MemoraDb {
-    fn db_path() -> std::path::PathBuf {
+    fn default_db_path() -> std::path::PathBuf {
         dirs::data_dir()
             .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".local/share"))
             .join("memora")
@@ -34,8 +34,11 @@ impl MemoraDb {
     }
 
     pub fn new() -> Self {
-        let db_path = Self::db_path();
+        Self::new_with_path(Self::default_db_path())
+    }
 
+    /// Create a MemoraDb with a custom database path (for test isolation).
+    pub fn new_with_path(db_path: std::path::PathBuf) -> Self {
         let conn = if db_path.exists() {
             Connection::open_with_flags(
                 &db_path,

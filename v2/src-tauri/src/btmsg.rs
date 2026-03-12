@@ -1,15 +1,27 @@
 // btmsg — Access to btmsg SQLite database
 // Database at ~/.local/share/bterminal/btmsg.db (created by btmsg CLI)
+// Path configurable via init() for test isolation.
 
 use rusqlite::{params, Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::OnceLock;
+
+static DB_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Set the btmsg database path. Must be called before any db access.
+/// Called from lib.rs setup with AppConfig-resolved path.
+pub fn init(path: PathBuf) {
+    let _ = DB_PATH.set(path);
+}
 
 fn db_path() -> PathBuf {
-    dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("bterminal")
-        .join("btmsg.db")
+    DB_PATH.get().cloned().unwrap_or_else(|| {
+        dirs::data_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("bterminal")
+            .join("btmsg.db")
+    })
 }
 
 fn open_db() -> Result<Connection, String> {
