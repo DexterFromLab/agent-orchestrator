@@ -12,6 +12,19 @@
     Math.min(projects.length, Math.max(1, Math.floor(containerWidth / 520))),
   );
 
+  // Track slot elements for auto-scroll
+  let slotEls = $state<Record<string, HTMLElement>>({});
+
+  // Auto-scroll to active project when it changes
+  $effect(() => {
+    const id = activeProjectId;
+    if (!id) return;
+    const el = slotEls[id];
+    if (!el) return;
+    // Use smooth scroll; block: nearest avoids jumping if already visible
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  });
+
   let observer: ResizeObserver | undefined;
 
   onMount(() => {
@@ -37,7 +50,7 @@
   style="--visible-count: {visibleCount}"
 >
   {#each projects as project, i (project.id)}
-    <div class="project-slot">
+    <div class="project-slot" bind:this={slotEls[project.id]}>
       <ProjectBox
         {project}
         slotIndex={i}
