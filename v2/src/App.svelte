@@ -11,7 +11,11 @@
   import { OLLAMA_PROVIDER } from './lib/providers/ollama';
   import { registerMemoryAdapter } from './lib/adapters/memory-adapter';
   import { MemoraAdapter } from './lib/adapters/memora-bridge';
-  import { loadWorkspace, getActiveTab, setActiveTab, setActiveProject, getEnabledProjects } from './lib/stores/workspace.svelte';
+  import {
+    loadWorkspace, getActiveTab, setActiveTab, setActiveProject,
+    getEnabledProjects, getAllWorkItems, getActiveProjectId,
+    triggerFocusFlash, emitProjectTabSwitch, emitTerminalToggle,
+  } from './lib/stores/workspace.svelte';
   import { disableWakeScheduler } from './lib/stores/wake-scheduler.svelte';
   import { invoke } from '@tauri-apps/api/core';
 
@@ -22,6 +26,7 @@
   import SettingsTab from './lib/components/Workspace/SettingsTab.svelte';
   import CommsTab from './lib/components/Workspace/CommsTab.svelte';
   import CommandPalette from './lib/components/Workspace/CommandPalette.svelte';
+  import SearchOverlay from './lib/components/Workspace/SearchOverlay.svelte';
 
   // Shared
   import StatusBar from './lib/components/StatusBar/StatusBar.svelte';
@@ -35,6 +40,7 @@
   let detachedConfig = getDetachedConfig();
 
   let paletteOpen = $state(false);
+  let searchOpen = $state(false);
   let drawerOpen = $state(false);
   let loaded = $state(false);
 
@@ -93,23 +99,102 @@
       loadWorkspace().then(() => { loaded = true; });
     }
 
+    /** Check if event target is an editable element (input, textarea, contenteditable) */
+    function isEditing(e: KeyboardEvent): boolean {
+      const t = e.target as HTMLElement;
+      if (!t) return false;
+      const tag = t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+      if (t.isContentEditable) return true;
+      // xterm.js canvases and textareas should be considered editing
+      if (t.closest('.xterm')) return true;
+      return false;
+    }
+
     function handleKeydown(e: KeyboardEvent) {
-      // Ctrl+K — command palette
+      // Ctrl+K — command palette (always active)
       if (e.ctrlKey && !e.shiftKey && e.key === 'k') {
         e.preventDefault();
         paletteOpen = !paletteOpen;
         return;
       }
 
-      // Ctrl+1..5 — focus project by index
-      if (e.ctrlKey && !e.shiftKey && e.key >= '1' && e.key <= '5') {
+      // Ctrl+Shift+F — global search overlay
+      if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
         e.preventDefault();
-        const projects = getEnabledProjects();
+        searchOpen = !searchOpen;
+        return;
+      }
+
+      // Alt+1..5 — quick-jump to project by index
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key >= '1' && e.key <= '5') {
+        e.preventDefault();
+        const projects = getAllWorkItems();
         const idx = parseInt(e.key) - 1;
         if (idx < projects.length) {
           setActiveProject(projects[idx].id);
+          triggerFocusFlash(projects[idx].id);
         }
         return;
+      }
+
+      // Ctrl+Shift+1..9 — switch tab within focused project
+      if (e.ctrlKey && e.shiftKey && e.key >= '1' && e.key <= '9') {
+        // Allow Ctrl+Shift+K to pass through to its own handler
+        if (e.key === 'K') return;
+        e.preventDefault();
+        const projectId = getActiveProjectId();
+        if (projectId) {
+          const tabIdx = parseInt(e.key);
+          emitProjectTabSwitch(projectId, tabIdx);
+        }
+        return;
+      }
+
+      // Ctrl+Shift+K — focus agent pane (switch to Model tab)
+      if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k')) {
+        e.preventDefault();
+        const projectId = getActiveProjectId();
+        if (projectId) {
+          emitProjectTabSwitch(projectId, 1); // Model tab
+        }
+        return;
+      }
+
+      // Vi-style navigation (skip when editing text)
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && !isEditing(e)) {
+        const projects = getAllWorkItems();
+        const currentId = getActiveProjectId();
+        const currentIdx = projects.findIndex(p => p.id === currentId);
+
+        // Ctrl+H — focus previous project (left)
+        if (e.key === 'h') {
+          e.preventDefault();
+          if (currentIdx > 0) {
+            setActiveProject(projects[currentIdx - 1].id);
+            triggerFocusFlash(projects[currentIdx - 1].id);
+          }
+          return;
+        }
+
+        // Ctrl+L — focus next project (right)
+        if (e.key === 'l') {
+          e.preventDefault();
+          if (currentIdx >= 0 && currentIdx < projects.length - 1) {
+            setActiveProject(projects[currentIdx + 1].id);
+            triggerFocusFlash(projects[currentIdx + 1].id);
+          }
+          return;
+        }
+
+        // Ctrl+J — toggle terminal section in focused project
+        if (e.key === 'j') {
+          e.preventDefault();
+          if (currentId) {
+            emitTerminalToggle(currentId);
+          }
+          return;
+        }
       }
 
       // Ctrl+, — toggle settings panel
@@ -212,6 +297,7 @@
   </div>
 
   <CommandPalette open={paletteOpen} onclose={() => paletteOpen = false} />
+  <SearchOverlay open={searchOpen} onclose={() => searchOpen = false} />
 {:else}
   <div class="loading">Loading workspace...</div>
 {/if}
