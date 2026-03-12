@@ -220,6 +220,7 @@ describe('Scenario B4 — LLM-Judged Agent Response', () => {
   const SKIP_MSG = 'Skipping — LLM judge not available (no CLI or API key)';
 
   it('should send prompt and get meaningful response', async function () {
+    this.timeout(180_000); // agent needs time to start + run + respond
     if (!isJudgeAvailable()) {
       console.log(SKIP_MSG);
       this.skip();
@@ -300,6 +301,7 @@ describe('Scenario B5 — LLM-Judged Code Generation', () => {
   const SKIP_MSG = 'Skipping — LLM judge not available (no CLI or API key)';
 
   it('should generate valid code when asked', async function () {
+    this.timeout(180_000); // agent needs time to start + run + respond
     if (!isJudgeAvailable()) {
       console.log(SKIP_MSG);
       this.skip();
