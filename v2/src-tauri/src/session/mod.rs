@@ -34,8 +34,11 @@ impl SessionDb {
             .map_err(|e| format!("Failed to open database: {e}"))?;
 
         // Enable WAL mode for better concurrent read performance
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
-            .map_err(|e| format!("Failed to set pragmas: {e}"))?;
+        // journal_mode returns a result row, so use query_row instead of pragma_update
+        conn.query_row("PRAGMA journal_mode=WAL", [], |_| Ok(()))
+            .map_err(|e| format!("Failed to set journal_mode: {e}"))?;
+        conn.pragma_update(None, "foreign_keys", "ON")
+            .map_err(|e| format!("Failed to set foreign_keys: {e}"))?;
 
         let db = Self { conn: Mutex::new(conn) };
         db.migrate()?;

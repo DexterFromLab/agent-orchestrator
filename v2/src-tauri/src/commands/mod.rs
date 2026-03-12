@@ -11,3 +11,7 @@ pub mod remote;
 pub mod misc;
 pub mod btmsg;
 pub mod bttask;
+pub mod notifications;
+pub mod search;
+pub mod plugins;
+pub mod secrets;

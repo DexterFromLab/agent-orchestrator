@@ -6,8 +6,12 @@ mod event_sink;
 mod fs_watcher;
 mod groups;
 mod memora;
+mod notifications;
+mod plugins;
 mod pty;
+mod secrets;
 mod remote;
+mod search;
 mod sidecar;
 mod session;
 mod telemetry;
@@ -21,6 +25,7 @@ use session::SessionDb;
 use sidecar::{SidecarConfig, SidecarManager};
 use fs_watcher::ProjectFsWatcher;
 use watcher::FileWatcherManager;
+use std::path::Path;
 use std::sync::Arc;
 use tauri::Manager;
 
@@ -33,8 +38,70 @@ pub(crate) struct AppState {
     pub ctx_db: Arc<ctx::CtxDb>,
     pub memora_db: Arc<memora::MemoraDb>,
     pub remote_manager: Arc<RemoteManager>,
+    pub search_db: Arc<search::SearchDb>,
     pub app_config: Arc<AppConfig>,
     _telemetry: telemetry::TelemetryGuard,
+}
+
+/// Install btmsg/bttask CLI tools to ~/.local/bin/ so agent subprocesses can find them.
+/// Sources: bundled resources (production) or repo root (development).
+/// Only overwrites if the source is newer or the destination doesn't exist.
+fn install_cli_tools(resource_dir: &Path, dev_root: &Path) {
+    let bin_dir = dirs::home_dir()
+        .unwrap_or_default()
+        .join(".local")
+        .join("bin");
+    if let Err(e) = std::fs::create_dir_all(&bin_dir) {
+        log::warn!("Failed to create ~/.local/bin: {e}");
+        return;
+    }
+
+    for tool_name in &["btmsg", "bttask"] {
+        // Try resource dir first (production bundle), then dev repo root
+        let source = [
+            resource_dir.join(tool_name),
+            dev_root.join(tool_name),
+        ]
+        .into_iter()
+        .find(|p| p.is_file());
+
+        let source = match source {
+            Some(p) => p,
+            None => {
+                log::warn!("CLI tool '{tool_name}' not found in resources or dev root");
+                continue;
+            }
+        };
+
+        let dest = bin_dir.join(tool_name);
+        let should_install = if dest.exists() {
+            // Compare modification times — install if source is newer
+            match (source.metadata(), dest.metadata()) {
+                (Ok(sm), Ok(dm)) => {
+                    sm.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                        > dm.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                }
+                _ => true,
+            }
+        } else {
+            true
+        };
+
+        if should_install {
+            match std::fs::copy(&source, &dest) {
+                Ok(_) => {
+                    // Ensure executable permission on Unix
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        let _ = std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755));
+                    }
+                    log::info!("Installed {tool_name} to {}", dest.display());
+                }
+                Err(e) => log::warn!("Failed to install {tool_name}: {e}"),
+            }
+        }
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -74,6 +141,7 @@ pub fn run() {
             commands::agent::agent_stop,
             commands::agent::agent_ready,
             commands::agent::agent_restart,
+            commands::agent::agent_set_sandbox,
             // File watcher
             commands::watcher::file_watch,
             commands::watcher::file_unwatch,
@@ -159,6 +227,16 @@ pub fn run() {
             commands::btmsg::btmsg_channel_send,
             commands::btmsg::btmsg_create_channel,
             commands::btmsg::btmsg_add_channel_member,
+            commands::btmsg::btmsg_register_agents,
+            // btmsg health monitoring
+            commands::btmsg::btmsg_record_heartbeat,
+            commands::btmsg::btmsg_get_stale_agents,
+            commands::btmsg::btmsg_get_dead_letters,
+            commands::btmsg::btmsg_clear_dead_letters,
+            // Audit log
+            commands::btmsg::audit_log_event,
+            commands::btmsg::audit_log_list,
+            commands::btmsg::audit_log_for_agent,
             // bttask (task board)
             commands::bttask::bttask_list,
             commands::bttask::bttask_comments,
@@ -167,6 +245,23 @@ pub fn run() {
             commands::bttask::bttask_create,
             commands::bttask::bttask_delete,
             commands::bttask::bttask_review_queue_count,
+            // Search (FTS5)
+            commands::search::search_init,
+            commands::search::search_query,
+            commands::search::search_rebuild,
+            commands::search::search_index_message,
+            // Notifications
+            commands::notifications::notify_desktop,
+            // Secrets (system keyring)
+            commands::secrets::secrets_store,
+            commands::secrets::secrets_get,
+            commands::secrets::secrets_delete,
+            commands::secrets::secrets_list,
+            commands::secrets::secrets_has_keyring,
+            commands::secrets::secrets_known_keys,
+            // Plugins
+            commands::plugins::plugins_discover,
+            commands::plugins::plugin_read_file,
             // Misc
             commands::misc::cli_get_group,
             commands::misc::open_url,
@@ -200,6 +295,11 @@ pub fn run() {
                 .parent()
                 .unwrap()
                 .to_path_buf();
+            // Install btmsg/bttask CLI tools to ~/.local/bin/
+            if !config.is_test_mode() {
+                install_cli_tools(&resource_dir, &dev_root);
+            }
+
             // Forward test mode env vars to sidecar processes
             let mut env_overrides = std::collections::HashMap::new();
             if config.is_test_mode() {
@@ -218,6 +318,7 @@ pub fn run() {
                     dev_root.join("sidecar"),
                 ],
                 env_overrides,
+                sandbox: bterminal_core::sandbox::SandboxConfig::default(),
             };
 
             let pty_manager = Arc::new(PtyManager::new(sink.clone()));
@@ -234,6 +335,12 @@ pub fn run() {
             let memora_db = Arc::new(memora::MemoraDb::new_with_path(config.memora_db_path.clone()));
             let remote_manager = Arc::new(RemoteManager::new());
 
+            // Initialize FTS5 search database
+            let search_db_path = config.data_dir.join("bterminal").join("search.db");
+            let search_db = Arc::new(
+                search::SearchDb::open(&search_db_path).expect("Failed to open search database"),
+            );
+
             // Start local sidecar
             match sidecar_manager.start() {
                 Ok(()) => log::info!("Sidecar startup initiated"),
@@ -249,6 +356,7 @@ pub fn run() {
                 ctx_db,
                 memora_db,
                 remote_manager,
+                search_db,
                 app_config: config,
                 _telemetry: telemetry_guard,
             });

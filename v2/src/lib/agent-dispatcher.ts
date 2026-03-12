@@ -14,7 +14,8 @@ import {
   getAgentSessions,
   getAgentSession,
 } from './stores/agents.svelte';
-import { notify } from './stores/notifications.svelte';
+import { notify, addNotification } from './stores/notifications.svelte';
+import { classifyError } from './utils/error-classifier';
 import { tel } from './adapters/telemetry-bridge';
 import { recordActivity, recordToolDone, recordTokenSnapshot } from './stores/health.svelte';
 import { recordFileWrite, clearSessionWrites, setSessionWorktree } from './stores/conflicts.svelte';
@@ -35,6 +36,10 @@ import {
   spawnSubagentPane,
   clearSubagentRoutes,
 } from './utils/subagent-router';
+import { indexMessage } from './adapters/search-bridge';
+import { recordHeartbeat } from './adapters/btmsg-bridge';
+import { logAuditEvent } from './adapters/audit-bridge';
+import type { AgentId } from './types/ids';
 
 // Re-export public API consumed by other modules
 export { registerSessionProject, waitForPendingPersistence } from './utils/session-persistence';
@@ -72,11 +77,20 @@ export async function startAgentDispatcher(): Promise<void> {
     if (!msg.sessionId) return;
     const sessionId = SessionId(msg.sessionId);
 
+    // Record heartbeat on any agent activity (best-effort, fire-and-forget)
+    const hbProjectId = getSessionProjectId(sessionId);
+    if (hbProjectId) {
+      recordHeartbeat(hbProjectId as unknown as AgentId).catch(() => {});
+    }
+
     switch (msg.type) {
       case 'agent_started':
         updateAgentStatus(sessionId, 'running');
         recordSessionStart(sessionId);
         tel.info('agent_started', { sessionId });
+        if (hbProjectId) {
+          logAuditEvent(hbProjectId as unknown as AgentId, 'status_change', `Agent started (session ${sessionId.slice(0, 8)})`).catch(() => {});
+        }
         break;
 
       case 'agent_event':
@@ -87,13 +101,39 @@ export async function startAgentDispatcher(): Promise<void> {
         updateAgentStatus(sessionId, 'done');
         tel.info('agent_stopped', { sessionId });
         notify('success', `Agent ${sessionId.slice(0, 8)} completed`);
+        addNotification('Agent complete', `Session ${sessionId.slice(0, 8)} finished`, 'agent_complete', getSessionProjectId(sessionId) ?? undefined);
+        if (hbProjectId) {
+          logAuditEvent(hbProjectId as unknown as AgentId, 'status_change', `Agent completed (session ${sessionId.slice(0, 8)})`).catch(() => {});
+        }
         break;
 
-      case 'agent_error':
-        updateAgentStatus(sessionId, 'error', msg.message);
-        tel.error('agent_error', { sessionId, error: msg.message });
-        notify('error', `Agent error: ${msg.message ?? 'Unknown'}`);
+      case 'agent_error': {
+        const errorMsg = msg.message ?? 'Unknown';
+        const classified = classifyError(errorMsg);
+        updateAgentStatus(sessionId, 'error', errorMsg);
+        tel.error('agent_error', { sessionId, error: errorMsg, errorType: classified.type });
+
+        // Show type-specific toast
+        if (classified.type === 'rate_limit') {
+          notify('warning', `Rate limited. ${classified.retryDelaySec > 0 ? `Retrying in ~${classified.retryDelaySec}s...` : ''}`);
+        } else if (classified.type === 'auth') {
+          notify('error', 'API key invalid or expired. Check Settings.');
+        } else if (classified.type === 'quota') {
+          notify('error', 'API quota exceeded. Check your billing.');
+        } else if (classified.type === 'overloaded') {
+          notify('warning', 'API overloaded. Will retry shortly...');
+        } else if (classified.type === 'network') {
+          notify('error', 'Network error. Check your connection.');
+        } else {
+          notify('error', `Agent error: ${errorMsg}`);
+        }
+
+        addNotification('Agent error', classified.message, 'agent_error', getSessionProjectId(sessionId) ?? undefined);
+        if (hbProjectId) {
+          logAuditEvent(hbProjectId as unknown as AgentId, 'status_change', `Agent error (${classified.type}): ${errorMsg} (session ${sessionId.slice(0, 8)})`).catch(() => {});
+        }
         break;
+      }
 
       case 'agent_log':
         break;
@@ -121,6 +161,7 @@ export async function startAgentDispatcher(): Promise<void> {
         restartAttempts++;
         const delayMs = 1000 * Math.pow(2, restartAttempts - 1); // 1s, 2s, 4s
         notify('warning', `Sidecar crashed, restarting (attempt ${restartAttempts}/${MAX_RESTART_ATTEMPTS})...`);
+        addNotification('Sidecar crashed', `Restarting (attempt ${restartAttempts}/${MAX_RESTART_ATTEMPTS})`, 'system');
         await new Promise((resolve) => setTimeout(resolve, delayMs));
         try {
           await restartAgent();
@@ -234,8 +275,19 @@ function handleAgentEvent(sessionId: SessionIdType, event: Record<string, unknow
           isError: cost.isError,
         });
         if (cost.isError) {
-          updateAgentStatus(sessionId, 'error', cost.errors?.join('; '));
-          notify('error', `Agent failed: ${cost.errors?.[0] ?? 'Unknown error'}`);
+          const costErrorMsg = cost.errors?.join('; ') ?? 'Unknown error';
+          const costClassified = classifyError(costErrorMsg);
+          updateAgentStatus(sessionId, 'error', costErrorMsg);
+
+          if (costClassified.type === 'rate_limit') {
+            notify('warning', `Rate limited. ${costClassified.retryDelaySec > 0 ? `Retrying in ~${costClassified.retryDelaySec}s...` : ''}`);
+          } else if (costClassified.type === 'auth') {
+            notify('error', 'API key invalid or expired. Check Settings.');
+          } else if (costClassified.type === 'quota') {
+            notify('error', 'API quota exceeded. Check your billing.');
+          } else {
+            notify('error', `Agent failed: ${cost.errors?.[0] ?? 'Unknown error'}`);
+          }
         } else {
           updateAgentStatus(sessionId, 'done');
           notify('success', `Agent done — $${cost.totalCostUsd.toFixed(4)}, ${cost.numTurns} turns`);
@@ -264,6 +316,13 @@ function handleAgentEvent(sessionId: SessionIdType, event: Record<string, unknow
       else recordActivity(actProjId);
     }
     appendAgentMessages(sessionId, mainMessages);
+
+    // Index searchable text content into FTS5 search database
+    for (const msg of mainMessages) {
+      if (msg.type === 'text' && typeof msg.content === 'string' && msg.content.trim()) {
+        indexMessage(sessionId, 'assistant', msg.content).catch(() => {});
+      }
+    }
   }
 
   // Append messages to child panes and update their status

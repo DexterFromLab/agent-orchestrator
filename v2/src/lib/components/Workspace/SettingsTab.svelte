@@ -25,6 +25,22 @@
   import type { ProviderId, ProviderSettings } from '../../providers/types';
   import { ANCHOR_BUDGET_SCALES, ANCHOR_BUDGET_SCALE_LABELS, type AnchorBudgetScale } from '../../types/anchors';
   import { WAKE_STRATEGIES, WAKE_STRATEGY_LABELS, WAKE_STRATEGY_DESCRIPTIONS, type WakeStrategy } from '../../types/wake';
+  import {
+    storeSecret, getSecret, deleteSecret, listSecrets,
+    hasKeyring, knownSecretKeys, SECRET_KEY_LABELS,
+  } from '../../adapters/secrets-bridge';
+  import {
+    checkForUpdates,
+    getCurrentVersion,
+    getLastCheckTimestamp,
+    type UpdateInfo,
+  } from '../../utils/updater';
+  import {
+    getPluginEntries,
+    setPluginEnabled,
+    reloadAllPlugins,
+    type PluginEntry,
+  } from '../../stores/plugins.svelte';
 
   const PROJECT_ICONS = [
     '📁', '🚀', '🤖', '🌐', '🔧', '🎮', '📱', '💻',
@@ -60,6 +76,23 @@
   let projectMaxAspect = $state('1.0');
   let filesSaveOnBlur = $state(false);
   let selectedTheme = $state<ThemeId>(getCurrentTheme());
+
+  // Updater state
+  let appVersion = $state('');
+  let updateCheckResult = $state<UpdateInfo | null>(null);
+  let updateChecking = $state(false);
+  let updateLastCheck = $state<string>('');
+
+  // Secrets state
+  let keyringAvailable = $state(false);
+  let storedKeys = $state<string[]>([]);
+  let knownKeys = $state<string[]>([]);
+  let revealedKey = $state<string | null>(null);
+  let revealedValue = $state('');
+  let newSecretKey = $state('');
+  let newSecretValue = $state('');
+  let secretsKeyDropdownOpen = $state(false);
+  let secretsSaving = $state(false);
 
   // Dropdown open states
   let themeDropdownOpen = $state(false);
@@ -152,10 +185,38 @@
     } catch {
       providerSettings = {};
     }
+
+    // Load secrets state
+    try {
+      keyringAvailable = await hasKeyring();
+      if (keyringAvailable) {
+        storedKeys = await listSecrets();
+        knownKeys = await knownSecretKeys();
+      }
+    } catch {
+      keyringAvailable = false;
+    }
+
+    // Load app version for updater section
+    appVersion = await getCurrentVersion();
+    const ts = getLastCheckTimestamp();
+    if (ts) updateLastCheck = new Date(ts).toLocaleString();
   });
 
   function applyCssProp(prop: string, value: string) {
     document.documentElement.style.setProperty(prop, value);
+  }
+
+  async function handleCheckForUpdates() {
+    updateChecking = true;
+    try {
+      updateCheckResult = await checkForUpdates();
+      updateLastCheck = new Date().toLocaleString();
+    } catch {
+      updateCheckResult = { available: false };
+    } finally {
+      updateChecking = false;
+    }
   }
 
   async function saveGlobalSetting(key: string, value: string) {
@@ -244,6 +305,66 @@
     return providerSettings[providerId]?.enabled ?? true;
   }
 
+  // --- Secrets handlers ---
+
+  async function handleRevealSecret(key: string) {
+    if (revealedKey === key) {
+      revealedKey = null;
+      revealedValue = '';
+      return;
+    }
+    try {
+      const val = await getSecret(key);
+      revealedKey = key;
+      revealedValue = val ?? '';
+    } catch (e) {
+      console.error(`Failed to reveal secret '${key}':`, e);
+    }
+  }
+
+  async function handleSaveSecret() {
+    if (!newSecretKey || !newSecretValue) return;
+    secretsSaving = true;
+    try {
+      await storeSecret(newSecretKey, newSecretValue);
+      storedKeys = await listSecrets();
+      newSecretKey = '';
+      newSecretValue = '';
+      // If we just saved the currently revealed key, clear reveal
+      revealedKey = null;
+      revealedValue = '';
+    } catch (e) {
+      console.error('Failed to store secret:', e);
+    } finally {
+      secretsSaving = false;
+    }
+  }
+
+  async function handleDeleteSecret(key: string) {
+    try {
+      await deleteSecret(key);
+      storedKeys = await listSecrets();
+      if (revealedKey === key) {
+        revealedKey = null;
+        revealedValue = '';
+      }
+    } catch (e) {
+      console.error(`Failed to delete secret '${key}':`, e);
+    }
+  }
+
+  function getSecretKeyLabel(key: string): string {
+    return SECRET_KEY_LABELS[key] ?? key;
+  }
+
+  let availableKeysForAdd = $derived(
+    knownKeys.filter(k => !storedKeys.includes(k)),
+  );
+
+  let newSecretKeyLabel = $derived(
+    newSecretKey ? getSecretKeyLabel(newSecretKey) : 'Select key...',
+  );
+
   function handleClickOutside(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (!target.closest('.custom-dropdown')) {
@@ -251,6 +372,7 @@
       uiFontDropdownOpen = false;
       termFontDropdownOpen = false;
       providerDropdownOpenFor = null;
+      secretsKeyDropdownOpen = false;
     }
     if (!target.closest('.icon-field')) {
       iconPickerOpenFor = null;
@@ -267,6 +389,7 @@
       termFontDropdownOpen = false;
       iconPickerOpenFor = null;
       profileDropdownOpenFor = null;
+      secretsKeyDropdownOpen = false;
     }
   }
 
@@ -299,6 +422,13 @@
     });
     newName = '';
     newCwd = '';
+  }
+
+  // Plugin entries (reactive from store)
+  let pluginEntries = $derived(getPluginEntries());
+
+  async function handleReloadPlugins() {
+    await reloadAllPlugins(activeGroupId);
   }
 
   // New group form
@@ -549,6 +679,37 @@
   </section>
 
   <section class="settings-section">
+    <h2>Updates</h2>
+    <div class="settings-list">
+      <div class="setting-field">
+        <span class="setting-label">Current version</span>
+        <span class="setting-value">{appVersion || '...'}</span>
+      </div>
+      {#if updateLastCheck}
+        <div class="setting-field">
+          <span class="setting-label">Last checked</span>
+          <span class="setting-value setting-muted">{updateLastCheck}</span>
+        </div>
+      {/if}
+      {#if updateCheckResult?.available}
+        <div class="setting-field">
+          <span class="setting-label">Available</span>
+          <span class="setting-value update-available">v{updateCheckResult.version}</span>
+        </div>
+      {/if}
+      <div class="setting-field">
+        <button
+          class="btn-primary"
+          onclick={handleCheckForUpdates}
+          disabled={updateChecking}
+        >
+          {updateChecking ? 'Checking...' : 'Check for Updates'}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="settings-section">
     <h2>Providers</h2>
     <div class="provider-list">
       {#each registeredProviders as provider}
@@ -603,6 +764,171 @@
         </div>
       {/each}
     </div>
+  </section>
+
+  <section class="settings-section">
+    <h2>Secrets</h2>
+    <div class="secrets-status">
+      <span class="keyring-indicator" class:available={keyringAvailable} class:unavailable={!keyringAvailable}></span>
+      <span class="keyring-label">
+        {keyringAvailable ? 'System keyring available' : 'System keyring unavailable'}
+      </span>
+    </div>
+
+    {#if !keyringAvailable}
+      <div class="secrets-warning">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>System keyring not available. Secrets cannot be stored securely.</span>
+      </div>
+    {:else}
+      {#if storedKeys.length > 0}
+        <div class="secrets-list">
+          {#each storedKeys as key}
+            <div class="secret-row">
+              <div class="secret-info">
+                <span class="secret-key-name">{getSecretKeyLabel(key)}</span>
+                <span class="secret-key-id">{key}</span>
+              </div>
+              <div class="secret-value-area">
+                {#if revealedKey === key}
+                  <input
+                    type="text"
+                    class="secret-value-input"
+                    value={revealedValue}
+                    readonly
+                  />
+                {:else}
+                  <span class="secret-masked">{'\u25CF'.repeat(8)}</span>
+                {/if}
+              </div>
+              <div class="secret-actions">
+                <button
+                  class="secret-btn"
+                  title={revealedKey === key ? 'Hide' : 'Reveal'}
+                  onclick={() => handleRevealSecret(key)}
+                >
+                  {#if revealedKey === key}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  {:else}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  {/if}
+                </button>
+                <button
+                  class="secret-btn secret-btn-danger"
+                  title="Delete"
+                  onclick={() => handleDeleteSecret(key)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                </button>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+      <div class="secret-add-form">
+        <div class="secret-add-row">
+          <div class="custom-dropdown secret-key-dropdown">
+            <button
+              class="dropdown-trigger"
+              onclick={() => { secretsKeyDropdownOpen = !secretsKeyDropdownOpen; }}
+              aria-haspopup="listbox"
+              aria-expanded={secretsKeyDropdownOpen}
+            >
+              <span class="dropdown-label">{newSecretKeyLabel}</span>
+              <span class="dropdown-arrow">{secretsKeyDropdownOpen ? '\u25B4' : '\u25BE'}</span>
+            </button>
+            {#if secretsKeyDropdownOpen}
+              <div class="dropdown-menu" role="listbox">
+                {#each availableKeysForAdd as key}
+                  <button
+                    class="dropdown-option"
+                    class:active={newSecretKey === key}
+                    role="option"
+                    aria-selected={newSecretKey === key}
+                    onclick={() => { newSecretKey = key; secretsKeyDropdownOpen = false; }}
+                  >
+                    <span class="dropdown-option-label">{getSecretKeyLabel(key)}</span>
+                    <span class="secret-key-hint">{key}</span>
+                  </button>
+                {/each}
+                {#if availableKeysForAdd.length === 0}
+                  <span class="dropdown-empty">All keys configured</span>
+                {/if}
+              </div>
+            {/if}
+          </div>
+          <input
+            type="password"
+            class="secret-value-new"
+            bind:value={newSecretValue}
+            placeholder="Secret value"
+            disabled={!newSecretKey}
+          />
+          <button
+            class="btn-primary"
+            onclick={handleSaveSecret}
+            disabled={!newSecretKey || !newSecretValue || secretsSaving}
+          >
+            {secretsSaving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    {/if}
+  </section>
+
+  <section class="settings-section">
+    <h2>Plugins</h2>
+    {#if pluginEntries.length === 0}
+      <p class="empty-notice">No plugins found in ~/.config/bterminal/plugins/</p>
+    {:else}
+      <div class="plugin-list">
+        {#each pluginEntries as entry (entry.meta.id)}
+          <div class="plugin-row">
+            <div class="plugin-info">
+              <span class="plugin-name">{entry.meta.name}</span>
+              <span class="plugin-version">v{entry.meta.version}</span>
+              {#if entry.status === 'loaded'}
+                <span class="plugin-badge loaded" title="Loaded">loaded</span>
+              {:else if entry.status === 'error'}
+                <span class="plugin-badge error" title={entry.error ?? 'Error'}>error</span>
+              {:else if entry.status === 'disabled'}
+                <span class="plugin-badge disabled">disabled</span>
+              {:else}
+                <span class="plugin-badge discovered">discovered</span>
+              {/if}
+            </div>
+            {#if entry.meta.description}
+              <p class="plugin-desc">{entry.meta.description}</p>
+            {/if}
+            {#if entry.meta.permissions.length > 0}
+              <div class="plugin-perms">
+                {#each entry.meta.permissions as perm}
+                  <span class="perm-badge">{perm}</span>
+                {/each}
+              </div>
+            {/if}
+            {#if entry.error}
+              <p class="plugin-error">{entry.error}</p>
+            {/if}
+            <label class="card-toggle" title={entry.status === 'disabled' ? 'Disabled' : 'Enabled'}>
+              <input
+                type="checkbox"
+                checked={entry.status !== 'disabled'}
+                onchange={async (e) => {
+                  const enabled = (e.target as HTMLInputElement).checked;
+                  await setPluginEnabled(entry.meta.id, enabled);
+                }}
+              />
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+          </div>
+        {/each}
+      </div>
+    {/if}
+    <button class="btn-primary reload-plugins-btn" onclick={handleReloadPlugins}>
+      Reload Plugins
+    </button>
   </section>
 
   <section class="settings-section">
@@ -962,6 +1288,21 @@
               </label>
             </div>
 
+            <div class="card-field card-field-row">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Sandbox (Landlock)
+              </span>
+              <label class="card-toggle" title={project.sandboxEnabled ? 'Filesystem sandbox enabled' : 'Filesystem sandbox disabled'}>
+                <input
+                  type="checkbox"
+                  checked={project.sandboxEnabled ?? false}
+                  onchange={e => updateProject(activeGroupId, project.id, { sandboxEnabled: (e.target as HTMLInputElement).checked })}
+                />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+
             <div class="card-field">
               <span class="card-field-label">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -1066,6 +1407,21 @@
     color: var(--ctp-subtext0);
     text-transform: uppercase;
     letter-spacing: 0.03em;
+  }
+
+  .setting-value {
+    font-size: 0.8rem;
+    color: var(--ctp-text);
+  }
+
+  .setting-muted {
+    color: var(--ctp-overlay0);
+    font-size: 0.75rem;
+  }
+
+  .update-available {
+    color: var(--ctp-green);
+    font-weight: 600;
   }
 
   .setting-field > input,
@@ -2043,5 +2399,314 @@
     max-height: 20rem;
     overflow-y: auto;
     border-top: 1px solid var(--ctp-surface1);
+  }
+
+  /* Secrets section */
+  .secrets-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .keyring-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .keyring-indicator.available {
+    background: var(--ctp-green);
+    box-shadow: 0 0 4px color-mix(in srgb, var(--ctp-green) 50%, transparent);
+  }
+
+  .keyring-indicator.unavailable {
+    background: var(--ctp-red);
+    box-shadow: 0 0 4px color-mix(in srgb, var(--ctp-red) 50%, transparent);
+  }
+
+  .keyring-label {
+    font-size: 0.75rem;
+    color: var(--ctp-subtext0);
+  }
+
+  .secrets-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    background: color-mix(in srgb, var(--ctp-red) 8%, var(--ctp-surface0));
+    border: 1px solid color-mix(in srgb, var(--ctp-red) 30%, var(--ctp-surface1));
+    border-radius: 0.375rem;
+    color: var(--ctp-red);
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .secrets-warning svg {
+    flex-shrink: 0;
+  }
+
+  .secrets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .secret-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.375rem;
+    transition: border-color 0.15s;
+  }
+
+  .secret-row:hover {
+    border-color: var(--ctp-surface2);
+  }
+
+  .secret-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.0625rem;
+    min-width: 0;
+    flex-shrink: 0;
+  }
+
+  .secret-key-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ctp-text);
+    white-space: nowrap;
+  }
+
+  .secret-key-id {
+    font-size: 0.625rem;
+    color: var(--ctp-overlay0);
+    font-family: var(--term-font-family, monospace);
+  }
+
+  .secret-value-area {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .secret-masked {
+    color: var(--ctp-overlay0);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+  }
+
+  .secret-value-input {
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    background: var(--ctp-base);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-size: 0.75rem;
+    font-family: var(--term-font-family, monospace);
+  }
+
+  .secret-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .secret-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    background: transparent;
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-overlay1);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+  }
+
+  .secret-btn:hover {
+    color: var(--ctp-text);
+    background: var(--ctp-surface0);
+    border-color: var(--ctp-surface2);
+  }
+
+  .secret-btn-danger:hover {
+    color: var(--ctp-red);
+    background: color-mix(in srgb, var(--ctp-red) 8%, transparent);
+    border-color: color-mix(in srgb, var(--ctp-red) 30%, var(--ctp-surface1));
+  }
+
+  .secret-add-form {
+    padding: 0.5rem 0.625rem;
+    background: var(--ctp-mantle);
+    border: 1px dashed var(--ctp-surface1);
+    border-radius: 0.375rem;
+  }
+
+  .secret-add-row {
+    display: flex;
+    gap: 0.375rem;
+    align-items: stretch;
+  }
+
+  .secret-key-dropdown {
+    min-width: 10rem;
+    flex-shrink: 0;
+  }
+
+  .secret-key-hint {
+    font-size: 0.625rem;
+    color: var(--ctp-overlay0);
+    font-family: var(--term-font-family, monospace);
+    margin-left: auto;
+    padding-left: 0.5rem;
+  }
+
+  .dropdown-empty {
+    display: block;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    color: var(--ctp-overlay0);
+    font-style: italic;
+  }
+
+  .secret-value-new {
+    flex: 1;
+    min-width: 0;
+    padding: 0.375rem 0.625rem;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.25rem;
+    color: var(--ctp-text);
+    font-size: 0.8rem;
+  }
+
+  .secret-value-new:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .secret-value-new:focus {
+    border-color: var(--ctp-blue);
+    outline: none;
+  }
+
+  /* --- Plugins section --- */
+
+  .plugin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .plugin-row {
+    position: relative;
+    background: var(--ctp-surface0);
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .plugin-info {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.125rem;
+  }
+
+  .plugin-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ctp-text);
+  }
+
+  .plugin-version {
+    font-size: 0.68rem;
+    color: var(--ctp-overlay0);
+  }
+
+  .plugin-badge {
+    font-size: 0.6rem;
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.1875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .plugin-badge.loaded {
+    background: color-mix(in srgb, var(--ctp-green) 20%, transparent);
+    color: var(--ctp-green);
+  }
+
+  .plugin-badge.error {
+    background: color-mix(in srgb, var(--ctp-red) 20%, transparent);
+    color: var(--ctp-red);
+  }
+
+  .plugin-badge.disabled {
+    background: color-mix(in srgb, var(--ctp-overlay0) 20%, transparent);
+    color: var(--ctp-overlay0);
+  }
+
+  .plugin-badge.discovered {
+    background: color-mix(in srgb, var(--ctp-blue) 20%, transparent);
+    color: var(--ctp-blue);
+  }
+
+  .plugin-desc {
+    font-size: 0.75rem;
+    color: var(--ctp-subtext0);
+    margin: 0.125rem 0 0.25rem;
+  }
+
+  .plugin-perms {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    margin-top: 0.125rem;
+  }
+
+  .perm-badge {
+    font-size: 0.6rem;
+    padding: 0.05rem 0.25rem;
+    border-radius: 0.125rem;
+    background: color-mix(in srgb, var(--ctp-mauve) 15%, transparent);
+    color: var(--ctp-mauve);
+    font-family: var(--font-mono, monospace);
+  }
+
+  .plugin-error {
+    font-size: 0.7rem;
+    color: var(--ctp-red);
+    margin: 0.25rem 0 0;
+    word-break: break-word;
+  }
+
+  .plugin-row .card-toggle {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+
+  .empty-notice {
+    font-size: 0.78rem;
+    color: var(--ctp-overlay0);
+    margin: 0 0 0.5rem;
+  }
+
+  .reload-plugins-btn {
+    margin-top: 0.25rem;
   }
 </style>

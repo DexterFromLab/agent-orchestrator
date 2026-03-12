@@ -44,7 +44,9 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "../sidecar/dist/claude-runner.mjs"
+      "../sidecar/dist/claude-runner.mjs",
+      "../../btmsg",
+      "../../bttask"
     ],
     "category": "DeveloperTool",
     "shortDescription": "Multi-session Claude agent dashboard",
