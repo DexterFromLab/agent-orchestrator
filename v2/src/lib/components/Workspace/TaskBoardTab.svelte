@@ -84,10 +84,18 @@
 
   async function handleStatusChange(taskId: string, newStatus: string) {
     try {
-      await updateTaskStatus(taskId, newStatus);
+      const task = tasks.find(t => t.id === taskId);
+      const version = task?.version ?? 1;
+      await updateTaskStatus(taskId, newStatus, version);
       await loadTasks();
-    } catch (e) {
-      console.warn('Failed to update task status:', e);
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      if (msg.includes('version conflict')) {
+        console.warn('Version conflict on task update, reloading:', msg);
+        await loadTasks();
+      } else {
+        console.warn('Failed to update task status:', e);
+      }
     }
   }
 

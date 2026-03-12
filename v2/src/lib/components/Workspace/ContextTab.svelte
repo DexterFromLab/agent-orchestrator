@@ -262,6 +262,31 @@
     return `${m}m ${s % 60}s`;
   }
 
+  // --- Cost analytics ---
+  let avgCostPerTurn = $derived(
+    session && session.numTurns > 0
+      ? totalCost.costUsd / session.numTurns
+      : 0
+  );
+
+  let tokenEfficiency = $derived(
+    totalCost.inputTokens > 0
+      ? totalCost.outputTokens / totalCost.inputTokens
+      : 0
+  );
+
+  let burnRatePerHr = $derived.by(() => {
+    if (!session || session.durationMs <= 0 || totalCost.costUsd <= 0) return 0;
+    return (totalCost.costUsd / session.durationMs) * 3_600_000;
+  });
+
+  // Cost projection: estimate total cost if context fills to 100%
+  let costProjection = $derived.by(() => {
+    const usedPct = totalCost.inputTokens / CONTEXT_WINDOW;
+    if (usedPct <= 0) return 0;
+    return totalCost.costUsd / usedPct;
+  });
+
   function opColor(op: string): string {
     switch (op) {
       case 'read': return 'var(--ctp-blue)';
@@ -688,6 +713,39 @@
         </div>
       {/if}
     </div>
+
+    <!-- Cost Analytics -->
+    {#if totalCost.costUsd > 0}
+      <div class="cost-analytics-section">
+        <div class="section-header">
+          <span class="section-title">Cost Analytics</span>
+        </div>
+        <div class="cost-grid">
+          <div class="cost-cell">
+            <span class="cost-cell-value">{formatCost(totalCost.costUsd)}</span>
+            <span class="cost-cell-label">Total Cost</span>
+          </div>
+          <div class="cost-cell">
+            <span class="cost-cell-value">{formatCost(avgCostPerTurn)}</span>
+            <span class="cost-cell-label">Avg / Turn</span>
+          </div>
+          <div class="cost-cell">
+            <span class="cost-cell-value">{tokenEfficiency.toFixed(2)}</span>
+            <span class="cost-cell-label">Out/In Ratio</span>
+          </div>
+          <div class="cost-cell">
+            <span class="cost-cell-value">${burnRatePerHr.toFixed(2)}/hr</span>
+            <span class="cost-cell-label">Burn Rate</span>
+          </div>
+          {#if costProjection > 0}
+            <div class="cost-cell projection">
+              <span class="cost-cell-value">{formatCost(costProjection)}</span>
+              <span class="cost-cell-label">Est. Full Context</span>
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/if}
 
     <!-- Context Meter -->
     <div class="meter-section">
@@ -1138,6 +1196,52 @@
   }
   .compaction-pill .stat-value { color: var(--ctp-yellow); }
   .compaction-pill .stat-label { color: var(--ctp-yellow); opacity: 0.7; }
+
+  /* Cost Analytics */
+  .cost-analytics-section {
+    padding: 0.375rem 0.625rem;
+    border-bottom: 1px solid var(--ctp-surface0);
+    flex-shrink: 0;
+  }
+
+  .cost-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+  }
+
+  .cost-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.375rem 0.25rem;
+    background: var(--ctp-surface0);
+    border-radius: 0.25rem;
+  }
+
+  .cost-cell-value {
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: var(--term-font-family, monospace);
+    color: var(--ctp-text);
+  }
+
+  .cost-cell-label {
+    font-size: 0.55rem;
+    color: var(--ctp-overlay0);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.125rem;
+  }
+
+  .cost-cell.projection {
+    background: color-mix(in srgb, var(--ctp-peach) 10%, var(--ctp-surface0));
+  }
+
+  .cost-cell.projection .cost-cell-value {
+    color: var(--ctp-peach);
+  }
 
   /* Context meter */
   .meter-section {

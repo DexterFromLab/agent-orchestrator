@@ -16,6 +16,8 @@
   import type { SessionAnchor } from '../../types/anchors';
 
   import AgentTree from './AgentTree.svelte';
+  import UsageMeter from './UsageMeter.svelte';
+  import { notify } from '../../stores/notifications.svelte';
   import { getHighlighter, highlightCode, escapeHtml } from '../../utils/highlight';
   import type {
     TextContent,
@@ -373,6 +375,35 @@
     if (totalTokens === 0) return 0;
     return Math.min(100, Math.round((totalTokens / DEFAULT_CONTEXT_LIMIT) * 100));
   });
+
+  // Context meter color class based on thresholds
+  let contextColorClass = $derived.by(() => {
+    if (contextPercent >= 90) return 'context-critical';
+    if (contextPercent >= 75) return 'context-high';
+    if (contextPercent >= 50) return 'context-medium';
+    return '';
+  });
+
+  // Session burn rate ($/hr)
+  let burnRatePerHr = $derived.by(() => {
+    if (!session || session.durationMs <= 0 || session.costUsd <= 0) return 0;
+    return (session.costUsd / session.durationMs) * 3_600_000;
+  });
+
+  // 90% context warning (fire once per session)
+  let contextWarningFired = $state(false);
+  $effect(() => {
+    if (contextPercent >= 90 && !contextWarningFired && session?.status === 'running') {
+      contextWarningFired = true;
+      notify('warning', `Context usage at ${contextPercent}% — approaching model limit`);
+    }
+  });
+  // Reset warning tracker when session changes
+  $effect(() => {
+    if (session?.id) {
+      contextWarningFired = false;
+    }
+  });
 </script>
 
 <div class="agent-pane" data-testid="agent-pane" data-agent-status={session?.status ?? 'idle'}>
@@ -538,11 +569,16 @@
         <div class="running-indicator">
           <span class="pulse"></span>
           <span>Running...</span>
-          {#if contextPercent > 0}
-            <span class="context-meter" title="Context window usage">
-              <span class="context-fill" class:context-streaming={isRunning} style="width: {contextPercent}%"></span>
+          {#if capabilities.supportsCost && (session.inputTokens > 0 || session.outputTokens > 0)}
+            <UsageMeter inputTokens={session.inputTokens} outputTokens={session.outputTokens} contextLimit={DEFAULT_CONTEXT_LIMIT} />
+          {:else if contextPercent > 0}
+            <span class="context-meter {contextColorClass}" title="Context window usage">
+              <span class="context-fill context-streaming" style="width: {contextPercent}%"></span>
               <span class="context-label">{contextPercent}%</span>
             </span>
+          {/if}
+          {#if burnRatePerHr > 0}
+            <span class="burn-rate" title="Current session burn rate">${burnRatePerHr.toFixed(2)}/hr</span>
           {/if}
           {#if !autoScroll}
             <button class="scroll-btn" onclick={() => { autoScroll = true; scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior }); }}>↓ Bottom</button>
@@ -555,14 +591,17 @@
           {#if totalCost && totalCost.costUsd > session.costUsd}
             <span class="total-cost">(total: ${totalCost.costUsd.toFixed(4)})</span>
           {/if}
-          <span class="cost-detail">{session.inputTokens + session.outputTokens} tok</span>
-          <span class="cost-detail">{(session.durationMs / 1000).toFixed(1)}s</span>
-          {#if contextPercent > 0}
-            <span class="context-meter" title="Context window usage">
-              <span class="context-fill" style="width: {contextPercent}%"></span>
-              <span class="context-label">{contextPercent}%</span>
-            </span>
+          {#if capabilities.supportsCost}
+            <span class="cost-detail token-in" title="Input tokens">{session.inputTokens.toLocaleString()} in</span>
+            <span class="cost-detail token-out" title="Output tokens">{session.outputTokens.toLocaleString()} out</span>
+          {:else}
+            <span class="cost-detail">{session.inputTokens + session.outputTokens} tok</span>
           {/if}
+          <span class="cost-detail">{(session.durationMs / 1000).toFixed(1)}s</span>
+          {#if burnRatePerHr > 0}
+            <span class="burn-rate" title="Session average burn rate">${burnRatePerHr.toFixed(2)}/hr</span>
+          {/if}
+          <UsageMeter inputTokens={session.inputTokens} outputTokens={session.outputTokens} contextLimit={DEFAULT_CONTEXT_LIMIT} />
           {#if !autoScroll}
             <button class="scroll-btn" onclick={() => { autoScroll = true; scrollContainer?.querySelector('#message-end')?.scrollIntoView({ behavior: 'instant' as ScrollBehavior }); }}>↓ Bottom</button>
           {/if}
@@ -1332,6 +1371,21 @@
   .done-bar { color: var(--ctp-subtext0); }
   .total-cost { color: var(--ctp-overlay1); font-size: 0.6875rem; }
   .error-bar { color: var(--ctp-red); }
+
+  .burn-rate {
+    font-size: 0.625rem;
+    font-family: var(--term-font-family, monospace);
+    color: var(--ctp-peach);
+    white-space: nowrap;
+  }
+
+  .token-in { color: var(--ctp-blue); }
+  .token-out { color: var(--ctp-green); }
+
+  /* Context meter threshold colors */
+  .context-medium .context-fill { background: var(--ctp-yellow); }
+  .context-high .context-fill { background: var(--ctp-peach); }
+  .context-critical .context-fill { background: var(--ctp-red); }
 
   /* === Session controls === */
   .session-controls {

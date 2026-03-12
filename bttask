@@ -98,6 +98,7 @@ def init_db():
             sort_order INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now')),
+            version INTEGER DEFAULT 1,
             FOREIGN KEY (assigned_to) REFERENCES agents(id),
             FOREIGN KEY (created_by) REFERENCES agents(id)
         );
@@ -117,6 +118,14 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_tasks_assigned ON tasks(assigned_to);
         CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
     """)
+
+    # Migration: add version column if missing (for existing databases)
+    cursor = db.execute("PRAGMA table_info(tasks)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'version' not in columns:
+        db.execute("ALTER TABLE tasks ADD COLUMN version INTEGER DEFAULT 1")
+        db.commit()
+
     db.commit()
     db.close()
 
@@ -414,10 +423,19 @@ def cmd_status(args):
         return
 
     old_status = task['status']
-    db.execute(
-        "UPDATE tasks SET status = ?, updated_at = datetime('now') WHERE id = ?",
-        (new_status, task['id'])
+    current_version = task['version'] if task['version'] is not None else 1
+
+    cursor = db.execute(
+        "UPDATE tasks SET status = ?, version = version + 1, updated_at = datetime('now') "
+        "WHERE id = ? AND version = ?",
+        (new_status, task['id'], current_version)
     )
+
+    if cursor.rowcount == 0:
+        print(f"{C_RED}Error: Task was modified by another agent (version conflict).{C_RESET}")
+        print(f"{C_DIM}Re-fetch the task and try again.{C_RESET}")
+        db.close()
+        sys.exit(1)
 
     # Auto-add comment for status change
     comment_id = str(uuid.uuid4())
@@ -429,7 +447,8 @@ def cmd_status(args):
     db.commit()
     db.close()
 
-    print(f"{C_GREEN}✓ [{short_id(task['id'])}] {format_state(old_status)} → {format_state(new_status)}{C_RESET}")
+    new_version = current_version + 1
+    print(f"{C_GREEN}✓ [{short_id(task['id'])}] {format_state(old_status)} → {format_state(new_status)} {C_DIM}(v{new_version}){C_RESET}")
 
 
 def cmd_comment(args):

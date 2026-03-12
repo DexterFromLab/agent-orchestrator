@@ -11,8 +11,8 @@ pub fn bttask_comments(task_id: String) -> Result<Vec<bttask::TaskComment>, Stri
 }
 
 #[tauri::command]
-pub fn bttask_update_status(task_id: String, status: String) -> Result<(), String> {
-    bttask::update_task_status(&task_id, &status)
+pub fn bttask_update_status(task_id: String, status: String, version: i64) -> Result<i64, String> {
+    bttask::update_task_status(&task_id, &status, version)
 }
 
 #[tauri::command]

@@ -16,6 +16,7 @@ export interface Task {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+  version: number;
 }
 
 export interface TaskComment {
@@ -34,8 +35,9 @@ export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
   return invoke<TaskComment[]>('bttask_comments', { taskId });
 }
 
-export async function updateTaskStatus(taskId: string, status: string): Promise<void> {
-  return invoke('bttask_update_status', { taskId, status });
+/** Update task status with optimistic locking. Returns the new version number. */
+export async function updateTaskStatus(taskId: string, status: string, version: number): Promise<number> {
+  return invoke<number>('bttask_update_status', { taskId, status, version });
 }
 
 export async function addTaskComment(taskId: string, agentId: AgentId, content: string): Promise<string> {
