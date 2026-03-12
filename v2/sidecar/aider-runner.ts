@@ -145,6 +145,19 @@ function shouldSuppress(line: string): boolean {
   return t === '' || SUPPRESS_RE.some(p => p.test(t));
 }
 
+// --- Shell command execution ---
+// Runs a shell command and returns {stdout, stderr, exitCode}
+
+function execShell(cmd: string, env: Record<string, string>, cwd: string): { stdout: string; exitCode: number } {
+  try {
+    const result = execSync(cmd, { env, cwd, timeout: 30000, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    return { stdout: result.trim(), exitCode: 0 };
+  } catch (e: unknown) {
+    const err = e as { stdout?: string; stderr?: string; status?: number };
+    return { stdout: (err.stdout ?? err.stderr ?? String(e)).trim(), exitCode: err.status ?? 1 };
+  }
+}
+
 // --- Turn output parsing ---
 // Parses complete turn output into structured blocks:
 // thinking, answer text, shell commands, cost info
@@ -154,6 +167,9 @@ interface TurnBlock {
   content: string;
 }
 
+// Known shell command patterns — commands from btmsg/bttask/common tools
+const SHELL_CMD_RE = /^(btmsg |bttask |cat |ls |find |grep |mkdir |cd |cp |mv |rm |pip |npm |git |curl |wget |python |node |bash |sh )/;
+
 function parseTurnOutput(buffer: string): TurnBlock[] {
   const blocks: TurnBlock[] = [];
   const lines = buffer.split('\n');
@@ -162,23 +178,26 @@ function parseTurnOutput(buffer: string): TurnBlock[] {
   let answerLines: string[] = [];
   let inThinking = false;
   let inAnswer = false;
+  let inCodeBlock = false;
+  let codeBlockLang = '';
+  let codeBlockLines: string[] = [];
 
   for (const line of lines) {
     const t = line.trim();
 
     // Skip suppressed lines
-    if (shouldSuppress(line)) continue;
+    if (shouldSuppress(line) && !inCodeBlock) continue;
 
     // Prompt markers — skip
     if (PROMPT_RE.test(t)) continue;
 
-    // Thinking block markers
-    if (t === '► THINKING' || t === '►  THINKING') {
+    // Thinking block markers (handle various unicode arrows and spacing)
+    if (/^[►▶⯈❯>]\s*THINKING$/i.test(t)) {
       inThinking = true;
       inAnswer = false;
       continue;
     }
-    if (t === '► ANSWER' || t === '►  ANSWER') {
+    if (/^[►▶⯈❯>]\s*ANSWER$/i.test(t)) {
       if (thinkingLines.length > 0) {
         blocks.push({ type: 'thinking', content: thinkingLines.join('\n') });
         thinkingLines = [];
@@ -188,15 +207,44 @@ function parseTurnOutput(buffer: string): TurnBlock[] {
       continue;
     }
 
+    // Code block detection (```bash, ```shell, ```)
+    if (t.startsWith('```') && !inCodeBlock) {
+      inCodeBlock = true;
+      codeBlockLang = t.slice(3).trim().toLowerCase();
+      codeBlockLines = [];
+      continue;
+    }
+    if (t === '```' && inCodeBlock) {
+      inCodeBlock = false;
+      // If this was a bash/shell code block, extract commands
+      if (['bash', 'shell', 'sh', ''].includes(codeBlockLang)) {
+        for (const cmdLine of codeBlockLines) {
+          const cmd = cmdLine.trim().replace(/^\$ /, '');
+          if (cmd && SHELL_CMD_RE.test(cmd)) {
+            if (answerLines.length > 0) {
+              blocks.push({ type: 'text', content: answerLines.join('\n') });
+              answerLines = [];
+            }
+            blocks.push({ type: 'shell', content: cmd });
+          }
+        }
+      }
+      codeBlockLines = [];
+      continue;
+    }
+    if (inCodeBlock) {
+      codeBlockLines.push(line);
+      continue;
+    }
+
     // Cost line
     if (/^Tokens: .+Cost:/.test(t)) {
       blocks.push({ type: 'cost', content: t });
       continue;
     }
 
-    // Shell command
+    // Shell command ($ prefix or Running prefix)
     if (t.startsWith('$ ') || t.startsWith('Running ')) {
-      // Flush accumulated answer text first
       if (answerLines.length > 0) {
         blocks.push({ type: 'text', content: answerLines.join('\n') });
         answerLines = [];
@@ -204,6 +252,19 @@ function parseTurnOutput(buffer: string): TurnBlock[] {
       blocks.push({ type: 'shell', content: t.replace(/^(Running |\$ )/, '') });
       continue;
     }
+
+    // Detect bare btmsg/bttask commands in answer text
+    if (inAnswer && SHELL_CMD_RE.test(t) && !t.includes('`') && !t.startsWith('#')) {
+      if (answerLines.length > 0) {
+        blocks.push({ type: 'text', content: answerLines.join('\n') });
+        answerLines = [];
+      }
+      blocks.push({ type: 'shell', content: t });
+      continue;
+    }
+
+    // Aider's "Applied edit" / flake8 output — suppress from answer text
+    if (/^Applied edit to |^Fix any errors|^Running: /.test(t)) continue;
 
     // Accumulate into thinking or answer
     if (inThinking) {
@@ -249,6 +310,13 @@ async function handleQuery(msg: QueryMessage) {
 
     send({ type: 'agent_started', sessionId });
 
+    // Show the incoming prompt in the console
+    send({
+      type: 'agent_event',
+      sessionId,
+      event: { type: 'input', prompt },
+    });
+
     // Pre-fetch fresh context for follow-up turns too
     const ctx = prefetchContext(existing.env, existing.cwd);
     const fullPrompt = `${ctx}\n\nNow act on the above. Your current task:\n${prompt}`;
@@ -292,6 +360,13 @@ async function handleQuery(msg: QueryMessage) {
     type: 'agent_event',
     sessionId,
     event: { type: 'system', subtype: 'init', session_id: sessionId, model: aiderModel, cwd },
+  });
+
+  // Show the incoming prompt in the console
+  send({
+    type: 'agent_event',
+    sessionId,
+    event: { type: 'input', prompt },
   });
 
   const child = spawn(aiderPath, args, {
@@ -355,7 +430,9 @@ async function handleQuery(msg: QueryMessage) {
     const duration = Date.now() - session.turnStartTime;
     const blocks = parseTurnOutput(session.turnBuffer);
 
-    // Emit structured blocks
+    // Emit structured blocks and execute shell commands
+    const shellResults: string[] = [];
+
     for (const block of blocks) {
       switch (block.type) {
         case 'thinking':
@@ -376,18 +453,40 @@ async function handleQuery(msg: QueryMessage) {
           }
           break;
 
-        case 'shell':
+        case 'shell': {
+          const cmdId = `shell-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+          // Emit tool_use (command being run)
           send({
             type: 'agent_event',
             sessionId,
             event: {
               type: 'tool_use',
-              id: `shell-${Date.now()}`,
+              id: cmdId,
               name: 'Bash',
               input: { command: block.content },
             },
           });
+
+          // Actually execute the command
+          log(`[exec] Running: ${block.content}`);
+          const result = execShell(block.content, session.env, session.cwd);
+          const output = result.stdout || '(no output)';
+
+          // Emit tool_result (command output)
+          send({
+            type: 'agent_event',
+            sessionId,
+            event: {
+              type: 'tool_result',
+              tool_use_id: cmdId,
+              content: output,
+            },
+          });
+
+          shellResults.push(`$ ${block.content}\n${output}`);
           break;
+        }
 
         case 'cost':
           // Parsed below for the result event
@@ -416,6 +515,17 @@ async function handleQuery(msg: QueryMessage) {
 
     send({ type: 'agent_stopped', sessionId, exitCode: 0, signal: null });
     session.turnBuffer = '';
+
+    // If commands were executed, feed results back to aider for next turn
+    if (shellResults.length > 0 && child.exitCode === null) {
+      const feedback = `The following commands were executed and here are the results:\n\n${shellResults.join('\n\n')}\n\nBased on these results, continue your work. If the task is complete, say "DONE".`;
+      log(`[exec] Feeding ${shellResults.length} command results back to aider`);
+      session.turnBuffer = '';
+      session.turnStartTime = Date.now();
+      session.turns++;
+      send({ type: 'agent_started', sessionId });
+      child.stdin?.write(feedback + '\n');
+    }
   });
 
   child.stderr?.on('data', (data: Buffer) => {

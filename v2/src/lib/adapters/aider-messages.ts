@@ -7,6 +7,7 @@ import type {
   TextContent,
   ThinkingContent,
   ToolCallContent,
+  ToolResultContent,
   CostContent,
   ErrorContent,
 } from './claude-messages';
@@ -20,7 +21,9 @@ import { str, num } from '../utils/type-guards';
  * - {type:'system', subtype:'init', model, session_id, cwd}
  * - {type:'assistant', message:{role:'assistant', content:'...'}} — batched text block
  * - {type:'thinking', content:'...'} — thinking/reasoning block
+ * - {type:'input', prompt:'...'} — incoming prompt/message (shown in console)
  * - {type:'tool_use', id, name, input} — shell command execution
+ * - {type:'tool_result', tool_use_id, content} — shell command output
  * - {type:'result', subtype:'result', cost_usd, duration_ms, is_error}
  * - {type:'error', message:'...'}
  */
@@ -47,6 +50,14 @@ export function adaptAiderMessage(raw: Record<string, unknown>): AgentMessage[] 
         id: uuid,
         type: 'unknown',
         content: raw,
+        timestamp,
+      }];
+
+    case 'input':
+      return [{
+        id: uuid,
+        type: 'text',
+        content: { text: `📨 **Received:**\n${str(raw.prompt)}` } satisfies TextContent,
         timestamp,
       }];
 
@@ -81,6 +92,17 @@ export function adaptAiderMessage(raw: Record<string, unknown>): AgentMessage[] 
           name: str(raw.name, 'shell'),
           input: raw.input,
         } satisfies ToolCallContent,
+        timestamp,
+      }];
+
+    case 'tool_result':
+      return [{
+        id: uuid,
+        type: 'tool_result',
+        content: {
+          toolUseId: str(raw.tool_use_id),
+          output: raw.content,
+        } satisfies ToolResultContent,
         timestamp,
       }];
 
