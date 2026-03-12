@@ -11,6 +11,7 @@
 
 ## Completed
 
+- [x] **E2E fixture + judge hardening** -- Fixed fixture env propagation (process.env injection, tauri:options.env unreliable), LLM judge CLI context isolation (--setting-sources user, cwd /tmp, --system-prompt), mocha timeout 180s. Confirmed fixture fakes project list. Agent tests CI-only (nested Claude limitation). | Done: 2026-03-12
 - [x] **LLM judge refactor + E2E docs** -- Refactored llm-judge.ts to dual-mode (CLI first, API fallback), env-configurable via LLM_JUDGE_BACKEND. Wrote comprehensive docs/e2e-testing.md covering fixtures, test mode, LLM judge, all spec phases, CI, troubleshooting. 444 vitest + 151 cargo + 109 E2E. | Done: 2026-03-12
 - [x] **v3 Hardening Sprint** -- Fixed subagent delegation (prompt + env var), added TLS to relay, WAL checkpoint (5min), Landlock logging, plugin sandbox tests (35), gitignore fix. Phase C E2E tests (27 new, 3 pre-existing fixes). 444 vitest + 151 cargo + 109 E2E. | Done: 2026-03-12
 - [x] **v3 Production Readiness — ALL tribunal items** -- Implemented all 13 features from tribunal assessment: sidecar supervisor, notifications, secrets, keyboard UX, agent health, search, plugins, sandbox, error classifier, audit log, team agent orchestration, optimistic locking, usage meter. 409 vitest + 109 cargo. | Done: 2026-03-12

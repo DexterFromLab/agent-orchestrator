@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **E2E CI workflow** — `.github/workflows/e2e.yml`: 3 jobs (vitest, cargo, e2e), xvfb-run for headless WebKit2GTK, path-filtered triggers on v2 source changes, LLM-judged tests gated on `ANTHROPIC_API_KEY` secret availability
 
 ### Fixed
+- **E2E fixture env propagation** — `tauri:options.env` does not reliably set process-level env vars for Rust `std::env::var()`. Added `process.env` injection at module scope in wdio.conf.js so fixture groups.json is loaded instead of real user config
+- **LLM judge CLI context pollution** — Claude CLI loaded project CLAUDE.md files causing model to refuse JSON output. Fixed by running judge from `cwd: /tmp` with `--setting-sources user` and `--system-prompt` flags
+- **E2E mocha timeout** — Increased global mocha timeout from 60s to 180s. Agent-running tests (B4/B5) need 120s+ for Claude CLI round-trip
 - **E2E test suite — 27 failures fixed** across 3 spec files: bterminal.test.ts (22 — stale v2 CSS selectors, v3 tab order/count, JS-dispatched KeyboardEvent for Ctrl+K, idempotent palette open/close, backdrop click close, scrollIntoView for below-fold settings, scoped theme dropdown selectors), agent-scenarios.test.ts (3 — JS click for settings button, programmatic focus check, graceful 40s agent timeout with skip), phase-b.test.ts (2 — waitUntil for project box render, conditional null handling for burn-rate/cost elements). 82 E2E passing, 0 failing, 4 skipped
 - **AgentPane.svelte missing closing `>`** — div tag with data-testid attributes was missing closing angle bracket, causing template parse issues
 
