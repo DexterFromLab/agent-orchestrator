@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createConnection } from 'node:net';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,7 +25,10 @@ export const config = {
   // ── Specs ──
   // Single spec file — Tauri launches one app instance per session,
   // and tauri-driver can't re-create sessions between spec files.
-  specs: [resolve(__dirname, 'specs/bterminal.test.ts')],
+  specs: [
+    resolve(__dirname, 'specs/bterminal.test.ts'),
+    resolve(__dirname, 'specs/agent-scenarios.test.ts'),
+  ],
 
   // ── Capabilities ──
   capabilities: [{
@@ -32,6 +36,12 @@ export const config = {
     'wdio:enforceWebDriverClassic': true,
     'tauri:options': {
       application: tauriBinary,
+      // Test isolation: separate data/config dirs, disable watchers/telemetry
+      env: {
+        BTERMINAL_TEST: '1',
+        ...(process.env.BTERMINAL_TEST_DATA_DIR && { BTERMINAL_TEST_DATA_DIR: process.env.BTERMINAL_TEST_DATA_DIR }),
+        ...(process.env.BTERMINAL_TEST_CONFIG_DIR && { BTERMINAL_TEST_CONFIG_DIR: process.env.BTERMINAL_TEST_CONFIG_DIR }),
+      },
     },
   }],
 
@@ -85,9 +95,10 @@ export const config = {
   /**
    * Spawn tauri-driver before the session.
    * tauri-driver bridges WebDriver protocol to WebKit2GTK's inspector.
+   * Uses TCP probe to confirm port 4444 is accepting connections.
    */
   beforeSession() {
-    return new Promise((resolve, reject) => {
+    return new Promise((res, reject) => {
       tauriDriver = spawn('tauri-driver', [], {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
@@ -99,14 +110,28 @@ export const config = {
         ));
       });
 
-      // Wait for tauri-driver to be ready (listens on port 4444)
-      const timeout = setTimeout(() => resolve(), 2000);
-      tauriDriver.stdout.on('data', (data) => {
-        if (data.toString().includes('4444')) {
-          clearTimeout(timeout);
-          resolve();
+      // TCP readiness probe — poll port 4444 until it accepts a connection
+      const maxWaitMs = 10_000;
+      const intervalMs = 200;
+      const deadline = Date.now() + maxWaitMs;
+
+      function probe() {
+        if (Date.now() > deadline) {
+          reject(new Error('tauri-driver did not become ready within 10s'));
+          return;
         }
-      });
+        const sock = createConnection({ port: 4444, host: 'localhost' }, () => {
+          sock.destroy();
+          res();
+        });
+        sock.on('error', () => {
+          sock.destroy();
+          setTimeout(probe, intervalMs);
+        });
+      }
+
+      // Give it a moment before first probe
+      setTimeout(probe, 300);
     });
   },
 
