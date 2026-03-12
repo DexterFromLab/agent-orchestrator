@@ -971,3 +971,38 @@ Reviewed and integrated Dexter's multi-agent orchestration branch (dexter_change
 - Vitest: 345 passed (was 327, +18 — new wake-scorer + metrics tests from prior session)
 - Cargo src-tauri: 68 passed (was 64, +4)
 - E2E scenarios: 22 new test cases across 7 scenarios
+
+### Session: 2026-03-12 — E2E Testing Engine Phase B+
+
+#### LLM Judge Helper
+- [x] Created `v2/tests/e2e/llm-judge.ts` — Claude API-based test assertion judge
+  - Raw fetch to Anthropic API (zero new deps), uses claude-haiku-4-5 for speed/cost
+  - `judge()` evaluates actual output against criteria, returns structured verdict (pass/fail, reasoning, confidence)
+  - `assertWithJudge()` convenience with minimum confidence threshold (default 0.7)
+  - `isJudgeAvailable()` check — tests skip gracefully when ANTHROPIC_API_KEY absent
+
+#### Phase B Scenarios (6 scenarios, ~15 tests)
+- [x] Created `v2/tests/e2e/specs/phase-b.test.ts`
+  - **B1: Multi-Project Grid** — renders multiple project boxes, unique IDs, independent agent panes, CWD paths, focus/active styling
+  - **B2: Independent Tab Switching** — different tabs active in different project boxes simultaneously
+  - **B3: Status Bar Fleet State** — agent count display, burn rate $0.00 when all idle
+  - **B4: LLM-Judged Agent Response** — sends file listing prompt, evaluates response quality + tool usage via LLM judge (requires ANTHROPIC_API_KEY)
+  - **B5: LLM-Judged Code Generation** — sends code explanation prompt, evaluates correctness via LLM judge
+  - **B6: Context Tab After Activity** — verifies context tab shows token usage data after agent activity
+- [x] Per-project helper functions: focusProject(), getAgentStatus(), sendPromptInProject(), waitForProjectAgentStatus(), getAgentMessages(), switchProjectTab()
+- [x] All LLM-judged tests skip gracefully when ANTHROPIC_API_KEY not set
+- [x] Added phase-b.test.ts to wdio.conf.js specs array
+
+#### CI Workflow
+- [x] Created `.github/workflows/e2e.yml`
+  - Triggers: push to v2-mission-control, PRs to master/v2-mission-control, manual dispatch
+  - Path filters: v2/src/**, v2/src-tauri/**, v2/tests/e2e/**
+  - 3 jobs: unit-tests (vitest), cargo-tests, e2e-tests (needs both)
+  - E2E job: installs xvfb + tauri-driver, builds debug binary, runs Phase A + Phase B specs
+  - LLM-judged tests gated on ANTHROPIC_API_KEY secret availability
+  - Uploads test-results/ artifact on all outcomes
+
+#### Verification
+- [x] Vitest: 388 passed, 0 failed (was 345, +43 from prior sessions)
+- [x] Cargo: 68 passed, 0 failed
+- [x] No regressions

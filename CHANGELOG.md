@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **E2E Phase A scenarios** — 7 human-authored test scenarios (22 tests) in `agent-scenarios.test.ts`: app structural integrity, settings panel, agent pane initial state, terminal tab management, command palette, project focus/tab switching, agent prompt submission (graceful Claude CLI skip)
 - **E2E test fixtures** — `tests/e2e/fixtures.ts`: creates isolated temp environments with data/config dirs, git repos, and groups.json. `createTestFixture()`, `createMultiProjectFixture()`, `destroyTestFixture()`
 - **E2E results store** — `tests/e2e/results-db.ts`: JSON-based test run/step tracking (pivoted from better-sqlite3 due to Node 25 native compile failure)
+- **E2E Phase B scenarios** — 6 multi-project + LLM-judged test scenarios in `phase-b.test.ts`: multi-project grid rendering, independent tab switching, status bar fleet state, LLM-judged agent response quality, LLM-judged code generation, context tab verification
+- **LLM judge helper** — `tests/e2e/llm-judge.ts`: raw fetch to Anthropic API (claude-haiku-4-5), structured verdicts (pass/fail + reasoning + confidence), `assertWithJudge()` with configurable min confidence threshold, graceful skip when `ANTHROPIC_API_KEY` absent
+- **E2E CI workflow** — `.github/workflows/e2e.yml`: 3 jobs (vitest, cargo, e2e), xvfb-run for headless WebKit2GTK, path-filtered triggers on v2 source changes, LLM-judged tests gated on `ANTHROPIC_API_KEY` secret availability
 
 ### Changed
 - **WebDriverIO config** — TCP readiness probe replaces blind 2s sleep for tauri-driver startup (200ms interval, 10s deadline). Added BTERMINAL_TEST=1 passthrough in capabilities

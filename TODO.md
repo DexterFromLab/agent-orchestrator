@@ -3,7 +3,7 @@
 ## Active
 
 ### v2/v3 Remaining
-- [ ] **E2E testing — Phase B+** -- Phase A complete: 72 tests across 2 spec files (smoke + 7 agent scenarios). Next: LLM-judged assertions, multi-project scenarios, CI integration (xvfb-run).
+- [x] **E2E testing — Phase B+** -- Phase B complete: LLM judge helper (llm-judge.ts, raw Anthropic API fetch, claude-haiku-4-5), 6 multi-project scenarios (phase-b.test.ts: grid rendering, independent tabs, status bar, LLM-judged agent responses + code generation, context tab), CI workflow (e2e.yml: 3 jobs, xvfb-run, path-filtered, LLM tests gated on secret). 388 vitest + 68 cargo + 22 Phase A + 6 Phase B E2E. | Done: 2026-03-12
 - [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Env var whitelist fix done. 3 test sessions ran ($1.10, $0.69, $1.70) but model didn't spawn subagents — needs complex multi-part prompts to trigger delegation. Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.

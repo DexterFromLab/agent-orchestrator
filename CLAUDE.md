@@ -92,6 +92,9 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/tests/e2e/results-db.ts` | JSON test results store (run/step tracking, no native deps) |
 | `v2/tests/e2e/specs/bterminal.test.ts` | E2E smoke tests (CSS class selectors, 50+ tests) |
 | `v2/tests/e2e/specs/agent-scenarios.test.ts` | Phase A E2E scenarios (data-testid selectors, 7 scenarios, 22 tests) |
+| `v2/tests/e2e/specs/phase-b.test.ts` | Phase B E2E scenarios (multi-project, LLM-judged assertions, 6 scenarios) |
+| `v2/tests/e2e/llm-judge.ts` | LLM judge helper (Claude API assertions, confidence thresholds) |
+| `.github/workflows/e2e.yml` | CI: unit + cargo + E2E tests (xvfb-run, path-filtered, LLM tests gated on secret) |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
 | `v2/src/lib/utils/attention-scorer.ts` | Pure attention scoring function (extracted from health store, 14 tests) |
 | `v2/src/lib/utils/wake-scorer.ts` | Pure wake signal evaluation (6 signals, 24 tests) |
