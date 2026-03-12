@@ -26,6 +26,7 @@
   import type { AgentMessage } from '../../adapters/claude-messages';
   import { getProvider, getDefaultProviderId } from '../../providers/registry.svelte';
   import { loadAnchorsForProject } from '../../stores/anchors.svelte';
+  import { getSecret } from '../../adapters/secrets-bridge';
   import { getWakeEvent, consumeWakeEvent, updateManagerSession } from '../../stores/wake-scheduler.svelte';
   import { SessionId, ProjectId } from '../../types/ids';
   import AgentPane from '../Agent/AgentPane.svelte';
@@ -58,15 +59,34 @@
     return project.systemPrompt || undefined;
   });
 
+  // Provider-specific API keys loaded from system keyring
+  let openrouterKey = $state<string | null>(null);
+
+  $effect(() => {
+    if (providerId === 'aider') {
+      getSecret('openrouter_api_key').then(key => {
+        openrouterKey = key;
+      }).catch(() => {});
+    } else {
+      openrouterKey = null;
+    }
+  });
+
   // Inject BTMSG_AGENT_ID for agent projects so they can use btmsg/bttask CLIs
   // Manager agents also get CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS to enable subagent delegation
+  // Provider-specific API keys are injected from the system keyring
   let agentEnv = $derived.by(() => {
-    if (!project.isAgent) return undefined;
-    const env: Record<string, string> = { BTMSG_AGENT_ID: project.id };
-    if (project.agentRole === 'manager') {
-      env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = '1';
+    const env: Record<string, string> = {};
+    if (project.isAgent) {
+      env.BTMSG_AGENT_ID = project.id;
+      if (project.agentRole === 'manager') {
+        env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = '1';
+      }
     }
-    return env;
+    if (openrouterKey) {
+      env.OPENROUTER_API_KEY = openrouterKey;
+    }
+    return Object.keys(env).length > 0 ? env : undefined;
   });
 
   // Periodic context re-injection timer

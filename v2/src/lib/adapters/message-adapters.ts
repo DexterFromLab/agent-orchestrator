@@ -6,6 +6,7 @@ import type { ProviderId } from '../providers/types';
 import { adaptSDKMessage } from './claude-messages';
 import { adaptCodexMessage } from './codex-messages';
 import { adaptOllamaMessage } from './ollama-messages';
+import { adaptAiderMessage } from './aider-messages';
 
 /** Function signature for a provider message adapter */
 export type MessageAdapter = (raw: Record<string, unknown>) => AgentMessage[];
@@ -31,3 +32,4 @@ export function adaptMessage(providerId: ProviderId, raw: Record<string, unknown
 registerMessageAdapter('claude', adaptSDKMessage);
 registerMessageAdapter('codex', adaptCodexMessage);
 registerMessageAdapter('ollama', adaptOllamaMessage);
+registerMessageAdapter('aider', adaptAiderMessage);

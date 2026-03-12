@@ -1,6 +1,6 @@
 // Provider abstraction types — defines the interface for multi-provider agent support
 
-export type ProviderId = 'claude' | 'codex' | 'ollama';
+export type ProviderId = 'claude' | 'codex' | 'ollama' | 'aider';
 
 /** What a provider can do — UI gates features on these flags */
 export interface ProviderCapabilities {

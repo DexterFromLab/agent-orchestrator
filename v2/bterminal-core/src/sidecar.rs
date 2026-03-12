@@ -1,7 +1,10 @@
 // Sidecar lifecycle management (Deno-first, Node.js fallback)
-// Spawns bundled agent-runner.mjs via deno or node, communicates via stdio NDJSON
+// Spawns per-provider runner scripts (e.g. claude-runner.mjs, aider-runner.mjs)
+// via deno or node, communicates via stdio NDJSON.
+// Each provider gets its own process, started lazily on first query.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
@@ -58,10 +61,18 @@ struct SidecarCommand {
     args: Vec<String>,
 }
 
+/// Per-provider sidecar process state.
+struct ProviderProcess {
+    child: Child,
+    stdin_writer: Box<dyn Write + Send>,
+    ready: bool,
+}
+
 pub struct SidecarManager {
-    child: Arc<Mutex<Option<Child>>>,
-    stdin_writer: Arc<Mutex<Option<Box<dyn Write + Send>>>>,
-    ready: Arc<Mutex<bool>>,
+    /// Provider name → running sidecar process
+    providers: Arc<Mutex<HashMap<String, ProviderProcess>>>,
+    /// Session ID → provider name (for routing stop messages)
+    session_providers: Arc<Mutex<HashMap<String, String>>>,
     sink: Arc<dyn EventSink>,
     config: Mutex<SidecarConfig>,
 }
@@ -69,9 +80,8 @@ pub struct SidecarManager {
 impl SidecarManager {
     pub fn new(sink: Arc<dyn EventSink>, config: SidecarConfig) -> Self {
         Self {
-            child: Arc::new(Mutex::new(None)),
-            stdin_writer: Arc::new(Mutex::new(None)),
-            ready: Arc::new(Mutex::new(false)),
+            providers: Arc::new(Mutex::new(HashMap::new())),
+            session_providers: Arc::new(Mutex::new(HashMap::new())),
             sink,
             config: Mutex::new(config),
         }
@@ -82,21 +92,25 @@ impl SidecarManager {
         self.config.lock().unwrap().sandbox = sandbox;
     }
 
+    /// Start the default (claude) provider sidecar. Called on app startup.
     pub fn start(&self) -> Result<(), String> {
-        let mut child_lock = self.child.lock().unwrap();
-        if child_lock.is_some() {
-            return Err("Sidecar already running".to_string());
+        self.start_provider("claude")
+    }
+
+    /// Start a specific provider's sidecar process.
+    fn start_provider(&self, provider: &str) -> Result<(), String> {
+        let mut providers = self.providers.lock().unwrap();
+        if providers.contains_key(provider) {
+            return Err(format!("Sidecar for '{}' already running", provider));
         }
 
         let config = self.config.lock().unwrap();
-        let cmd = self.resolve_sidecar_command_with_config(&config)?;
+        let cmd = Self::resolve_sidecar_for_provider_with_config(&config, provider)?;
 
-        log::info!("Starting sidecar: {} {}", cmd.program, cmd.args.join(" "));
+        log::info!("Starting {} sidecar: {} {}", provider, cmd.program, cmd.args.join(" "));
 
         // Build a clean environment stripping provider-specific vars to prevent
         // SDKs from detecting nesting when BTerminal is launched from a provider terminal.
-        // Per-provider prefixes: CLAUDE* (whitelist CLAUDE_CODE_EXPERIMENTAL_*),
-        // CODEX* and OLLAMA* for future providers.
         let clean_env: Vec<(String, String)> = std::env::vars()
             .filter(|(k, _)| {
                 strip_provider_env_var(k)
@@ -114,7 +128,6 @@ impl SidecarManager {
             .stderr(Stdio::piped());
 
         // Apply Landlock sandbox in child process before exec (Linux only).
-        // Restrictions are inherited by all child processes (provider CLIs).
         #[cfg(unix)]
         if config.sandbox.enabled {
             let sandbox = config.sandbox.clone();
@@ -129,12 +142,12 @@ impl SidecarManager {
             }
         }
 
-        // Drop config lock before spawn (pre_exec closure owns the sandbox clone)
+        // Drop config lock before spawn
         drop(config);
 
         let mut child = command
             .spawn()
-            .map_err(|e| format!("Failed to start sidecar: {e}"))?;
+            .map_err(|e| format!("Failed to start {} sidecar: {e}", provider))?;
 
         let child_stdin = child
             .stdin
@@ -149,11 +162,10 @@ impl SidecarManager {
             .take()
             .ok_or("Failed to capture sidecar stderr")?;
 
-        *self.stdin_writer.lock().unwrap() = Some(Box::new(child_stdin));
-
         // Stdout reader thread — forwards NDJSON to event sink
         let sink = self.sink.clone();
-        let ready = self.ready.clone();
+        let providers_ref = self.providers.clone();
+        let provider_name = provider.to_string();
         thread::spawn(move || {
             let reader = BufReader::new(child_stdout);
             for line in reader.lines() {
@@ -165,83 +177,119 @@ impl SidecarManager {
                         match serde_json::from_str::<serde_json::Value>(&line) {
                             Ok(msg) => {
                                 if msg.get("type").and_then(|t| t.as_str()) == Some("ready") {
-                                    *ready.lock().unwrap() = true;
-                                    log::info!("Sidecar ready");
+                                    if let Ok(mut provs) = providers_ref.lock() {
+                                        if let Some(p) = provs.get_mut(&provider_name) {
+                                            p.ready = true;
+                                        }
+                                    }
+                                    log::info!("{} sidecar ready", provider_name);
                                 }
                                 sink.emit("sidecar-message", msg);
                             }
                             Err(e) => {
-                                log::warn!("Invalid JSON from sidecar: {e}: {line}");
+                                log::warn!("Invalid JSON from {} sidecar: {e}: {line}", provider_name);
                             }
                         }
                     }
                     Err(e) => {
-                        log::error!("Sidecar stdout read error: {e}");
+                        log::error!("{} sidecar stdout read error: {e}", provider_name);
                         break;
                     }
                 }
             }
-            log::info!("Sidecar stdout reader exited");
-            sink.emit("sidecar-exited", serde_json::Value::Null);
+            log::info!("{} sidecar stdout reader exited", provider_name);
+            sink.emit("sidecar-exited", serde_json::json!({ "provider": provider_name }));
         });
 
         // Stderr reader thread — logs only
+        let provider_name2 = provider.to_string();
         thread::spawn(move || {
             let reader = BufReader::new(child_stderr);
             for line in reader.lines() {
                 match line {
-                    Ok(line) => log::info!("[sidecar stderr] {line}"),
+                    Ok(line) => log::info!("[{} sidecar stderr] {line}", provider_name2),
                     Err(e) => {
-                        log::error!("Sidecar stderr read error: {e}");
+                        log::error!("{} sidecar stderr read error: {e}", provider_name2);
                         break;
                     }
                 }
             }
         });
 
-        *child_lock = Some(child);
+        providers.insert(provider.to_string(), ProviderProcess {
+            child,
+            stdin_writer: Box::new(child_stdin),
+            ready: false,
+        });
+
         Ok(())
     }
 
-    pub fn send_message(&self, msg: &serde_json::Value) -> Result<(), String> {
-        let mut writer_lock = self.stdin_writer.lock().unwrap();
-        let writer = writer_lock.as_mut().ok_or("Sidecar not running")?;
+    /// Ensure a provider's sidecar is running and ready, starting it lazily if needed.
+    fn ensure_provider(&self, provider: &str) -> Result<(), String> {
+        {
+            let providers = self.providers.lock().unwrap();
+            if let Some(p) = providers.get(provider) {
+                if p.ready {
+                    return Ok(());
+                }
+                // Started but not ready yet — wait briefly
+            } else {
+                drop(providers);
+                self.start_provider(provider)?;
+            }
+        }
 
-        let line =
-            serde_json::to_string(msg).map_err(|e| format!("JSON serialize error: {e}"))?;
+        // Wait for ready (up to 10 seconds)
+        for _ in 0..100 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            let providers = self.providers.lock().unwrap();
+            if let Some(p) = providers.get(provider) {
+                if p.ready {
+                    return Ok(());
+                }
+            } else {
+                return Err(format!("{} sidecar process exited before ready", provider));
+            }
+        }
+        Err(format!("{} sidecar did not become ready within timeout", provider))
+    }
 
-        writer
+    fn send_to_provider(&self, provider: &str, msg: &serde_json::Value) -> Result<(), String> {
+        let mut providers = self.providers.lock().unwrap();
+        let proc = providers.get_mut(provider)
+            .ok_or_else(|| format!("{} sidecar not running", provider))?;
+
+        let line = serde_json::to_string(msg)
+            .map_err(|e| format!("JSON serialize error: {e}"))?;
+
+        proc.stdin_writer
             .write_all(line.as_bytes())
             .map_err(|e| format!("Sidecar write error: {e}"))?;
-        writer
+        proc.stdin_writer
             .write_all(b"\n")
             .map_err(|e| format!("Sidecar write error: {e}"))?;
-        writer
+        proc.stdin_writer
             .flush()
             .map_err(|e| format!("Sidecar flush error: {e}"))?;
 
         Ok(())
     }
 
-    pub fn query(&self, options: &AgentQueryOptions) -> Result<(), String> {
-        if !*self.ready.lock().unwrap() {
-            return Err("Sidecar not ready".to_string());
-        }
+    /// Legacy send_message — routes to the default (claude) provider.
+    pub fn send_message(&self, msg: &serde_json::Value) -> Result<(), String> {
+        self.send_to_provider("claude", msg)
+    }
 
-        // Validate that the requested provider has a runner available
-        let runner_name = format!("{}-runner.mjs", options.provider);
-        let config = self.config.lock().unwrap();
-        let runner_exists = config
-            .search_paths
-            .iter()
-            .any(|base| base.join("dist").join(&runner_name).exists());
-        drop(config);
-        if !runner_exists {
-            return Err(format!(
-                "No sidecar runner found for provider '{}' (expected {})",
-                options.provider, runner_name
-            ));
-        }
+    pub fn query(&self, options: &AgentQueryOptions) -> Result<(), String> {
+        let provider = &options.provider;
+
+        // Ensure the provider's sidecar is running and ready
+        self.ensure_provider(provider)?;
+
+        // Track session → provider mapping for stop routing
+        self.session_providers.lock().unwrap()
+            .insert(options.session_id.clone(), provider.clone());
 
         let msg = serde_json::json!({
             "type": "query",
@@ -263,7 +311,7 @@ impl SidecarManager {
             "extraEnv": options.extra_env,
         });
 
-        self.send_message(&msg)
+        self.send_to_provider(provider, &msg)
     }
 
     pub fn stop_session(&self, session_id: &str) -> Result<(), String> {
@@ -271,36 +319,39 @@ impl SidecarManager {
             "type": "stop",
             "sessionId": session_id,
         });
-        self.send_message(&msg)
+
+        // Route to the correct provider based on session tracking
+        let provider = self.session_providers.lock().unwrap()
+            .get(session_id)
+            .cloned()
+            .unwrap_or_else(|| "claude".to_string());
+
+        self.send_to_provider(&provider, &msg)
     }
 
     pub fn restart(&self) -> Result<(), String> {
-        log::info!("Restarting sidecar");
+        log::info!("Restarting all sidecars");
         let _ = self.shutdown();
         self.start()
     }
 
     pub fn shutdown(&self) -> Result<(), String> {
-        let mut child_lock = self.child.lock().unwrap();
-        if let Some(ref mut child) = *child_lock {
-            log::info!("Shutting down sidecar");
-            *self.stdin_writer.lock().unwrap() = None;
-            let _ = child.kill();
-            let _ = child.wait();
+        let mut providers = self.providers.lock().unwrap();
+        for (name, mut proc) in providers.drain() {
+            log::info!("Shutting down {} sidecar", name);
+            let _ = proc.child.kill();
+            let _ = proc.child.wait();
         }
-        *child_lock = None;
-        *self.ready.lock().unwrap() = false;
+        self.session_providers.lock().unwrap().clear();
         Ok(())
     }
 
+    /// Returns true if the default (claude) provider sidecar is ready.
     pub fn is_ready(&self) -> bool {
-        *self.ready.lock().unwrap()
-    }
-
-    /// Resolve a sidecar runner command. Uses the default claude-runner for startup.
-    /// Future providers will have their own runners (e.g. codex-runner.mjs).
-    fn resolve_sidecar_command_with_config(&self, config: &SidecarConfig) -> Result<SidecarCommand, String> {
-        Self::resolve_sidecar_for_provider_with_config(config, "claude")
+        let providers = self.providers.lock().unwrap();
+        providers.get("claude")
+            .map(|p| p.ready)
+            .unwrap_or(false)
     }
 
     /// Resolve a sidecar command for a specific provider's runner file.
@@ -369,12 +420,11 @@ impl SidecarManager {
 /// First line of defense: strips provider-specific prefixes to prevent nesting detection
 /// and credential leakage. JS runners apply a second layer of provider-specific stripping.
 ///
-/// Stripped prefixes: CLAUDE*, CODEX*, OLLAMA*, ANTHROPIC_*
+/// Stripped prefixes: CLAUDE*, CODEX*, OLLAMA*, AIDER*, ANTHROPIC_*
 /// Whitelisted: CLAUDE_CODE_EXPERIMENTAL_* (feature flags like agent teams)
 ///
-/// Note: OPENAI_* is NOT stripped here because the Codex runner needs OPENAI_API_KEY
-/// from the environment (it re-injects it after its own stripping). If Codex support
-/// moves to extraEnv-based key injection, add OPENAI to this list.
+/// Note: OPENAI_* and OPENROUTER_* are NOT stripped here because runners need
+/// these keys from the environment or extraEnv injection.
 fn strip_provider_env_var(key: &str) -> bool {
     if key.starts_with("CLAUDE_CODE_EXPERIMENTAL_") {
         return true;
@@ -382,6 +432,7 @@ fn strip_provider_env_var(key: &str) -> bool {
     if key.starts_with("CLAUDE")
         || key.starts_with("CODEX")
         || key.starts_with("OLLAMA")
+        || key.starts_with("AIDER")
         || key.starts_with("ANTHROPIC_")
     {
         return false;

@@ -14,6 +14,7 @@ const KEYS_META: &str = "__bterminal_keys__";
 pub const KNOWN_KEYS: &[&str] = &[
     "anthropic_api_key",
     "openai_api_key",
+    "openrouter_api_key",
     "github_token",
     "relay_token",
 ];

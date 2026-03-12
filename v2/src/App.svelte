@@ -9,6 +9,7 @@
   import { CLAUDE_PROVIDER } from './lib/providers/claude';
   import { CODEX_PROVIDER } from './lib/providers/codex';
   import { OLLAMA_PROVIDER } from './lib/providers/ollama';
+  import { AIDER_PROVIDER } from './lib/providers/aider';
   import { registerMemoryAdapter } from './lib/adapters/memory-adapter';
   import { MemoraAdapter } from './lib/adapters/memora-bridge';
   import {
@@ -102,6 +103,7 @@
     registerProvider(CLAUDE_PROVIDER);
     registerProvider(CODEX_PROVIDER);
     registerProvider(OLLAMA_PROVIDER);
+    registerProvider(AIDER_PROVIDER);
     const memora = new MemoraAdapter();
     registerMemoryAdapter(memora);
     memora.checkAvailability();

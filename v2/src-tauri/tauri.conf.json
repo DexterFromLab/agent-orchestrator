@@ -46,6 +46,7 @@
     ],
     "resources": [
       "../sidecar/dist/claude-runner.mjs",
+      "../sidecar/dist/aider-runner.mjs",
       "../../btmsg",
       "../../bttask"
     ],

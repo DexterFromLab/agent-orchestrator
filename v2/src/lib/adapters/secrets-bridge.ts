@@ -34,6 +34,7 @@ export async function knownSecretKeys(): Promise<string[]> {
 export const SECRET_KEY_LABELS: Record<string, string> = {
   anthropic_api_key: 'Anthropic API Key',
   openai_api_key: 'OpenAI API Key',
+  openrouter_api_key: 'OpenRouter API Key',
   github_token: 'GitHub Token',
   relay_token: 'Relay Token',
 };
