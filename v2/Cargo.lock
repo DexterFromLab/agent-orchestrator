@@ -416,9 +416,11 @@ dependencies = [
  "env_logger",
  "futures-util",
  "log",
+ "native-tls",
  "serde",
  "serde_json",
  "tokio",
+ "tokio-native-tls",
  "tokio-tungstenite",
  "uuid",
 ]
