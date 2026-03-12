@@ -375,7 +375,7 @@
   });
 </script>
 
-<div class="agent-pane" data-testid="agent-pane" data-agent-status={session?.status ?? 'idle'}
+<div class="agent-pane" data-testid="agent-pane" data-agent-status={session?.status ?? 'idle'}>
   {#if parentSession}
     <div class="parent-link">
       <span class="parent-badge">SUB</span>

@@ -95,6 +95,17 @@ async function switchProjectTab(projectId: string, tabIndex: number): Promise<vo
 
 describe('Scenario B1 — Multi-Project Grid', () => {
   it('should render multiple project boxes', async () => {
+    // Wait for app to fully render project boxes
+    await browser.waitUntil(
+      async () => {
+        const count = await browser.execute(() =>
+          document.querySelectorAll('[data-testid="project-box"]').length,
+        );
+        return (count as number) >= 1;
+      },
+      { timeout: 10_000, timeoutMsg: 'No project boxes rendered within 10s' },
+    );
+
     const ids = await getProjectIds();
     // May be 1 project in minimal fixture; test structure regardless
     expect(ids.length).toBeGreaterThanOrEqual(1);
@@ -183,14 +194,23 @@ describe('Scenario B3 — Status Bar Fleet State', () => {
     expect(barText.length).toBeGreaterThan(0);
   });
 
-  it('should show $0.00 burn rate when all agents idle', async () => {
-    const burnRate = await browser.execute(() => {
+  it('should show no burn rate when all agents idle', async () => {
+    // When all agents are idle, burn-rate and cost elements are not rendered
+    // (they only appear when totalBurnRatePerHour > 0 or totalCost > 0)
+    const hasBurnRate = await browser.execute(() => {
       const bar = document.querySelector('[data-testid="status-bar"]');
-      const burnEl = bar?.querySelector('.burn-rate, .cost');
-      return burnEl?.textContent ?? bar?.textContent ?? '';
+      const burnEl = bar?.querySelector('.burn-rate');
+      const costEl = bar?.querySelector('.cost');
+      return { burn: burnEl?.textContent ?? null, cost: costEl?.textContent ?? null };
     });
-    // Should contain $0 or 0.00 when no agents running
-    expect(burnRate).toMatch(/\$0|0\.00/);
+    // Either no burn rate shown (idle) or it shows $0
+    if (hasBurnRate.burn !== null) {
+      expect(hasBurnRate.burn).toMatch(/\$0|0\.00/);
+    }
+    if (hasBurnRate.cost !== null) {
+      expect(hasBurnRate.cost).toMatch(/\$0|0\.00/);
+    }
+    // If both are null, agents are idle — that's the expected state
   });
 });
 
