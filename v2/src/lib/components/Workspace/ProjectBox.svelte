@@ -15,7 +15,11 @@
   import ArchitectureTab from './ArchitectureTab.svelte';
   import TestingTab from './TestingTab.svelte';
   import MetricsPanel from './MetricsPanel.svelte';
-  import { getTerminalTabs, getActiveGroup } from '../../stores/workspace.svelte';
+  import AuditLogTab from './AuditLogTab.svelte';
+  import {
+    getTerminalTabs, getActiveGroup,
+    getFocusFlashProjectId, onProjectTabSwitch, onTerminalToggle,
+  } from '../../stores/workspace.svelte';
   import { getProjectHealth, setStallThreshold } from '../../stores/health.svelte';
   import { fsWatchProject, fsUnwatchProject, onFsWriteDetected, fsWatcherStatus } from '../../adapters/fs-watcher-bridge';
   import { recordExternalWrite } from '../../stores/conflicts.svelte';
@@ -24,6 +28,7 @@
   import { registerManager, unregisterManager, updateManagerConfig } from '../../stores/wake-scheduler.svelte';
   import { setReviewQueueDepth } from '../../stores/health.svelte';
   import { reviewQueueCount } from '../../adapters/bttask-bridge';
+  import { getStaleAgents } from '../../adapters/btmsg-bridge';
 
   interface Props {
     project: ProjectConfig;
@@ -38,12 +43,15 @@
   let mainSessionId = $state<string | null>(null);
   let terminalExpanded = $state(false);
 
-  type ProjectTab = 'model' | 'docs' | 'context' | 'files' | 'ssh' | 'memories' | 'metrics' | 'tasks' | 'architecture' | 'selenium' | 'tests';
+  type ProjectTab = 'model' | 'docs' | 'context' | 'files' | 'ssh' | 'memories' | 'metrics' | 'tasks' | 'architecture' | 'selenium' | 'tests' | 'audit';
   let activeTab = $state<ProjectTab>('model');
 
   let activeGroup = $derived(getActiveGroup());
   let agentRole = $derived(project.agentRole);
   let isAgent = $derived(project.isAgent ?? false);
+
+  // Heartbeat status for Tier 1 agents
+  let heartbeatStatus = $state<'healthy' | 'stale' | 'dead' | null>(null);
 
   // PERSISTED-LAZY: track which tabs have been activated at least once
   let everActivated = $state<Record<string, boolean>>({});
@@ -51,6 +59,23 @@
   let termTabs = $derived(getTerminalTabs(project.id));
   let projectHealth = $derived(getProjectHealth(project.id));
   let termTabCount = $derived(termTabs.length);
+
+  // Focus flash animation (triggered by keyboard quick-jump)
+  let flashProjectId = $derived(getFocusFlashProjectId());
+  let isFlashing = $derived(flashProjectId === project.id);
+
+  // Tab name -> index mapping for keyboard switching
+  const TAB_INDEX_MAP: ProjectTab[] = [
+    'model',       // 1
+    'docs',        // 2
+    'context',     // 3
+    'files',       // 4
+    'ssh',         // 5
+    'memories',    // 6
+    'metrics',     // 7
+    'tasks',       // 8
+    'architecture',// 9
+  ];
 
   /** Activate a tab — for lazy tabs, mark as ever-activated */
   function switchTab(tab: ProjectTab) {
@@ -63,6 +88,23 @@
   function toggleTerminal() {
     terminalExpanded = !terminalExpanded;
   }
+
+  // Listen for keyboard-driven tab switches
+  $effect(() => {
+    const unsubTab = onProjectTabSwitch((pid, tabIndex) => {
+      if (pid !== project.id) return;
+      const tabName = TAB_INDEX_MAP[tabIndex - 1];
+      if (tabName) switchTab(tabName);
+    });
+    const unsubTerm = onTerminalToggle((pid) => {
+      if (pid !== project.id) return;
+      terminalExpanded = !terminalExpanded;
+    });
+    return () => {
+      unsubTab();
+      unsubTerm();
+    };
+  });
 
   // Sync per-project stall threshold to health store
   $effect(() => {
@@ -109,6 +151,35 @@
 
     pollReviewQueue(); // immediate first poll
     const timer = setInterval(pollReviewQueue, 10_000); // 10s poll
+    return () => clearInterval(timer);
+  });
+
+  // Heartbeat monitoring for Tier 1 agents
+  $effect(() => {
+    if (!project.isAgent) return;
+    const groupId = activeGroup?.id;
+    if (!groupId) return;
+
+    const pollHeartbeat = () => {
+      // 300s = healthy threshold, 600s = dead threshold
+      getStaleAgents(groupId as unknown as GroupId, 300)
+        .then(staleIds => {
+          if (staleIds.includes(project.id)) {
+            // Check if truly dead (>10 min)
+            getStaleAgents(groupId as unknown as GroupId, 600)
+              .then(deadIds => {
+                heartbeatStatus = deadIds.includes(project.id) ? 'dead' : 'stale';
+              })
+              .catch(() => { heartbeatStatus = 'stale'; });
+          } else {
+            heartbeatStatus = 'healthy';
+          }
+        })
+        .catch(() => { heartbeatStatus = null; });
+    };
+
+    pollHeartbeat();
+    const timer = setInterval(pollHeartbeat, 15_000); // 15s poll
     return () => clearInterval(timer);
   });
 
@@ -162,6 +233,7 @@
 <div
   class="project-box"
   class:active
+  class:focus-flash={isFlashing}
   style="--accent: var({accentVar})"
   data-testid="project-box"
   data-project-id={project.id}
@@ -171,6 +243,7 @@
     {slotIndex}
     {active}
     health={projectHealth}
+    {heartbeatStatus}
     onclick={onactivate}
   />
 
@@ -222,6 +295,9 @@
     {#if isAgent && agentRole === 'tester'}
       <button class="ptab ptab-role" class:active={activeTab === 'selenium'} onclick={() => switchTab('selenium')}>Selenium</button>
       <button class="ptab ptab-role" class:active={activeTab === 'tests'} onclick={() => switchTab('tests')}>Tests</button>
+    {/if}
+    {#if isAgent && agentRole === 'manager'}
+      <button class="ptab ptab-role" class:active={activeTab === 'audit'} onclick={() => switchTab('audit')}>Audit</button>
     {/if}
   </div>
 
@@ -281,6 +357,11 @@
         <TestingTab cwd={project.cwd} mode="tests" />
       </div>
     {/if}
+    {#if everActivated['audit'] && activeGroup}
+      <div class="content-pane" style:display={activeTab === 'audit' ? 'flex' : 'none'}>
+        <AuditLogTab groupId={activeGroup.id} />
+      </div>
+    {/if}
   </div>
 
   <div class="terminal-section" style:display={activeTab === 'model' ? 'flex' : 'none'}>
@@ -319,6 +400,21 @@
 
   .project-box.active {
     border-color: var(--accent);
+  }
+
+  .project-box.focus-flash {
+    animation: focus-flash 0.4s ease-out;
+  }
+
+  @keyframes focus-flash {
+    0% {
+      border-color: var(--ctp-blue);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--ctp-blue) 40%, transparent);
+    }
+    100% {
+      border-color: var(--accent);
+      box-shadow: none;
+    }
   }
 
   .project-tabs {

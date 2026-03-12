@@ -3,6 +3,8 @@
   import type { ProjectConfig, GroupAgentRole } from '../../types/groups';
   import { generateAgentPrompt } from '../../utils/agent-prompts';
   import { getActiveGroup } from '../../stores/workspace.svelte';
+  import { logAuditEvent } from '../../adapters/audit-bridge';
+  import type { AgentId } from '../../types/ids';
   import {
     loadProjectAgentState,
     loadAgentMessages,
@@ -75,6 +77,12 @@
           ? '[Context Refresh] Review your role and available tools above. Check your inbox with `btmsg inbox` and review the task board with `bttask board`.'
           : '[Context Refresh] Review the instructions above and continue your work.';
         contextRefreshPrompt = refreshMsg;
+        // Audit: log prompt injection event
+        logAuditEvent(
+          project.id as unknown as AgentId,
+          'prompt_injection',
+          `Context refresh triggered after ${Math.floor(elapsed / 60_000)} min idle`,
+        ).catch(() => {});
       }
     }, 60_000); // Check every minute
   }

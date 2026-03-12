@@ -6,6 +6,7 @@ import { clearHealthTracking } from '../stores/health.svelte';
 import { clearAllConflicts } from '../stores/conflicts.svelte';
 import { clearWakeScheduler } from '../stores/wake-scheduler.svelte';
 import { waitForPendingPersistence } from '../agent-dispatcher';
+import { registerAgents } from '../adapters/btmsg-bridge';
 
 export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings' | 'comms';
 
@@ -28,6 +29,58 @@ let activeProjectId = $state<string | null>(null);
 
 /** Terminal tabs per project (keyed by project ID) */
 let projectTerminals = $state<Record<string, TerminalTab[]>>({});
+
+// --- Focus flash event (keyboard quick-jump visual feedback) ---
+
+let focusFlashProjectId = $state<string | null>(null);
+
+export function getFocusFlashProjectId(): string | null {
+  return focusFlashProjectId;
+}
+
+export function triggerFocusFlash(projectId: string): void {
+  focusFlashProjectId = projectId;
+  // Auto-clear after animation duration
+  setTimeout(() => {
+    focusFlashProjectId = null;
+  }, 400);
+}
+
+// --- Project tab switching (keyboard-driven) ---
+
+type ProjectTabSwitchCallback = (projectId: string, tabIndex: number) => void;
+let projectTabSwitchCallbacks: ProjectTabSwitchCallback[] = [];
+
+export function onProjectTabSwitch(cb: ProjectTabSwitchCallback): () => void {
+  projectTabSwitchCallbacks.push(cb);
+  return () => {
+    projectTabSwitchCallbacks = projectTabSwitchCallbacks.filter(c => c !== cb);
+  };
+}
+
+export function emitProjectTabSwitch(projectId: string, tabIndex: number): void {
+  for (const cb of projectTabSwitchCallbacks) {
+    cb(projectId, tabIndex);
+  }
+}
+
+// --- Terminal toggle (keyboard-driven) ---
+
+type TerminalToggleCallback = (projectId: string) => void;
+let terminalToggleCallbacks: TerminalToggleCallback[] = [];
+
+export function onTerminalToggle(cb: TerminalToggleCallback): () => void {
+  terminalToggleCallbacks.push(cb);
+  return () => {
+    terminalToggleCallbacks = terminalToggleCallbacks.filter(c => c !== cb);
+  };
+}
+
+export function emitTerminalToggle(projectId: string): void {
+  for (const cb of terminalToggleCallbacks) {
+    cb(projectId);
+  }
+}
 
 // --- Getters ---
 
@@ -139,6 +192,10 @@ export async function loadWorkspace(initialGroupId?: string): Promise<void> {
     groupsConfig = config;
     projectTerminals = {};
 
+    // Register all agents from config into btmsg database
+    // (creates agent records, contact permissions, review channels)
+    registerAgents(config).catch(e => console.warn('Failed to register agents:', e));
+
     // CLI --group flag takes priority, then explicit param, then persisted
     let cliGroup: string | null = null;
     if (!initialGroupId) {
@@ -170,6 +227,8 @@ export async function loadWorkspace(initialGroupId?: string): Promise<void> {
 export async function saveWorkspace(): Promise<void> {
   if (!groupsConfig) return;
   await saveGroups(groupsConfig);
+  // Re-register agents after config changes (new agents, permission updates)
+  registerAgents(groupsConfig).catch(e => console.warn('Failed to register agents:', e));
 }
 
 // --- Group/project mutation ---

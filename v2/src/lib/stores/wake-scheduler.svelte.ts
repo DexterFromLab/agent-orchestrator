@@ -8,6 +8,7 @@ import { getAllProjectHealth, getHealthAggregates } from './health.svelte';
 import { getAllWorkItems } from './workspace.svelte';
 import { listTasks } from '../adapters/bttask-bridge';
 import { getAgentSession } from './agents.svelte';
+import { logAuditEvent } from '../adapters/audit-bridge';
 import type { GroupId } from '../types/ids';
 
 // --- Types ---
@@ -258,4 +259,11 @@ async function evaluateAndEmit(reg: ManagerRegistration): Promise<void> {
     context,
     mode,
   });
+
+  // Audit: log wake event
+  logAuditEvent(
+    reg.agentId,
+    'wake_event',
+    `Auto-wake triggered (strategy=${reg.strategy}, mode=${mode}, score=${evaluation.totalScore.toFixed(2)})`,
+  ).catch(() => {});
 }

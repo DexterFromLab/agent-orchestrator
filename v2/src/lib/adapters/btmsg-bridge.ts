@@ -159,3 +159,53 @@ export async function createChannel(name: string, groupId: GroupId, createdBy: A
 export async function addChannelMember(channelId: string, agentId: AgentId): Promise<void> {
   return invoke('btmsg_add_channel_member', { channelId, agentId });
 }
+
+/**
+ * Register all agents from groups config into the btmsg database.
+ * Creates/updates agent records, sets up contact permissions, ensures review channels.
+ * Should be called whenever groups are loaded or switched.
+ */
+export async function registerAgents(config: import('../types/groups').GroupsFile): Promise<void> {
+  return invoke('btmsg_register_agents', { config });
+}
+
+// ---- Heartbeat monitoring ----
+
+/**
+ * Record a heartbeat for an agent (upserts timestamp).
+ */
+export async function recordHeartbeat(agentId: AgentId): Promise<void> {
+  return invoke('btmsg_record_heartbeat', { agentId });
+}
+
+/**
+ * Get stale agents in a group (no heartbeat within threshold).
+ */
+export async function getStaleAgents(groupId: GroupId, thresholdSecs: number = 300): Promise<string[]> {
+  return invoke('btmsg_get_stale_agents', { groupId, thresholdSecs });
+}
+
+// ---- Dead letter queue ----
+
+export interface DeadLetter {
+  id: number;
+  fromAgent: string;
+  toAgent: string;
+  content: string;
+  error: string;
+  createdAt: string;
+}
+
+/**
+ * Get dead letter queue entries for a group.
+ */
+export async function getDeadLetters(groupId: GroupId, limit: number = 50): Promise<DeadLetter[]> {
+  return invoke('btmsg_get_dead_letters', { groupId, limit });
+}
+
+/**
+ * Clear all dead letters for a group.
+ */
+export async function clearDeadLetters(groupId: GroupId): Promise<void> {
+  return invoke('btmsg_clear_dead_letters', { groupId });
+}

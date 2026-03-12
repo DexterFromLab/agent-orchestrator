@@ -10,10 +10,12 @@
     slotIndex: number;
     active: boolean;
     health: ProjectHealth | null;
+    /** Heartbeat status for Tier 1 agents: 'healthy' | 'stale' | 'dead' | null */
+    heartbeatStatus?: 'healthy' | 'stale' | 'dead' | null;
     onclick: () => void;
   }
 
-  let { project, slotIndex, active, health, onclick }: Props = $props();
+  let { project, slotIndex, active, health, heartbeatStatus = null, onclick }: Props = $props();
 
   let accentVar = $derived(PROJECT_ACCENTS[slotIndex % PROJECT_ACCENTS.length]);
 
@@ -82,6 +84,18 @@
     <span class="project-id">({project.identifier})</span>
   </div>
   <div class="header-info">
+    {#if heartbeatStatus && project.isAgent}
+      <span
+        class="info-heartbeat"
+        class:hb-healthy={heartbeatStatus === 'healthy'}
+        class:hb-stale={heartbeatStatus === 'stale'}
+        class:hb-dead={heartbeatStatus === 'dead'}
+        title={heartbeatStatus === 'healthy' ? 'Agent healthy' : heartbeatStatus === 'stale' ? 'Agent stale — no heartbeat recently' : 'Agent dead — no heartbeat'}
+      >
+        {heartbeatStatus === 'healthy' ? '♥' : heartbeatStatus === 'stale' ? '♥' : '♡'}
+      </span>
+      <span class="info-sep">·</span>
+    {/if}
     {#if health && health.externalConflictCount > 0}
       <button
         class="info-conflict info-conflict-external"
@@ -271,6 +285,25 @@
 
   .info-conflict-external:hover {
     background: color-mix(in srgb, var(--ctp-peach) 25%, transparent);
+  }
+
+  .info-heartbeat {
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .hb-healthy {
+    color: var(--ctp-green);
+  }
+
+  .hb-stale {
+    color: var(--ctp-yellow);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .hb-dead {
+    color: var(--ctp-red);
   }
 
   .info-profile {

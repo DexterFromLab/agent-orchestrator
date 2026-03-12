@@ -1,4 +1,5 @@
 use crate::btmsg;
+use crate::groups;
 
 #[tauri::command]
 pub fn btmsg_get_agents(group_id: String) -> Result<Vec<btmsg::BtmsgAgent>, String> {
@@ -68,4 +69,52 @@ pub fn btmsg_create_channel(name: String, group_id: String, created_by: String) 
 #[tauri::command]
 pub fn btmsg_add_channel_member(channel_id: String, agent_id: String) -> Result<(), String> {
     btmsg::add_channel_member(&channel_id, &agent_id)
+}
+
+/// Register all agents from a GroupsFile into the btmsg database.
+/// Creates/updates agent records, sets up contact permissions, ensures review channels.
+#[tauri::command]
+pub fn btmsg_register_agents(config: groups::GroupsFile) -> Result<(), String> {
+    btmsg::register_agents_from_groups(&config)
+}
+
+// ---- Heartbeat monitoring ----
+
+#[tauri::command]
+pub fn btmsg_record_heartbeat(agent_id: String) -> Result<(), String> {
+    btmsg::record_heartbeat(&agent_id)
+}
+
+#[tauri::command]
+pub fn btmsg_get_stale_agents(group_id: String, threshold_secs: i64) -> Result<Vec<String>, String> {
+    btmsg::get_stale_agents(&group_id, threshold_secs)
+}
+
+// ---- Dead letter queue ----
+
+#[tauri::command]
+pub fn btmsg_get_dead_letters(group_id: String, limit: i32) -> Result<Vec<btmsg::DeadLetter>, String> {
+    btmsg::get_dead_letters(&group_id, limit)
+}
+
+#[tauri::command]
+pub fn btmsg_clear_dead_letters(group_id: String) -> Result<(), String> {
+    btmsg::clear_dead_letters(&group_id)
+}
+
+// ---- Audit log ----
+
+#[tauri::command]
+pub fn audit_log_event(agent_id: String, event_type: String, detail: String) -> Result<(), String> {
+    btmsg::log_audit_event(&agent_id, &event_type, &detail)
+}
+
+#[tauri::command]
+pub fn audit_log_list(group_id: String, limit: i32, offset: i32) -> Result<Vec<btmsg::AuditEntry>, String> {
+    btmsg::get_audit_log(&group_id, limit, offset)
+}
+
+#[tauri::command]
+pub fn audit_log_for_agent(agent_id: String, limit: i32) -> Result<Vec<btmsg::AuditEntry>, String> {
+    btmsg::get_audit_log_for_agent(&agent_id, limit)
 }
