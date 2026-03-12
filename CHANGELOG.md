@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Unified test runner** — `v2/scripts/test-all.sh` runs vitest + cargo tests with optional E2E (`--e2e` flag). npm scripts: `test:all`, `test:all:e2e`, `test:cargo`. Summary output with color-coded pass/fail
+- **Testing gate rule** — `.claude/rules/20-testing-gate.md` requires running full test suite after every major change (new features, refactors touching 3+ files, store/adapter/bridge/backend changes)
 - **E2E test mode infrastructure** — `BTERMINAL_TEST=1` env var disables file watchers (watcher.rs, fs_watcher.rs), wake scheduler, and allows data/config dir overrides via `BTERMINAL_TEST_DATA_DIR`/`BTERMINAL_TEST_CONFIG_DIR`. New `is_test_mode` Tauri command bridges test state to frontend
 - **E2E data-testid attributes** — Stable test selectors on 7 key Svelte components: AgentPane (agent-pane, data-agent-status, agent-messages, agent-stop, agent-prompt, agent-submit), ProjectBox (project-box, data-project-id, project-tabs, terminal-toggle), StatusBar, AgentSession, GlobalTabBar, CommandPalette, TerminalTabs
 - **E2E Phase A scenarios** — 7 human-authored test scenarios (22 tests) in `agent-scenarios.test.ts`: app structural integrity, settings panel, agent pane initial state, terminal tab management, command palette, project focus/tab switching, agent prompt submission (graceful Claude CLI skip)

@@ -87,6 +87,7 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/telemetry-bridge.ts` | Frontend telemetry bridge (routes events to Rust tracing via IPC) |
 | `v2/src/lib/utils/agent-prompts.ts` | Agent prompt generator (generateAgentPrompt: identity, env, team, btmsg/bttask docs, workflow) |
 | `docker/tempo/` | Docker compose: Tempo + Grafana for trace visualization (port 9715) |
+| `v2/scripts/test-all.sh` | Unified test runner: vitest + cargo + optional E2E (--e2e flag) |
 | `v2/tests/e2e/wdio.conf.js` | WebDriverIO config (tauri-driver lifecycle, TCP probe, test env vars) |
 | `v2/tests/e2e/fixtures.ts` | E2E test fixture generator (isolated temp dirs, git repos, groups.json) |
 | `v2/tests/e2e/results-db.ts` | JSON test results store (run/step tracking, no native deps) |
@@ -187,8 +188,11 @@ cd v2 && npm install && npm run tauri dev   # Dev mode
 cd v2 && npm run tauri build                # Release build
 
 # v2 tests
-cd v2 && npm run test                       # Vitest (frontend)
-cd v2/src-tauri && cargo test               # Cargo tests (backend)
+cd v2 && npm run test:all                   # All tests (vitest + cargo)
+cd v2 && npm run test:all:e2e               # All tests + E2E (needs built binary)
+cd v2 && npm run test                       # Vitest only (frontend)
+cd v2 && npm run test:cargo                 # Cargo only (backend)
+cd v2 && npm run test:e2e                   # E2E only (WebDriverIO)
 
 # v2 install from source (builds + installs to ~/.local/bin/bterminal-v2)
 ./install-v2.sh

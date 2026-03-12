@@ -2,21 +2,27 @@
 
 ## Active
 
-### v2/v3 Remaining
-- [x] **E2E testing — Phase B+ & test fixes** -- Phase B: LLM judge (llm-judge.ts, claude-haiku-4-5), 6 multi-project scenarios, CI workflow (3 jobs). Test fixes: 27 failures across 3 spec files (stale v2 CSS selectors, WebKit2GTK keyboard/focus quirks, conditional render timing). Shared idempotent helpers, JS-dispatched KeyboardEvent, backdrop click close, programmatic focus checks. 388 vitest + 68 cargo + 82 E2E (0 fail, 4 skip). | Done: 2026-03-12
-- [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines.
+### v3 Production Readiness (from Tribunal Assessment 2026-03-12)
+- [ ] **Sidecar crash recovery/supervision** -- Rust supervisor threads for sidecar processes: detect exit codes, restart with exponential backoff (max 5 retries), surface alerts in dashboard. Currently silent failure. | Impact: 9, Effort: M
+- [ ] **Notification system (OS + in-app)** -- notify-rust for desktop notifications on agent events (task complete, error, review requested), in-app bell icon with notification history. | Impact: 8, Effort: S
+- [ ] **Secrets management (system keyring)** -- Tauri keychain plugin for API key storage, migrate env var keys to system keyring on first run. | Impact: 8, Effort: M
+- [ ] **Keyboard-first UX pass** -- Vi-style pane switching (Ctrl+hjkl), Alt+1-5 project jump, ensure command palette covers 100% of actions. | Impact: 8, Effort: S
+- [ ] **Agent health monitoring + dead letter queue** -- Tier 1 agents respond to heartbeat within configurable timeout, dead agents flagged in dashboard, queue undelivered btmsg. | Impact: 9, Effort: M
+
+### v3 Remaining
+- [ ] **Multi-machine real-world testing** -- Test bterminal-relay with 2 machines. Mark as experimental until docker-compose integration tests pass.
 - [ ] **Multi-machine TLS/certificate pinning** -- TLS support for bterminal-relay + certificate pinning in RemoteManager.
 - [ ] **Agent Teams real-world testing** -- Env var whitelist fix done. 3 test sessions ran ($1.10, $0.69, $1.70) but model didn't spawn subagents — needs complex multi-part prompts to trigger delegation. Test with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 
 ## Completed
 
-- [x] **Reviewer agent role** -- Tier 1 specialist with role='reviewer'. Reviewer workflow in agent-prompts.ts (8-step process). #review-queue/#review-log auto-channels in bttask.rs (auto-post on task→review). reviewQueueDepth in attention scoring (10pts/task, cap 50). Tasks tab for reviewer in ProjectBox (reuses TaskBoardTab). 10s review queue polling. 388 vitest + 76 cargo. | Done: 2026-03-12
-- [x] **Auto-wake Manager** -- wake-scheduler.svelte.ts + wake-scorer.ts (24 tests). 3 user-selectable strategies: persistent (resume prompt), on-demand (fresh session), smart (threshold-gated). 6 signals: AttentionSpike(1.0), ContextPressureCluster(0.9), BurnRateAnomaly(0.8), TaskQueuePressure(0.7), ReviewBacklog(0.6), PeriodicFloor(0.1). Settings UI: strategy segmented button + threshold slider. GroupAgentConfig: wakeStrategy + wakeThreshold fields. 381 vitest + 72 cargo. | Done: 2026-03-12
-- [x] **Dashboard metrics panel** -- MetricsPanel.svelte: new ProjectBox tab ('metrics', PERSISTED-LAZY, all projects). Live view: fleet aggregates, project health grid, task board summary (5 kanban columns, 10s poll), attention queue. History view: 5 SVG sparkline charts (cost/tokens/turns/tools/duration), stats row, session table. 25 tests. 357 vitest + 72 cargo. | Done: 2026-03-12
-- [x] **Brand Dexter's new types (SOLID Phase 3b)** -- Added GroupId + AgentId branded types to ids.ts. Applied to ~40 sites: groups.ts interfaces, btmsg-bridge.ts (5 interfaces, 15 function params), bttask-bridge.ts (2 interfaces, 6 params), groups-bridge.ts (3 interfaces), GroupAgentsPanel, TaskBoardTab, SettingsTab. agentToProject() uses `as unknown as ProjectId` cast. 3 test files updated. 332 vitest + 72 cargo. | Done: 2026-03-11
-- [x] **Regression tests + sidecar env security** -- 49 new tests: btmsg.rs (8, named column access regression), bttask.rs (7, named column access), sidecar strip_provider_env_var (8, env stripping), btmsg-bridge.test.ts (17, camelCase+IPC), bttask-bridge.test.ts (10, camelCase+IPC), plantuml-encode.test.ts (7, hex encoding). Added ANTHROPIC_* to Rust env strip. 327 vitest + 72 cargo. | Done: 2026-03-11
-- [x] **Integrate dexter_changes + fix 5 critical bugs** -- Merged multi-agent orchestration branch. Fixed: btmsg.rs column index mismatch (positional→named), btmsg-bridge.ts camelCase mismatch, GroupAgentsPanel stopPropagation, ArchitectureTab PlantUML encoding, TestingTab Tauri 2.x asset URL. Added WAL mode + busy_timeout to btmsg/bttask SQLite. | Done: 2026-03-11
-- [x] **SOLID Phase 3 — Primitive obsession** -- Branded types SessionId/ProjectId in types/ids.ts. Applied to ~130 sites: Map/Set keys in conflicts.svelte.ts (4 maps, 12 functions), health.svelte.ts (2 maps, 10 functions), session-persistence.ts (3 maps, 6 functions), auto-anchoring.ts, agent-dispatcher.ts. Boundary branding at sidecar entry. Deferred: Svelte props (75), IPC interfaces, Rust newtypes. 293 vitest + 49 cargo tests. | Done: 2026-03-11
-- [x] **SOLID Phase 2 — agent-dispatcher.ts split** -- 496→260 lines. Extracted 4 modules: utils/worktree-detection.ts (pure function, 5 tests), utils/session-persistence.ts (session maps + persist), utils/auto-anchoring.ts (compaction anchor), utils/subagent-router.ts (spawn + route). Dispatcher is thin coordinator. 286 vitest + 49 cargo tests. | Done: 2026-03-11
-- [x] **SOLID Phase 2 — session.rs split** -- 1008→7 sub-modules under session/ directory (mod.rs, sessions.rs, layout.rs, settings.rs, ssh.rs, agents.rs, metrics.rs, anchors.rs). pub(in crate::session) conn visibility. 21 new cargo tests. 49 cargo tests total. | Done: 2026-03-11
-- [x] **SOLID Phase 1 Refactoring** -- Extracted AttentionScorer pure function (14 tests), shared str()/num() type guards, split lib.rs (976→170 lines, 11 command modules). 286 vitest + 49 cargo tests. | Done: 2026-03-11
+- [x] **Unified test runner + testing gate rule** -- Created v2/scripts/test-all.sh (vitest + cargo + optional E2E), added npm scripts (test:all, test:all:e2e, test:cargo), added .claude/rules/20-testing-gate.md requiring full suite after major changes. | Done: 2026-03-12
+- [x] **E2E testing — Phase B+ & test fixes** -- Phase B: LLM judge (llm-judge.ts, claude-haiku-4-5), 6 multi-project scenarios, CI workflow (3 jobs). Test fixes: 27 failures across 3 spec files. 388 vitest + 68 cargo + 82 E2E (0 fail, 4 skip). | Done: 2026-03-12
+- [x] **Reviewer agent role** -- Tier 1 specialist with role='reviewer'. Reviewer workflow in agent-prompts.ts (8-step process). #review-queue/#review-log auto-channels. reviewQueueDepth in attention scoring (10pts/task, cap 50). 388 vitest + 76 cargo. | Done: 2026-03-12
+- [x] **Auto-wake Manager** -- wake-scheduler.svelte.ts + wake-scorer.ts (24 tests). 3 strategies: persistent/on-demand/smart. 6 signals. Settings UI. 381 vitest + 72 cargo. | Done: 2026-03-12
+- [x] **Dashboard metrics panel** -- MetricsPanel.svelte: live health + task board summary + SVG sparkline history. 25 tests. 357 vitest + 72 cargo. | Done: 2026-03-12
+- [x] **Brand Dexter's new types (SOLID Phase 3b)** -- GroupId + AgentId branded types. Applied to ~40 sites. 332 vitest + 72 cargo. | Done: 2026-03-11
+- [x] **Regression tests + sidecar env security** -- 49 new tests. Added ANTHROPIC_* to Rust env strip. 327 vitest + 72 cargo. | Done: 2026-03-11
+- [x] **Integrate dexter_changes + fix 5 critical bugs** -- Fixed: btmsg.rs column index, btmsg-bridge camelCase, GroupAgentsPanel stopPropagation, ArchitectureTab PlantUML, TestingTab Tauri 2.x. | Done: 2026-03-11
+- [x] **SOLID Phase 3 — Primitive obsession** -- Branded types SessionId/ProjectId. Applied to ~130 sites. 293 vitest + 49 cargo. | Done: 2026-03-11
+- [x] **SOLID Phases 1-2** -- AttentionScorer extraction, type guards, lib.rs split (976→170), agent-dispatcher split (496→260), session.rs split (1008→7 modules). | Done: 2026-03-11
