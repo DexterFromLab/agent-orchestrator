@@ -87,6 +87,11 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/src/lib/adapters/telemetry-bridge.ts` | Frontend telemetry bridge (routes events to Rust tracing via IPC) |
 | `v2/src/lib/utils/agent-prompts.ts` | Agent prompt generator (generateAgentPrompt: identity, env, team, btmsg/bttask docs, workflow) |
 | `docker/tempo/` | Docker compose: Tempo + Grafana for trace visualization (port 9715) |
+| `v2/tests/e2e/wdio.conf.js` | WebDriverIO config (tauri-driver lifecycle, TCP probe, test env vars) |
+| `v2/tests/e2e/fixtures.ts` | E2E test fixture generator (isolated temp dirs, git repos, groups.json) |
+| `v2/tests/e2e/results-db.ts` | JSON test results store (run/step tracking, no native deps) |
+| `v2/tests/e2e/specs/bterminal.test.ts` | E2E smoke tests (CSS class selectors, 50+ tests) |
+| `v2/tests/e2e/specs/agent-scenarios.test.ts` | Phase A E2E scenarios (data-testid selectors, 7 scenarios, 22 tests) |
 | `v2/src/lib/stores/machines.svelte.ts` | Remote machine state store (Svelte 5 runes) |
 | `v2/src/lib/utils/attention-scorer.ts` | Pure attention scoring function (extracted from health store, 14 tests) |
 | `v2/src/lib/utils/wake-scorer.ts` | Pure wake signal evaluation (6 signals, 24 tests) |

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **E2E test mode infrastructure** — `BTERMINAL_TEST=1` env var disables file watchers (watcher.rs, fs_watcher.rs), wake scheduler, and allows data/config dir overrides via `BTERMINAL_TEST_DATA_DIR`/`BTERMINAL_TEST_CONFIG_DIR`. New `is_test_mode` Tauri command bridges test state to frontend
+- **E2E data-testid attributes** — Stable test selectors on 7 key Svelte components: AgentPane (agent-pane, data-agent-status, agent-messages, agent-stop, agent-prompt, agent-submit), ProjectBox (project-box, data-project-id, project-tabs, terminal-toggle), StatusBar, AgentSession, GlobalTabBar, CommandPalette, TerminalTabs
+- **E2E Phase A scenarios** — 7 human-authored test scenarios (22 tests) in `agent-scenarios.test.ts`: app structural integrity, settings panel, agent pane initial state, terminal tab management, command palette, project focus/tab switching, agent prompt submission (graceful Claude CLI skip)
+- **E2E test fixtures** — `tests/e2e/fixtures.ts`: creates isolated temp environments with data/config dirs, git repos, and groups.json. `createTestFixture()`, `createMultiProjectFixture()`, `destroyTestFixture()`
+- **E2E results store** — `tests/e2e/results-db.ts`: JSON-based test run/step tracking (pivoted from better-sqlite3 due to Node 25 native compile failure)
+
+### Changed
+- **WebDriverIO config** — TCP readiness probe replaces blind 2s sleep for tauri-driver startup (200ms interval, 10s deadline). Added BTERMINAL_TEST=1 passthrough in capabilities
+
 ### Security
 - `claude_read_skill` path traversal: added `canonicalize()` + `starts_with()` validation to prevent reading arbitrary files via crafted skill paths (commands/claude.rs)
 - **Sidecar env allowlist hardening** — added `ANTHROPIC_*` to Rust-level `strip_provider_env_var()` as defense-in-depth (Claude CLI uses credentials file, not env for auth). Dual-layer stripping documented: Rust layer (first checkpoint) + JS runner layer (per-provider)

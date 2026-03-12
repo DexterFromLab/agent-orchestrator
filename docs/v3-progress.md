@@ -923,3 +923,51 @@ Reviewed and integrated Dexter's multi-agent orchestration branch (dexter_change
 - Vitest: 327 passed (was 286, +41)
 - Cargo src-tauri: 64 passed (was 49, +15)
 - Cargo bterminal-core: 8 passed (was 0, +8)
+
+### E2E Testing Engine — Phase A (2026-03-12)
+
+#### Test Mode Infrastructure
+- [x] Rust: watcher.rs — test mode bypass (skip file watching, return content directly)
+- [x] Rust: fs_watcher.rs — test mode bypass (skip inotify watchers)
+- [x] Rust: commands/misc.rs — added `is_test_mode` Tauri command
+- [x] Rust: lib.rs — registered is_test_mode in invoke handler
+- [x] Frontend: wake-scheduler.svelte.ts — `disableWakeScheduler()` export + early return
+- [x] Frontend: App.svelte — test mode detection via IPC, disables wake scheduler
+
+#### E2E Test Anchors (data-testid attributes)
+- [x] AgentPane: data-testid="agent-pane", data-agent-status, agent-messages, agent-stop, agent-prompt, agent-submit
+- [x] ProjectBox: data-testid="project-box", data-project-id, project-tabs, terminal-toggle
+- [x] StatusBar: data-testid="status-bar"
+- [x] AgentSession: data-testid="agent-session"
+- [x] GlobalTabBar: data-testid="sidebar-rail", settings-btn
+- [x] CommandPalette: data-testid="command-palette", palette-input
+- [x] TerminalTabs: data-testid="terminal-tabs", tab-add
+
+#### WebDriverIO Config Improvements
+- [x] TCP readiness probe replaces blind 2s sleep for tauri-driver startup
+- [x] BTERMINAL_TEST=1 env var passed to Tauri app via capabilities
+- [x] Optional BTERMINAL_TEST_DATA_DIR / BTERMINAL_TEST_CONFIG_DIR passthrough
+
+#### Test Infrastructure Files
+- [x] `v2/tests/e2e/fixtures.ts` — isolated test fixture generator (temp dirs, git repos, groups.json)
+- [x] `v2/tests/e2e/results-db.ts` — JSON-based test results store (no native deps)
+- [x] `v2/tests/e2e/specs/agent-scenarios.test.ts` — 7 Phase A scenarios (22 test cases)
+
+#### Phase A Scenarios (7 scenarios, 22 tests)
+1. **App Structural Integrity** — verifies all data-testid anchors render correctly
+2. **Settings Panel (data-testid)** — open/close settings via stable selector
+3. **Agent Pane Initial State** — idle status, prompt textarea, empty messages
+4. **Terminal Tab Management** — add/close tabs via data-testid, empty state
+5. **Command Palette (data-testid)** — open, focus, filter, close
+6. **Project Focus & Tab Switching** — focus, tab persistence, agent status preservation
+7. **Agent Prompt Submission** — textarea input, submit button state, graceful Claude CLI skip
+
+#### Verification
+- [x] cargo test: 68 passed, 0 failed
+- [x] vitest: 345 passed across 18 files, 0 failed
+- [x] svelte-check: 0 project errors (2 pre-existing esrap node_modules)
+
+#### Test Counts
+- Vitest: 345 passed (was 327, +18 — new wake-scorer + metrics tests from prior session)
+- Cargo src-tauri: 68 passed (was 64, +4)
+- E2E scenarios: 22 new test cases across 7 scenarios
