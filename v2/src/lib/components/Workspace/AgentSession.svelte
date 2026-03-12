@@ -269,6 +269,7 @@
       capabilities={providerMeta?.capabilities}
       useWorktrees={project.useWorktrees ?? false}
       agentSystemPrompt={agentPrompt}
+      model={project.model}
       extraEnv={agentEnv}
       autoPrompt={contextRefreshPrompt}
       onautopromptconsumed={handleAutoPromptConsumed}

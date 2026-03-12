@@ -14,6 +14,8 @@ export interface ProjectConfig {
   enabled: boolean;
   /** Agent provider for this project (defaults to 'claude') */
   provider?: ProviderId;
+  /** Model override (e.g. 'claude-sonnet-4-5-20250514'). Falls back to provider default. */
+  model?: string;
   /** When true, agents for this project use git worktrees for isolation */
   useWorktrees?: boolean;
   /** When true, sidecar process is sandboxed via Landlock (Linux 5.13+, restricts filesystem access) */
@@ -49,6 +51,8 @@ export function agentToProject(agent: GroupAgentConfig, groupCwd: string): Proje
     cwd: agent.cwd ?? groupCwd,
     profile: 'default',
     enabled: agent.enabled,
+    provider: agent.provider,
+    model: agent.model,
     isAgent: true,
     agentRole: agent.role,
     systemPrompt: agent.systemPrompt,
@@ -66,6 +70,9 @@ export interface GroupAgentConfig {
   id: AgentId;
   name: string;
   role: GroupAgentRole;
+  /** Agent provider (defaults to 'claude') */
+  provider?: ProviderId;
+  /** Model override (e.g. 'claude-sonnet-4-5-20250514'). Falls back to provider default. */
   model?: string;
   cwd?: string;
   systemPrompt?: string;

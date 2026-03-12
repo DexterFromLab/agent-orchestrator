@@ -17,4 +17,9 @@ export const CODEX_PROVIDER: ProviderMeta = {
   },
   sidecarRunner: 'codex-runner.mjs',
   defaultModel: 'gpt-5.4',
+  models: [
+    { id: 'gpt-5.4', label: 'GPT-5.4' },
+    { id: 'o3', label: 'o3' },
+    { id: 'o4-mini', label: 'o4-mini' },
+  ],
 };

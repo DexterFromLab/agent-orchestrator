@@ -12,6 +12,8 @@
     addGroup,
     removeGroup,
     switchGroup,
+    emitAgentStop,
+    emitAgentStart,
   } from '../../stores/workspace.svelte';
   import { deriveIdentifier, type GroupAgentRole, AGENT_ROLE_ICONS } from '../../types/groups';
   import { ProjectId, GroupId } from '../../types/ids';
@@ -56,6 +58,7 @@
   let expandedProvider = $state<string | null>(null);
   let registeredProviders = $derived(getProviders());
   let providerDropdownOpenFor = $state<string | null>(null);
+  let modelDropdownOpenFor = $state<string | null>(null);
 
   let activeGroupId = $derived(getActiveGroupId());
   let activeGroup = $derived(getActiveGroup());
@@ -372,6 +375,7 @@
       uiFontDropdownOpen = false;
       termFontDropdownOpen = false;
       providerDropdownOpenFor = null;
+      modelDropdownOpenFor = null;
       secretsKeyDropdownOpen = false;
     }
     if (!target.closest('.icon-field')) {
@@ -389,6 +393,7 @@
       termFontDropdownOpen = false;
       iconPickerOpenFor = null;
       profileDropdownOpenFor = null;
+      modelDropdownOpenFor = null;
       secretsKeyDropdownOpen = false;
     }
   }
@@ -961,6 +966,7 @@
 
       <div class="agent-cards">
         {#each activeGroup.agents ?? [] as agent (agent.id)}
+          {@const agentProvider = registeredProviders.find(p => p.id === (agent.provider ?? 'claude'))}
           <div class="agent-config-card">
             <div class="card-top-row">
               <span class="agent-config-icon">{AGENT_ROLE_ICONS[agent.role] ?? '🤖'}</span>
@@ -1000,17 +1006,89 @@
               </div>
             </div>
 
+            {#if registeredProviders.length > 1}
+              <div class="card-field">
+                <span class="card-field-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  Provider
+                </span>
+                <div class="custom-dropdown">
+                  <button
+                    class="dropdown-trigger provider-trigger"
+                    onclick={() => { providerDropdownOpenFor = providerDropdownOpenFor === agent.id ? null : agent.id; }}
+                    aria-haspopup="listbox"
+                    aria-expanded={providerDropdownOpenFor === agent.id}
+                  >
+                    <span class="dropdown-label">{registeredProviders.find(p => p.id === (agent.provider ?? 'claude'))?.name ?? 'Claude Code'}</span>
+                    <span class="dropdown-arrow">{providerDropdownOpenFor === agent.id ? '\u25B4' : '\u25BE'}</span>
+                  </button>
+                  {#if providerDropdownOpenFor === agent.id}
+                    <div class="dropdown-menu" role="listbox">
+                      {#each registeredProviders.filter(p => isProviderEnabled(p.id)) as prov}
+                        <button
+                          class="dropdown-option"
+                          class:active={(agent.provider ?? 'claude') === prov.id}
+                          role="option"
+                          aria-selected={(agent.provider ?? 'claude') === prov.id}
+                          onclick={() => {
+                            updateAgent(activeGroupId, agent.id, { provider: prov.id, model: undefined });
+                            providerDropdownOpenFor = null;
+                          }}
+                        >
+                          <span class="dropdown-option-label">{prov.name}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {/if}
+
             <div class="card-field">
               <span class="card-field-label">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                 Model
               </span>
-              <input
-                class="card-field-input"
-                value={agent.model ?? ''}
-                placeholder="Default (provider default)"
-                onchange={e => updateAgent(activeGroupId, agent.id, { model: (e.target as HTMLInputElement).value || undefined })}
-              />
+              <div class="custom-dropdown">
+                <button
+                  class="dropdown-trigger"
+                  onclick={() => { modelDropdownOpenFor = modelDropdownOpenFor === agent.id ? null : agent.id; }}
+                >
+                  <span class="dropdown-label">{agent.model || `Default (${agentProvider?.defaultModel ?? '?'})`}</span>
+                  <span class="dropdown-arrow">{modelDropdownOpenFor === agent.id ? '\u25B4' : '\u25BE'}</span>
+                </button>
+                {#if modelDropdownOpenFor === agent.id}
+                  <div class="dropdown-menu" role="listbox">
+                    <button
+                      class="dropdown-option"
+                      class:active={!agent.model}
+                      onclick={() => { updateAgent(activeGroupId, agent.id, { model: undefined }); modelDropdownOpenFor = null; }}
+                    >
+                      <span class="dropdown-option-label">Default ({agentProvider?.defaultModel ?? '?'})</span>
+                    </button>
+                    {#each agentProvider?.models ?? [] as m}
+                      <button
+                        class="dropdown-option"
+                        class:active={agent.model === m.id}
+                        onclick={() => { updateAgent(activeGroupId, agent.id, { model: m.id }); modelDropdownOpenFor = null; }}
+                      >
+                        <span class="dropdown-option-label">{m.label}</span>
+                        <span class="dropdown-option-hint">{m.id}</span>
+                      </button>
+                    {/each}
+                    <div class="dropdown-custom">
+                      <input
+                        class="dropdown-custom-input"
+                        value={agent.model ?? ''}
+                        placeholder="Custom model ID..."
+                        onclick={e => e.stopPropagation()}
+                        onkeydown={e => { if (e.key === 'Enter') { updateAgent(activeGroupId, agent.id, { model: (e.target as HTMLInputElement).value || undefined }); modelDropdownOpenFor = null; } }}
+                        onchange={e => updateAgent(activeGroupId, agent.id, { model: (e.target as HTMLInputElement).value || undefined })}
+                      />
+                    </div>
+                  </div>
+                {/if}
+              </div>
             </div>
 
             {#if agent.role === 'manager'}
@@ -1086,6 +1164,17 @@
               ></textarea>
             </div>
 
+            <div class="card-actions-row">
+              <button
+                class="apply-btn"
+                title="Restart agent with current settings"
+                onclick={() => { emitAgentStop(agent.id); setTimeout(() => emitAgentStart(agent.id), 300); }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Apply &amp; Restart
+              </button>
+            </div>
+
             <details class="prompt-preview">
               <summary class="prompt-preview-toggle">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -1111,6 +1200,7 @@
 
       <div class="project-cards">
         {#each activeGroup.projects as project}
+          {@const projProvider = registeredProviders.find(p => p.id === (project.provider ?? 'claude'))}
           <div class="project-card">
             <div class="card-top-row">
               <div class="icon-field">
@@ -1239,7 +1329,7 @@
                           role="option"
                           aria-selected={(project.provider ?? 'claude') === prov.id}
                           onclick={() => {
-                            updateProject(activeGroupId, project.id, { provider: prov.id });
+                            updateProject(activeGroupId, project.id, { provider: prov.id, model: undefined });
                             providerDropdownOpenFor = null;
                           }}
                         >
@@ -1251,6 +1341,53 @@
                 </div>
               </div>
             {/if}
+
+            <div class="card-field">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                Model
+              </span>
+              <div class="custom-dropdown">
+                <button
+                  class="dropdown-trigger"
+                  onclick={() => { modelDropdownOpenFor = modelDropdownOpenFor === project.id ? null : project.id; }}
+                >
+                  <span class="dropdown-label">{project.model || `Default (${projProvider?.defaultModel ?? '?'})`}</span>
+                  <span class="dropdown-arrow">{modelDropdownOpenFor === project.id ? '\u25B4' : '\u25BE'}</span>
+                </button>
+                {#if modelDropdownOpenFor === project.id}
+                  <div class="dropdown-menu" role="listbox">
+                    <button
+                      class="dropdown-option"
+                      class:active={!project.model}
+                      onclick={() => { updateProject(activeGroupId, project.id, { model: undefined }); modelDropdownOpenFor = null; }}
+                    >
+                      <span class="dropdown-option-label">Default ({projProvider?.defaultModel ?? '?'})</span>
+                    </button>
+                    {#each projProvider?.models ?? [] as m}
+                      <button
+                        class="dropdown-option"
+                        class:active={project.model === m.id}
+                        onclick={() => { updateProject(activeGroupId, project.id, { model: m.id }); modelDropdownOpenFor = null; }}
+                      >
+                        <span class="dropdown-option-label">{m.label}</span>
+                        <span class="dropdown-option-hint">{m.id}</span>
+                      </button>
+                    {/each}
+                    <div class="dropdown-custom">
+                      <input
+                        class="dropdown-custom-input"
+                        value={project.model ?? ''}
+                        placeholder="Custom model ID..."
+                        onclick={e => e.stopPropagation()}
+                        onkeydown={e => { if (e.key === 'Enter') { updateProject(activeGroupId, project.id, { model: (e.target as HTMLInputElement).value || undefined }); modelDropdownOpenFor = null; } }}
+                        onchange={e => updateProject(activeGroupId, project.id, { model: (e.target as HTMLInputElement).value || undefined })}
+                      />
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            </div>
 
             <div class="card-field">
               <span class="card-field-label">
@@ -1335,6 +1472,17 @@
                 rows="3"
                 onchange={e => updateProject(activeGroupId, project.id, { systemPrompt: (e.target as HTMLTextAreaElement).value || undefined })}
               ></textarea>
+            </div>
+
+            <div class="card-actions-row">
+              <button
+                class="apply-btn"
+                title="Restart agent with current settings"
+                onclick={() => { emitAgentStop(project.id); setTimeout(() => emitAgentStart(project.id), 300); }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Apply &amp; Restart
+              </button>
             </div>
 
             <div class="card-footer">
@@ -1537,6 +1685,34 @@
 
   .dropdown-option-label {
     flex: 1;
+  }
+
+  .dropdown-option-hint {
+    font-size: 0.55rem;
+    color: var(--ctp-overlay0);
+    font-family: monospace;
+  }
+
+  .dropdown-custom {
+    padding: 0.25rem;
+    border-top: 1px solid var(--ctp-surface1);
+  }
+
+  .dropdown-custom-input {
+    width: 100%;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 0.2rem;
+    color: var(--ctp-text);
+    font-size: 0.7rem;
+    font-family: monospace;
+    padding: 0.25rem 0.4rem;
+    outline: none;
+    box-sizing: border-box;
+  }
+
+  .dropdown-custom-input:focus {
+    border-color: var(--ctp-blue);
   }
 
   /* Theme-specific dropdown extras */
@@ -1909,6 +2085,35 @@
     font-size: 0.7rem;
     color: var(--ctp-overlay0);
     margin-left: auto;
+  }
+
+  /* Apply & Restart button */
+  .card-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 0.35rem;
+    margin-top: 0.25rem;
+    border-top: 1px solid var(--ctp-surface0);
+  }
+
+  .apply-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    background: color-mix(in srgb, var(--ctp-blue) 15%, transparent);
+    color: var(--ctp-blue);
+    border: 1px solid var(--ctp-blue);
+    border-radius: 0.25rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+  }
+
+  .apply-btn:hover {
+    background: var(--ctp-blue);
+    color: var(--ctp-base);
   }
 
   /* Card footer */

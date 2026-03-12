@@ -23,6 +23,8 @@ export interface ProviderMeta {
   sidecarRunner: string;
   /** Default model identifier, if applicable */
   defaultModel?: string;
+  /** Available model presets for dropdown selection */
+  models?: { id: string; label: string }[];
 }
 
 /** Per-provider configuration (stored in settings) */

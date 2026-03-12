@@ -58,6 +58,8 @@
     useWorktrees?: boolean;
     /** Prepended to system_prompt for agent role instructions */
     agentSystemPrompt?: string;
+    /** Model override (e.g. 'claude-sonnet-4-5-20250514'). Passed to sidecar. */
+    model?: string;
     /** Extra env vars injected into agent process (e.g. BTMSG_AGENT_ID) */
     extraEnv?: Record<string, string>;
     /** Auto-triggered prompt (e.g. periodic context refresh). Picked up when agent is idle. */
@@ -67,7 +69,7 @@
     onExit?: () => void;
   }
 
-  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, useWorktrees = false, agentSystemPrompt, extraEnv, autoPrompt, onautopromptconsumed, onExit }: Props = $props();
+  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, useWorktrees = false, agentSystemPrompt, model: modelOverride, extraEnv, autoPrompt, onautopromptconsumed, onExit }: Props = $props();
 
   let session = $derived(getAgentSession(sessionId));
   let inputPrompt = $state(initialPrompt);
@@ -209,6 +211,7 @@
       setting_sources: ['user', 'project'],
       claude_config_dir: profile?.config_dir,
       system_prompt: systemPrompt,
+      model: modelOverride || undefined,
       worktree_name: useWorktrees ? sessionId : undefined,
       extra_env: extraEnv,
     });
