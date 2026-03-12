@@ -1,7 +1,9 @@
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import { createConnection } from 'node:net';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '../..');
@@ -11,6 +13,56 @@ const projectRoot = resolve(__dirname, '../..');
 const tauriBinary = resolve(projectRoot, 'target/debug/bterminal');
 
 let tauriDriver;
+
+// ── Test Fixture (created eagerly so env vars are available for capabilities) ──
+const fixtureRoot = join(tmpdir(), `bterminal-e2e-${Date.now()}`);
+const fixtureDataDir = join(fixtureRoot, 'data');
+const fixtureConfigDir = join(fixtureRoot, 'config');
+const fixtureProjectDir = join(fixtureRoot, 'test-project');
+
+mkdirSync(fixtureDataDir, { recursive: true });
+mkdirSync(fixtureConfigDir, { recursive: true });
+mkdirSync(fixtureProjectDir, { recursive: true });
+
+// Create a minimal git repo for agent testing
+execSync('git init', { cwd: fixtureProjectDir, stdio: 'ignore' });
+execSync('git config user.email "test@bterminal.dev"', { cwd: fixtureProjectDir, stdio: 'ignore' });
+execSync('git config user.name "BTerminal Test"', { cwd: fixtureProjectDir, stdio: 'ignore' });
+writeFileSync(join(fixtureProjectDir, 'README.md'), '# Test Project\n\nA simple test project for BTerminal E2E tests.\n');
+writeFileSync(join(fixtureProjectDir, 'hello.py'), 'def greet(name: str) -> str:\n    return f"Hello, {name}!"\n');
+execSync('git add -A && git commit -m "initial commit"', { cwd: fixtureProjectDir, stdio: 'ignore' });
+
+// Write groups.json with one group containing the test project
+writeFileSync(
+  join(fixtureConfigDir, 'groups.json'),
+  JSON.stringify({
+    version: 1,
+    groups: [{
+      id: 'test-group',
+      name: 'Test Group',
+      projects: [{
+        id: 'test-project',
+        name: 'Test Project',
+        identifier: 'test-project',
+        description: 'E2E test project',
+        icon: '\uf120',
+        cwd: fixtureProjectDir,
+        profile: 'default',
+        enabled: true,
+      }],
+      agents: [],
+    }],
+    activeGroupId: 'test-group',
+  }, null, 2),
+);
+
+// Inject env vars into process.env so tauri-driver inherits them
+// (tauri:options.env may not reliably set process-level env vars)
+process.env.BTERMINAL_TEST = '1';
+process.env.BTERMINAL_TEST_DATA_DIR = fixtureDataDir;
+process.env.BTERMINAL_TEST_CONFIG_DIR = fixtureConfigDir;
+
+console.log(`Test fixture created at ${fixtureRoot}`);
 
 export const config = {
   // ── Runner ──
@@ -38,11 +90,11 @@ export const config = {
     'wdio:enforceWebDriverClassic': true,
     'tauri:options': {
       application: tauriBinary,
-      // Test isolation: separate data/config dirs, disable watchers/telemetry
+      // Test isolation: fixture-created data/config dirs, disable watchers/telemetry
       env: {
         BTERMINAL_TEST: '1',
-        ...(process.env.BTERMINAL_TEST_DATA_DIR && { BTERMINAL_TEST_DATA_DIR: process.env.BTERMINAL_TEST_DATA_DIR }),
-        ...(process.env.BTERMINAL_TEST_CONFIG_DIR && { BTERMINAL_TEST_CONFIG_DIR: process.env.BTERMINAL_TEST_CONFIG_DIR }),
+        BTERMINAL_TEST_DATA_DIR: fixtureDataDir,
+        BTERMINAL_TEST_CONFIG_DIR: fixtureConfigDir,
       },
     },
   }],
@@ -145,6 +197,11 @@ export const config = {
       tauriDriver.kill();
       tauriDriver = null;
     }
+    // Clean up test fixture
+    try {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+      console.log('Test fixture cleaned up.');
+    } catch { /* best-effort cleanup */ }
   },
 
   // ── TypeScript (auto-compile via tsx) ──
