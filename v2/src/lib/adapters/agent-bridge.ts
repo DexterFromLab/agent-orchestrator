@@ -51,6 +51,15 @@ export async function restartAgent(): Promise<void> {
   return invoke('agent_restart');
 }
 
+/** Update Landlock sandbox config and restart sidecar to apply. */
+export async function setSandbox(
+  projectCwds: string[],
+  worktreeRoots: string[],
+  enabled: boolean,
+): Promise<void> {
+  return invoke('agent_set_sandbox', { projectCwds, worktreeRoots, enabled });
+}
+
 export interface SidecarMessage {
   type: string;
   sessionId?: string;

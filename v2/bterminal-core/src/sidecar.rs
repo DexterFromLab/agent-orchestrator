@@ -3,12 +3,15 @@
 
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::event::EventSink;
+use crate::sandbox::SandboxConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentQueryOptions {
@@ -46,6 +49,8 @@ pub struct SidecarConfig {
     pub search_paths: Vec<PathBuf>,
     /// Extra env vars forwarded to sidecar processes (e.g. BTERMINAL_TEST=1 for test isolation)
     pub env_overrides: std::collections::HashMap<String, String>,
+    /// Landlock filesystem sandbox configuration (Linux 5.13+, applied via pre_exec)
+    pub sandbox: SandboxConfig,
 }
 
 struct SidecarCommand {
@@ -58,7 +63,7 @@ pub struct SidecarManager {
     stdin_writer: Arc<Mutex<Option<Box<dyn Write + Send>>>>,
     ready: Arc<Mutex<bool>>,
     sink: Arc<dyn EventSink>,
-    config: SidecarConfig,
+    config: Mutex<SidecarConfig>,
 }
 
 impl SidecarManager {
@@ -68,8 +73,13 @@ impl SidecarManager {
             stdin_writer: Arc::new(Mutex::new(None)),
             ready: Arc::new(Mutex::new(false)),
             sink,
-            config,
+            config: Mutex::new(config),
         }
+    }
+
+    /// Update the sandbox configuration. Takes effect on next sidecar (re)start.
+    pub fn set_sandbox(&self, sandbox: SandboxConfig) {
+        self.config.lock().unwrap().sandbox = sandbox;
     }
 
     pub fn start(&self) -> Result<(), String> {
@@ -78,7 +88,8 @@ impl SidecarManager {
             return Err("Sidecar already running".to_string());
         }
 
-        let cmd = self.resolve_sidecar_command()?;
+        let config = self.config.lock().unwrap();
+        let cmd = self.resolve_sidecar_command_with_config(&config)?;
 
         log::info!("Starting sidecar: {} {}", cmd.program, cmd.args.join(" "));
 
@@ -92,14 +103,36 @@ impl SidecarManager {
             })
             .collect();
 
-        let mut child = Command::new(&cmd.program)
+        let mut command = Command::new(&cmd.program);
+        command
             .args(&cmd.args)
             .env_clear()
             .envs(clean_env)
-            .envs(self.config.env_overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+            .envs(config.env_overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        // Apply Landlock sandbox in child process before exec (Linux only).
+        // Restrictions are inherited by all child processes (provider CLIs).
+        #[cfg(unix)]
+        if config.sandbox.enabled {
+            let sandbox = config.sandbox.clone();
+            unsafe {
+                command.pre_exec(move || {
+                    sandbox.apply().map(|enforced| {
+                        if !enforced {
+                            log::warn!("Landlock sandbox not enforced in sidecar child");
+                        }
+                    }).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                });
+            }
+        }
+
+        // Drop config lock before spawn (pre_exec closure owns the sandbox clone)
+        drop(config);
+
+        let mut child = command
             .spawn()
             .map_err(|e| format!("Failed to start sidecar: {e}"))?;
 
@@ -197,11 +230,12 @@ impl SidecarManager {
 
         // Validate that the requested provider has a runner available
         let runner_name = format!("{}-runner.mjs", options.provider);
-        let runner_exists = self
-            .config
+        let config = self.config.lock().unwrap();
+        let runner_exists = config
             .search_paths
             .iter()
             .any(|base| base.join("dist").join(&runner_name).exists());
+        drop(config);
         if !runner_exists {
             return Err(format!(
                 "No sidecar runner found for provider '{}' (expected {})",
@@ -265,12 +299,12 @@ impl SidecarManager {
 
     /// Resolve a sidecar runner command. Uses the default claude-runner for startup.
     /// Future providers will have their own runners (e.g. codex-runner.mjs).
-    fn resolve_sidecar_command(&self) -> Result<SidecarCommand, String> {
-        self.resolve_sidecar_for_provider("claude")
+    fn resolve_sidecar_command_with_config(&self, config: &SidecarConfig) -> Result<SidecarCommand, String> {
+        Self::resolve_sidecar_for_provider_with_config(config, "claude")
     }
 
     /// Resolve a sidecar command for a specific provider's runner file.
-    fn resolve_sidecar_for_provider(&self, provider: &str) -> Result<SidecarCommand, String> {
+    fn resolve_sidecar_for_provider_with_config(config: &SidecarConfig, provider: &str) -> Result<SidecarCommand, String> {
         let runner_name = format!("{}-runner.mjs", provider);
 
         // Try Deno first (faster startup, better perf), fall back to Node.js.
@@ -289,7 +323,7 @@ impl SidecarManager {
 
         let mut checked = Vec::new();
 
-        for base in &self.config.search_paths {
+        for base in &config.search_paths {
             let mjs_path = base.join("dist").join(&runner_name);
             if mjs_path.exists() {
                 if has_deno {

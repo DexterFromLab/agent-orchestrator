@@ -99,6 +99,7 @@ async fn main() {
     let sidecar_config = SidecarConfig {
         search_paths,
         env_overrides: std::collections::HashMap::new(),
+        sandbox: Default::default(),
     };
     let token = Arc::new(cli.token);
 

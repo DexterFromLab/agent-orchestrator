@@ -12,3 +12,4 @@ log = "0.4"
 portable-pty = "0.8"
 uuid = { version = "1", features = ["v4"] }
 dirs = "5"
+landlock = "0.4"

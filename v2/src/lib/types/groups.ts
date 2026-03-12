@@ -16,6 +16,8 @@ export interface ProjectConfig {
   provider?: ProviderId;
   /** When true, agents for this project use git worktrees for isolation */
   useWorktrees?: boolean;
+  /** When true, sidecar process is sandboxed via Landlock (Linux 5.13+, restricts filesystem access) */
+  sandboxEnabled?: boolean;
   /** Anchor token budget scale (defaults to 'medium' = 6K tokens) */
   anchorBudgetScale?: AnchorBudgetScale;
   /** Stall detection threshold in minutes (defaults to 15) */

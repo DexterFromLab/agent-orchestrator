@@ -95,6 +95,11 @@ impl AppConfig {
         self.config_dir.join("groups.json")
     }
 
+    /// Path to plugins directory
+    pub fn plugins_dir(&self) -> PathBuf {
+        self.config_dir.join("plugins")
+    }
+
     /// Whether running in test mode (BTERMINAL_TEST=1)
     pub fn is_test_mode(&self) -> bool {
         self.test_mode
