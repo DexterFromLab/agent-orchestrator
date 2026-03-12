@@ -128,15 +128,17 @@ async function judgeCli(
   if (!cliPath) throw new Error('Claude CLI not found');
 
   const { system, user } = buildPrompt(criteria, actual, context);
-  const fullPrompt = `${system}\n\n${user}`;
 
   const output = execFileSync(cliPath, [
-    '-p', fullPrompt,
+    '-p', user,
     '--model', MODEL,
     '--output-format', 'text',
+    '--system-prompt', system,
+    '--setting-sources', 'user',   // skip project CLAUDE.md
   ], {
     encoding: 'utf-8',
     timeout: 60_000,
+    cwd: '/tmp',                   // avoid loading project CLAUDE.md
     env: { ...process.env, CLAUDECODE: '' },
     maxBuffer: 1024 * 1024,
   });
