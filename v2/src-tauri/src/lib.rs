@@ -123,8 +123,10 @@ pub(crate) fn checkpoint_wal(path: &Path) -> Result<(), String> {
 }
 
 /// Spawn a background task that checkpoints WAL on both databases every 5 minutes.
+/// Uses `tauri::async_runtime::spawn` instead of `tokio::spawn` because this runs
+/// during Tauri setup where the Tokio runtime may not be directly accessible.
 fn spawn_wal_checkpoint_task(sessions_db_path: PathBuf, btmsg_db_path: PathBuf) {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let interval = std::time::Duration::from_secs(300);
         loop {
             tokio::time::sleep(interval).await;
