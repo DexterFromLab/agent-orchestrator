@@ -9,6 +9,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "agent-orchestrator"
+version = "0.1.0"
+dependencies = [
+ "bterminal-core",
+ "dirs 5.0.1",
+ "futures-util",
+ "keyring",
+ "log",
+ "notify",
+ "notify-rust",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "rfd",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-updater",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -361,37 +392,6 @@ checksum = "874bb8112abecc98cbd6d81ea4fa7e94fb9449648c93cc89aa40c81c24d7de03"
 dependencies = [
  "alloc-no-stdlib",
  "alloc-stdlib",
-]
-
-[[package]]
-name = "bterminal"
-version = "0.1.0"
-dependencies = [
- "bterminal-core",
- "dirs 5.0.1",
- "futures-util",
- "keyring",
- "log",
- "notify",
- "notify-rust",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "rfd",
- "rusqlite",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-updater",
- "tempfile",
- "tokio",
- "tokio-tungstenite",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

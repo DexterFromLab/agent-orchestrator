@@ -28,7 +28,7 @@ impl Drop for TelemetryGuard {
 /// Call once at app startup, before any tracing macros fire.
 pub fn init() -> TelemetryGuard {
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("bterminal=info,bterminal_lib=info,bterminal_core=info"));
+        .unwrap_or_else(|_| EnvFilter::new("agent_orchestrator=info,agent_orchestrator_lib=info,bterminal_core=info"));
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_target(true)
@@ -42,7 +42,7 @@ pub fn init() -> TelemetryGuard {
             match build_otlp_provider(&endpoint) {
                 Ok(provider) => {
                     let otel_layer = tracing_opentelemetry::layer()
-                        .with_tracer(provider.tracer("bterminal"));
+                        .with_tracer(provider.tracer("agent-orchestrator"));
 
                     tracing_subscriber::registry()
                         .with(filter)
@@ -90,7 +90,7 @@ fn build_otlp_provider(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std:
 
     let resource = Resource::builder()
         .with_attributes([
-            KeyValue::new("service.name", "bterminal"),
+            KeyValue::new("service.name", "agent-orchestrator"),
             KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
         ])
         .build();

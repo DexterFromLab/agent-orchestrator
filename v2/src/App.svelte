@@ -31,6 +31,7 @@
   // Shared
   import StatusBar from './lib/components/StatusBar/StatusBar.svelte';
   import ToastContainer from './lib/components/Notifications/ToastContainer.svelte';
+  import SplashScreen from './lib/components/SplashScreen.svelte';
 
   // Detached mode (preserved from v2)
   import TerminalPane from './lib/components/Terminal/TerminalPane.svelte';
@@ -43,6 +44,19 @@
   let searchOpen = $state(false);
   let drawerOpen = $state(false);
   let loaded = $state(false);
+
+  // Splash screen loading steps
+  let splashSteps = $state([
+    { label: 'Initializing theme...', done: false },
+    { label: 'Registering providers...', done: false },
+    { label: 'Starting agent dispatcher...', done: false },
+    { label: 'Connecting sidecar...', done: false },
+    { label: 'Loading workspace...', done: false },
+  ]);
+
+  function markStep(idx: number) {
+    splashSteps[idx] = { ...splashSteps[idx], done: true };
+  }
 
   let activeTab = $derived(getActiveTab());
   let panelContentEl: HTMLElement | undefined = $state();
@@ -77,26 +91,42 @@
   }
 
   onMount(() => {
+    // Step 0: Theme
     initTheme();
     getSetting('project_max_aspect').then(v => {
       if (v) document.documentElement.style.setProperty('--project-max-aspect', v);
     });
+    markStep(0);
+
+    // Step 1: Providers
     registerProvider(CLAUDE_PROVIDER);
     registerProvider(CODEX_PROVIDER);
     registerProvider(OLLAMA_PROVIDER);
     const memora = new MemoraAdapter();
     registerMemoryAdapter(memora);
     memora.checkAvailability();
+    markStep(1);
+
+    // Step 2: Agent dispatcher
     startAgentDispatcher();
     startHealthTick();
+    markStep(2);
 
     // Disable wake scheduler in test mode to prevent timer interference
     invoke<boolean>('is_test_mode').then(isTest => {
       if (isTest) disableWakeScheduler();
     });
 
+    // Step 3: Sidecar (small delay to let sidecar report ready)
+    setTimeout(() => markStep(3), 300);
+
     if (!detached) {
-      loadWorkspace().then(() => { loaded = true; });
+      // Step 4: Workspace
+      loadWorkspace().then(() => {
+        markStep(4);
+        // Brief pause to show completed state before transition
+        setTimeout(() => { loaded = true; }, 400);
+      });
     }
 
     /** Check if event target is an editable element (input, textarea, contenteditable) */
@@ -299,7 +329,7 @@
   <CommandPalette open={paletteOpen} onclose={() => paletteOpen = false} />
   <SearchOverlay open={searchOpen} onclose={() => searchOpen = false} />
 {:else}
-  <div class="loading">Loading workspace...</div>
+  <SplashScreen steps={splashSteps} />
 {/if}
 <ToastContainer />
 
@@ -380,13 +410,4 @@
     flex-direction: column;
   }
 
-  .loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    color: var(--ctp-overlay0);
-    font-size: 0.9rem;
-    background: var(--ctp-base);
-  }
 </style>

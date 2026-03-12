@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-  bterminal_lib::run();
+  agent_orchestrator_lib::run();
 }

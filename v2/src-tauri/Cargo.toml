@@ -1,5 +1,5 @@
 [package]
-name = "bterminal"
+name = "agent-orchestrator"
 version = "0.1.0"
 description = "Multi-session Claude agent dashboard"
 authors = ["DexterFromLab"]
@@ -10,7 +10,7 @@ rust-version = "1.77.2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "bterminal_lib"
+name = "agent_orchestrator_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
