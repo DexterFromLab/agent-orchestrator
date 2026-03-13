@@ -1,0 +1,384 @@
+#!/usr/bin/env python3
+"""
+tasks — Task list manager for Claude Code workflow automation.
+
+Per-project task lists stored in ctx SQLite database.
+Designed to work with BTerminal's auto-trigger system.
+
+Usage: tasks <command> [args]
+"""
+
+import sqlite3
+import sys
+import os
+import re
+from pathlib import Path
+
+DB_PATH = Path.home() / ".claude-context" / "context.db"
+
+
+def get_db():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(str(DB_PATH))
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA journal_mode=WAL")
+    return db
+
+
+def init_db():
+    db = get_db()
+    db.executescript("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project TEXT NOT NULL,
+            task_id TEXT NOT NULL,
+            description TEXT NOT NULL,
+            status TEXT DEFAULT 'open',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(project, task_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS task_config (
+            project TEXT PRIMARY KEY,
+            autorun INTEGER DEFAULT 0
+        );
+    """)
+    db.close()
+
+
+def task_sort_key(task_id):
+    """Natural sort key for hierarchical task IDs like 1, 1.a, 1.b, 2, 10."""
+    parts = task_id.split(".")
+    result = []
+    for p in parts:
+        try:
+            result.append((0, int(p), ""))
+        except ValueError:
+            result.append((1, 0, p))
+    return result
+
+
+def next_task_id(db, project, parent=None):
+    """Auto-assign next task number, optionally under a parent."""
+    rows = db.execute(
+        "SELECT task_id FROM tasks WHERE project = ?", (project,)
+    ).fetchall()
+
+    if parent:
+        # Find next subtask letter under parent
+        existing = []
+        prefix = f"{parent}."
+        for row in rows:
+            if row["task_id"].startswith(prefix):
+                suffix = row["task_id"][len(prefix):]
+                if len(suffix) == 1 and suffix.isalpha():
+                    existing.append(suffix)
+        if existing:
+            return f"{parent}.{chr(ord(max(existing)) + 1)}"
+        return f"{parent}.a"
+    else:
+        # Find next top-level number
+        max_num = 0
+        for row in rows:
+            parts = row["task_id"].split(".")
+            try:
+                num = int(parts[0])
+                if num > max_num:
+                    max_num = num
+            except ValueError:
+                pass
+        return str(max_num + 1)
+
+
+# ─── Commands ───────────────────────────────────────────────────────────
+
+
+def cmd_add(args):
+    """Add a task. Usage: tasks add <project> [task_id] <description>"""
+    if len(args) < 2:
+        print("Usage: tasks add <project> [task_id] <description>")
+        sys.exit(1)
+    project = args[0]
+    # Check if second arg looks like a task_id (number, number.letter, etc.)
+    if len(args) >= 3 and re.match(r"^\d+(\.[a-z])?$", args[1]):
+        task_id = args[1]
+        description = " ".join(args[2:])
+    else:
+        db = get_db()
+        task_id = next_task_id(db, project)
+        db.close()
+        description = " ".join(args[1:])
+
+    db = get_db()
+    try:
+        db.execute(
+            """INSERT INTO tasks (project, task_id, description, status)
+               VALUES (?, ?, ?, 'open')""",
+            (project, task_id, description),
+        )
+        db.commit()
+        print(f"[{project}] Task {task_id} added: {description}")
+    except sqlite3.IntegrityError:
+        print(f"Error: Task {task_id} already exists in project '{project}'.")
+        sys.exit(1)
+    finally:
+        db.close()
+
+
+def cmd_done(args):
+    """Mark task as done. Usage: tasks done <project> <task_id>"""
+    if len(args) < 2:
+        print("Usage: tasks done <project> <task_id>")
+        sys.exit(1)
+    project, task_id = args[0], args[1]
+    db = get_db()
+    cursor = db.execute(
+        """UPDATE tasks SET status = 'done', updated_at = datetime('now')
+           WHERE project = ? AND task_id = ?""",
+        (project, task_id),
+    )
+    db.commit()
+    if cursor.rowcount:
+        print(f"[{project}] Task {task_id} \u2713 done")
+    else:
+        print(f"Error: Task {task_id} not found in project '{project}'.")
+    db.close()
+
+
+def cmd_undone(args):
+    """Reopen a task. Usage: tasks undone <project> <task_id>"""
+    if len(args) < 2:
+        print("Usage: tasks undone <project> <task_id>")
+        sys.exit(1)
+    project, task_id = args[0], args[1]
+    db = get_db()
+    cursor = db.execute(
+        """UPDATE tasks SET status = 'open', updated_at = datetime('now')
+           WHERE project = ? AND task_id = ?""",
+        (project, task_id),
+    )
+    db.commit()
+    if cursor.rowcount:
+        print(f"[{project}] Task {task_id} reopened")
+    else:
+        print(f"Error: Task {task_id} not found in project '{project}'.")
+    db.close()
+
+
+def cmd_list(args):
+    """List all tasks. Usage: tasks list <project>"""
+    if len(args) < 1:
+        print("Usage: tasks list <project>")
+        sys.exit(1)
+    project = args[0]
+    db = get_db()
+    rows = db.execute(
+        "SELECT task_id, description, status FROM tasks WHERE project = ?",
+        (project,),
+    ).fetchall()
+    db.close()
+
+    if not rows:
+        print(f"No tasks for project '{project}'.")
+        return
+
+    tasks = sorted(rows, key=lambda r: task_sort_key(r["task_id"]))
+
+    open_count = sum(1 for t in tasks if t["status"] == "open")
+    done_count = sum(1 for t in tasks if t["status"] == "done")
+    print(f"Tasks for '{project}': {open_count} open, {done_count} done\n")
+
+    for t in tasks:
+        check = "\u2713" if t["status"] == "done" else " "
+        indent = "  " if "." in t["task_id"] else ""
+        print(f"  [{check}] {indent}{t['task_id']:6s} {t['description']}")
+
+
+def cmd_delete(args):
+    """Delete a task. Usage: tasks delete <project> <task_id>"""
+    if len(args) < 2:
+        print("Usage: tasks delete <project> <task_id>")
+        sys.exit(1)
+    project, task_id = args[0], args[1]
+    db = get_db()
+    cursor = db.execute(
+        "DELETE FROM tasks WHERE project = ? AND task_id = ?",
+        (project, task_id),
+    )
+    db.commit()
+    if cursor.rowcount:
+        print(f"[{project}] Task {task_id} deleted.")
+    else:
+        print(f"Error: Task {task_id} not found in project '{project}'.")
+    db.close()
+
+
+def cmd_clear(args):
+    """Clear all done tasks. Usage: tasks clear <project>"""
+    if len(args) < 1:
+        print("Usage: tasks clear <project>")
+        sys.exit(1)
+    project = args[0]
+    db = get_db()
+    cursor = db.execute(
+        "DELETE FROM tasks WHERE project = ? AND status = 'done'",
+        (project,),
+    )
+    db.commit()
+    print(f"[{project}] Cleared {cursor.rowcount} done task(s).")
+    db.close()
+
+
+def cmd_context(args):
+    """Output task context for Claude Code. Usage: tasks context <project>"""
+    if len(args) < 1:
+        print("Usage: tasks context <project>")
+        sys.exit(1)
+    project = args[0]
+    db = get_db()
+    rows = db.execute(
+        "SELECT task_id, description, status FROM tasks WHERE project = ?",
+        (project,),
+    ).fetchall()
+    db.close()
+
+    if not rows:
+        print(f"No tasks for project '{project}'.")
+        return
+
+    tasks = sorted(rows, key=lambda r: task_sort_key(r["task_id"]))
+    open_count = sum(1 for t in tasks if t["status"] == "open")
+    done_count = sum(1 for t in tasks if t["status"] == "done")
+
+    print(f"=== TASK LIST: {project} ===")
+    print(f"Status: {open_count} open, {done_count} done\n")
+
+    for t in tasks:
+        check = "\u2713" if t["status"] == "done" else " "
+        indent = "  " if "." in t["task_id"] else ""
+        print(f"[{check}] {indent}{t['task_id']:6s} {t['description']}")
+
+    # Find next open task
+    next_task = None
+    for t in tasks:
+        if t["status"] == "open":
+            next_task = t
+            break
+
+    if next_task:
+        print(f"\n\u25b6 NEXT TASK: {next_task['task_id']} \u2014 {next_task['description']}")
+        print(f"\n\u2500\u2500 Instructions \u2500\u2500")
+        print(f"1. Execute the task above")
+        print(f"2. Mark done when finished: tasks done {project} {next_task['task_id']}")
+        print(f"3. Add subtasks if needed: tasks add {project} <id> \"description\"")
+        print(f"4. The task runner will auto-assign the next task when you're idle")
+    else:
+        print(f"\n\u2713 All tasks completed!")
+
+
+def cmd_pending(args):
+    """Return count of open tasks. Usage: tasks pending <project>"""
+    if len(args) < 1:
+        print("Usage: tasks pending <project>")
+        sys.exit(1)
+    project = args[0]
+    db = get_db()
+    row = db.execute(
+        "SELECT COUNT(*) as c FROM tasks WHERE project = ? AND status = 'open'",
+        (project,),
+    ).fetchone()
+    db.close()
+    print(row["c"])
+
+
+def cmd_edit(args):
+    """Edit task description. Usage: tasks edit <project> <task_id> <new_description>"""
+    if len(args) < 3:
+        print("Usage: tasks edit <project> <task_id> <new_description>")
+        sys.exit(1)
+    project, task_id = args[0], args[1]
+    description = " ".join(args[2:])
+    db = get_db()
+    cursor = db.execute(
+        """UPDATE tasks SET description = ?, updated_at = datetime('now')
+           WHERE project = ? AND task_id = ?""",
+        (description, project, task_id),
+    )
+    db.commit()
+    if cursor.rowcount:
+        print(f"[{project}] Task {task_id} updated: {description}")
+    else:
+        print(f"Error: Task {task_id} not found in project '{project}'.")
+    db.close()
+
+
+def cmd_reset(args):
+    """Reset all tasks to open. Usage: tasks reset <project>"""
+    if len(args) < 1:
+        print("Usage: tasks reset <project>")
+        sys.exit(1)
+    project = args[0]
+    db = get_db()
+    cursor = db.execute(
+        """UPDATE tasks SET status = 'open', updated_at = datetime('now')
+           WHERE project = ?""",
+        (project,),
+    )
+    db.commit()
+    print(f"[{project}] Reset {cursor.rowcount} task(s) to open.")
+    db.close()
+
+
+# ─── Main ───────────────────────────────────────────────────────────────
+
+COMMANDS = {
+    "add": cmd_add,
+    "done": cmd_done,
+    "undone": cmd_undone,
+    "list": cmd_list,
+    "delete": cmd_delete,
+    "clear": cmd_clear,
+    "context": cmd_context,
+    "pending": cmd_pending,
+    "edit": cmd_edit,
+    "reset": cmd_reset,
+}
+
+
+def print_help():
+    print("tasks \u2014 Task list manager for Claude Code workflow automation\n")
+    print("Commands:")
+    print("  add <project> [id] <desc>    Add task (auto-numbers if no id)")
+    print("  done <project> <task_id>     Mark task as done")
+    print("  undone <project> <task_id>   Reopen a task")
+    print("  list <project>               Show all tasks")
+    print("  context <project>            Output task list + instructions for Claude")
+    print("  edit <project> <id> <desc>   Edit task description")
+    print("  delete <project> <task_id>   Delete a task")
+    print("  clear <project>              Remove all done tasks")
+    print("  pending <project>            Count of open tasks")
+    print("  reset <project>              Reset all tasks to open")
+    print()
+    print("Task IDs: use numbers (1, 2, 3) for main tasks,")
+    print("          number.letter (1.a, 1.b) for subtasks.")
+    print()
+    print("Integration with BTerminal auto-trigger:")
+    print("  When auto-trigger is ON in BTerminal, completed tasks")
+    print("  automatically advance to the next open task.")
+
+
+if __name__ == "__main__":
+    init_db()
+
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help", "help"):
+        print_help()
+        sys.exit(0)
+
+    cmd = sys.argv[1]
+    if cmd not in COMMANDS:
+        print(f"Unknown command: {cmd}")
+        print_help()
+        sys.exit(1)
+
+    COMMANDS[cmd](sys.argv[2:])

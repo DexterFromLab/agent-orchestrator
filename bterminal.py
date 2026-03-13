@@ -956,7 +956,12 @@ class ClaudeCodeDialog(Gtk.Dialog):
                     f"Przed zakończeniem sesji: ctx summary {basename} \"<co zrobiliśmy>\"\n"
                     f"\n"
                     f"Konsultacje z zewnętrznymi modelami AI (OpenRouter): consult \"pytanie\"\n"
-                    f"Dostępne modele i opcje: consult"
+                    f"Dostępne modele i opcje: consult\n"
+                    f"\n"
+                    f"Dostępne narzędzie 'tasks' — lista zadań zarządzana przez użytkownika.\n"
+                    f"NIE pobieraj ani nie wykonuj zadań z listy samodzielnie.\n"
+                    f"Jeśli system auto-trigger wyśle Ci polecenie z listą zadań — wtedy wykonuj.\n"
+                    f"Pomoc: tasks --help"
                 )
                 buf.set_text(prompt)
             self._update_ctx_status()
@@ -1444,7 +1449,12 @@ class CtxSetupWizard(Gtk.Dialog):
             f'Przed zako\u0144czeniem sesji: ctx summary {name} "<co zrobili\u015bmy>"\n'
             f"\n"
             f"Konsultacje z zewn\u0119trznymi modelami AI (OpenRouter): consult \"pytanie\"\n"
-            f"Dost\u0119pne modele i opcje: consult"
+            f"Dost\u0119pne modele i opcje: consult\n"
+            f"\n"
+            f"Dost\u0119pne narz\u0119dzie 'tasks' \u2014 lista zada\u0144 zarz\u0105dzana przez u\u017cytkownika.\n"
+            f"NIE pobieraj ani nie wykonuj zada\u0144 z listy samodzielnie.\n"
+            f"Je\u015bli system auto-trigger wy\u015ble Ci polecenie z list\u0105 zada\u0144 \u2014 wtedy wykonuj.\n"
+            f"Pomoc: tasks --help"
         )
         self.success = True
         return True
@@ -1791,6 +1801,15 @@ class TerminalTab(Gtk.Box):
         self._tab_label_text = None
         self._pending_macro_timers = []
 
+        # Auto-trigger for task list (Claude Code tabs only)
+        self._task_idle_timer = None
+        self._task_project = None
+        if claude_config:
+            project_dir = claude_config.get("project_dir", "")
+            if project_dir:
+                self._task_project = os.path.basename(project_dir.rstrip("/"))
+            self.terminal.connect("contents-changed", self._on_contents_changed_tasks)
+
         self.show_all()
 
         if claude_config:
@@ -1852,6 +1871,16 @@ class TerminalTab(Gtk.Box):
             flags.append("--dangerously-skip-permissions")
 
         prompt = config.get("prompt", "")
+        # Dynamically inject task instructions if project has tasks support
+        project_dir = config.get("project_dir", "")
+        if prompt and project_dir and "tasks" not in prompt:
+            prompt += (
+                f"\n\n"
+                f"Dost\u0119pne narz\u0119dzie 'tasks' \u2014 lista zada\u0144 zarz\u0105dzana przez u\u017cytkownika.\n"
+                f"NIE pobieraj ani nie wykonuj zada\u0144 z listy samodzielnie.\n"
+                f"Je\u015bli system auto-trigger wy\u015ble Ci polecenie z list\u0105 zada\u0144 \u2014 wtedy wykonuj.\n"
+                f"Pomoc: tasks --help"
+            )
         prompt_arg = ""
         if prompt:
             escaped = prompt.replace("'", "'\\''")
@@ -2012,6 +2041,60 @@ class TerminalTab(Gtk.Box):
                 self.app.update_tab_title(self, self.claude_config.get("name", "Claude Code"))
             else:
                 self.app.update_tab_title(self, title)
+
+    def _on_contents_changed_tasks(self, terminal):
+        """Reset idle timer on every terminal content change (Claude tabs only)."""
+        if self._task_idle_timer:
+            GLib.source_remove(self._task_idle_timer)
+        self._task_idle_timer = GLib.timeout_add_seconds(
+            10, self._on_task_idle_timeout
+        )
+
+    def _on_task_idle_timeout(self):
+        """Called when Claude has been idle for 10 seconds — check for pending tasks."""
+        self._task_idle_timer = None
+        if not self._task_project:
+            return False
+        try:
+            import sqlite3
+            if not os.path.exists(CTX_DB):
+                return False
+            db = sqlite3.connect(CTX_DB)
+            db.row_factory = sqlite3.Row
+
+            # Check autorun flag
+            config = db.execute(
+                "SELECT autorun FROM task_config WHERE project = ?",
+                (self._task_project,),
+            ).fetchone()
+            if not config or not config["autorun"]:
+                db.close()
+                return False
+
+            # Check pending tasks
+            count = db.execute(
+                "SELECT COUNT(*) as c FROM tasks WHERE project = ? AND status = 'open'",
+                (self._task_project,),
+            ).fetchone()
+            db.close()
+
+            if count["c"] == 0:
+                return False
+
+            # Trigger: feed task instruction to Claude Code terminal
+            message = (
+                f"[AUTO-TRIGGER] Sprawd\u017a list\u0119 zada\u0144: tasks context {self._task_project} "
+                f"— wykonaj nast\u0119pne otwarte zadanie, po zako\u0144czeniu oznacz: "
+                f"tasks done {self._task_project} <task_id>\n"
+            )
+            self.terminal.feed_child(message.encode())
+
+            # Refresh task panel if visible
+            if hasattr(self.app, "task_panel"):
+                GLib.idle_add(self.app.task_panel.refresh)
+        except Exception:
+            pass
+        return False
 
     def _paste_clipboard_image_path(self):
         """Save clipboard image to ctx and paste its path into terminal."""
@@ -4859,6 +4942,454 @@ class ConsultPanel(Gtk.Box):
         dlg.destroy()
 
 
+# ─── TaskListPanel ────────────────────────────────────────────────────────────
+
+
+def _ensure_tasks_tables():
+    """Create tasks tables in ctx database if they don't exist."""
+    import sqlite3
+    if not os.path.exists(CTX_DB):
+        return
+    db = sqlite3.connect(CTX_DB)
+    db.executescript("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project TEXT NOT NULL,
+            task_id TEXT NOT NULL,
+            description TEXT NOT NULL,
+            status TEXT DEFAULT 'open',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(project, task_id)
+        );
+        CREATE TABLE IF NOT EXISTS task_config (
+            project TEXT PRIMARY KEY,
+            autorun INTEGER DEFAULT 0
+        );
+    """)
+    db.close()
+
+
+def _task_sort_key(task_id):
+    """Natural sort key for hierarchical task IDs like 1, 1.a, 1.b, 2, 10."""
+    parts = task_id.split(".")
+    result = []
+    for p in parts:
+        try:
+            result.append((0, int(p), ""))
+        except ValueError:
+            result.append((1, 0, p))
+    return result
+
+
+class TaskListPanel(Gtk.Box):
+    """Panel for managing per-project task lists with auto-trigger controls."""
+
+    def __init__(self, app):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.app = app
+
+        # ── Project selector ──
+        proj_box = Gtk.Box(spacing=4)
+        proj_box.set_border_width(6)
+        proj_lbl = Gtk.Label(label="Project:")
+        proj_lbl.set_xalign(0)
+        proj_box.pack_start(proj_lbl, False, False, 0)
+
+        self.project_combo = Gtk.ComboBoxText()
+        self.project_combo.connect("changed", lambda _: self._on_project_changed())
+        proj_box.pack_start(self.project_combo, True, True, 0)
+        self.pack_start(proj_box, False, False, 0)
+
+        # ── Task list (TreeView) ──
+        # Columns: done(bool), task_id(str), description(str), status(str)
+        self.store = Gtk.ListStore(bool, str, str, str)
+        self.tree = Gtk.TreeView(model=self.store)
+        self.tree.set_headers_visible(True)
+
+        # Checkbox column
+        toggle_renderer = Gtk.CellRendererToggle()
+        toggle_renderer.connect("toggled", self._on_task_toggled)
+        col_done = Gtk.TreeViewColumn("", toggle_renderer, active=0)
+        col_done.set_min_width(30)
+        col_done.set_max_width(30)
+        self.tree.append_column(col_done)
+
+        # Task ID column
+        cell_id = Gtk.CellRendererText()
+        col_id = Gtk.TreeViewColumn("ID", cell_id, text=1)
+        col_id.set_min_width(50)
+        col_id.set_max_width(60)
+        self.tree.append_column(col_id)
+
+        # Description column
+        cell_desc = Gtk.CellRendererText()
+        cell_desc.set_property("ellipsize", Pango.EllipsizeMode.END)
+        col_desc = Gtk.TreeViewColumn("Task", cell_desc, text=2)
+        col_desc.set_expand(True)
+        self.tree.append_column(col_desc)
+
+        tree_scroll = Gtk.ScrolledWindow()
+        tree_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        tree_scroll.add(self.tree)
+        self.pack_start(tree_scroll, True, True, 0)
+
+        # ── Auto-trigger controls ──
+        auto_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        auto_box.set_border_width(6)
+
+        self.auto_status = Gtk.Label()
+        self.auto_status.set_xalign(0)
+        self._update_auto_label(False)
+        auto_box.pack_start(self.auto_status, False, False, 0)
+
+        auto_btn_box = Gtk.Box(spacing=4)
+
+        self.btn_start = Gtk.Button(label="\u25b6 Start")
+        self.btn_start.get_style_context().add_class("sidebar-btn")
+        self.btn_start.connect("clicked", lambda _: self._on_autorun_toggle(True))
+        auto_btn_box.pack_start(self.btn_start, True, True, 0)
+
+        self.btn_stop = Gtk.Button(label="\u25a0 Stop")
+        self.btn_stop.get_style_context().add_class("sidebar-btn")
+        self.btn_stop.connect("clicked", lambda _: self._on_autorun_toggle(False))
+        auto_btn_box.pack_start(self.btn_stop, True, True, 0)
+
+        auto_box.pack_start(auto_btn_box, False, False, 0)
+        self.pack_start(auto_box, False, False, 0)
+
+        # ── Task action buttons ──
+        btn_box = Gtk.Box(spacing=4)
+        btn_box.set_border_width(6)
+
+        btn_add = Gtk.Button(label="Add")
+        btn_add.get_style_context().add_class("sidebar-btn")
+        btn_add.connect("clicked", lambda _: self._on_add_task())
+        btn_box.pack_start(btn_add, True, True, 0)
+
+        btn_edit = Gtk.Button(label="Edit")
+        btn_edit.get_style_context().add_class("sidebar-btn")
+        btn_edit.connect("clicked", lambda _: self._on_edit_task())
+        btn_box.pack_start(btn_edit, True, True, 0)
+
+        btn_del = Gtk.Button(label="Delete")
+        btn_del.get_style_context().add_class("sidebar-btn")
+        btn_del.connect("clicked", lambda _: self._on_delete_task())
+        btn_box.pack_start(btn_del, True, True, 0)
+
+        btn_more = Gtk.MenuButton(label="\u22ee")
+        btn_more.get_style_context().add_class("sidebar-btn")
+        btn_more.set_tooltip_text("More actions")
+        more_menu = Gtk.Menu()
+
+        item_clear = Gtk.MenuItem(label="Clear done tasks")
+        item_clear.connect("activate", lambda _: self._on_clear_done())
+        more_menu.append(item_clear)
+
+        item_reset = Gtk.MenuItem(label="Reset all to open")
+        item_reset.connect("activate", lambda _: self._on_reset_all())
+        more_menu.append(item_reset)
+
+        more_menu.show_all()
+        btn_more.set_popup(more_menu)
+        btn_box.pack_start(btn_more, False, False, 0)
+
+        btn_refresh = Gtk.Button(label="\u21bb")
+        btn_refresh.get_style_context().add_class("sidebar-btn")
+        btn_refresh.set_tooltip_text("Refresh")
+        btn_refresh.connect("clicked", lambda _: self.refresh())
+        btn_box.pack_start(btn_refresh, False, False, 0)
+
+        self.pack_start(btn_box, False, False, 0)
+
+        self.refresh()
+
+    def _get_selected_project(self):
+        return self.project_combo.get_active_text()
+
+    def _on_project_changed(self):
+        self._load_tasks()
+        self._load_autorun_state()
+
+    def _update_auto_label(self, active):
+        if active:
+            self.auto_status.set_markup(
+                f'<b><span foreground="{CATPPUCCIN["green"]}">'
+                f'\u25cf Auto-trigger: ON</span></b>'
+            )
+        else:
+            self.auto_status.set_markup(
+                f'<span foreground="{CATPPUCCIN["overlay1"]}">'
+                f'\u25cb Auto-trigger: OFF</span>'
+            )
+
+    def refresh(self):
+        """Reload projects and tasks from database."""
+        _ensure_tasks_tables()
+        self._load_projects()
+        self._load_tasks()
+        self._load_autorun_state()
+
+    def _load_projects(self):
+        current = self._get_selected_project()
+        self.project_combo.remove_all()
+        if not os.path.exists(CTX_DB):
+            return
+        import sqlite3
+        db = sqlite3.connect(CTX_DB)
+        db.row_factory = sqlite3.Row
+        projects = db.execute(
+            "SELECT name FROM sessions ORDER BY name"
+        ).fetchall()
+        db.close()
+        active_idx = 0
+        for i, p in enumerate(projects):
+            self.project_combo.append_text(p["name"])
+            if p["name"] == current:
+                active_idx = i
+        if projects:
+            self.project_combo.set_active(active_idx)
+
+    def _load_tasks(self):
+        self.store.clear()
+        project = self._get_selected_project()
+        if not project or not os.path.exists(CTX_DB):
+            return
+        import sqlite3
+        db = sqlite3.connect(CTX_DB)
+        db.row_factory = sqlite3.Row
+        rows = db.execute(
+            "SELECT task_id, description, status FROM tasks WHERE project = ?",
+            (project,),
+        ).fetchall()
+        db.close()
+        tasks = sorted(rows, key=lambda r: _task_sort_key(r["task_id"]))
+        for t in tasks:
+            done = t["status"] == "done"
+            indent = "  " if "." in t["task_id"] else ""
+            self.store.append([done, t["task_id"], f"{indent}{t['description']}", t["status"]])
+
+    def _load_autorun_state(self):
+        project = self._get_selected_project()
+        if not project or not os.path.exists(CTX_DB):
+            self._update_auto_label(False)
+            return
+        import sqlite3
+        db = sqlite3.connect(CTX_DB)
+        db.row_factory = sqlite3.Row
+        row = db.execute(
+            "SELECT autorun FROM task_config WHERE project = ?", (project,)
+        ).fetchone()
+        db.close()
+        active = bool(row and row["autorun"])
+        self._update_auto_label(active)
+
+    def _on_task_toggled(self, renderer, path):
+        """Toggle task done/undone via checkbox."""
+        project = self._get_selected_project()
+        if not project:
+            return
+        it = self.store.get_iter(path)
+        task_id = self.store[it][1]
+        current_done = self.store[it][0]
+        new_status = "open" if current_done else "done"
+
+        import sqlite3
+        db = sqlite3.connect(CTX_DB)
+        db.execute(
+            """UPDATE tasks SET status = ?, updated_at = datetime('now')
+               WHERE project = ? AND task_id = ?""",
+            (new_status, project, task_id),
+        )
+        db.commit()
+        db.close()
+        self.store[it][0] = not current_done
+        self.store[it][3] = new_status
+
+    def _on_autorun_toggle(self, enable):
+        project = self._get_selected_project()
+        if not project:
+            return
+        import sqlite3
+        db = sqlite3.connect(CTX_DB)
+        db.execute(
+            """INSERT INTO task_config (project, autorun)
+               VALUES (?, ?)
+               ON CONFLICT(project) DO UPDATE SET autorun = excluded.autorun""",
+            (project, 1 if enable else 0),
+        )
+        db.commit()
+        db.close()
+        self._update_auto_label(enable)
+
+    def _on_add_task(self):
+        project = self._get_selected_project()
+        if not project:
+            return
+        dlg = Gtk.Dialog(
+            title="Add Task", transient_for=self.app, modal=True,
+            destroy_with_parent=True,
+        )
+        dlg.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OK, Gtk.ResponseType.OK,
+        )
+        box = dlg.get_content_area()
+        box.set_spacing(8)
+        box.set_border_width(12)
+
+        # Task ID (optional)
+        id_box = Gtk.Box(spacing=4)
+        id_lbl = Gtk.Label(label="Task ID (optional):")
+        id_lbl.set_xalign(0)
+        id_box.pack_start(id_lbl, False, False, 0)
+        id_entry = Gtk.Entry()
+        id_entry.set_placeholder_text("auto")
+        id_entry.set_width_chars(8)
+        id_box.pack_start(id_entry, False, False, 0)
+        box.pack_start(id_box, False, False, 0)
+
+        # Description
+        desc_lbl = Gtk.Label(label="Description:")
+        desc_lbl.set_xalign(0)
+        box.pack_start(desc_lbl, False, False, 0)
+        desc_entry = Gtk.Entry()
+        desc_entry.set_activates_default(True)
+        box.pack_start(desc_entry, False, False, 0)
+
+        dlg.set_default_response(Gtk.ResponseType.OK)
+        dlg.show_all()
+
+        if dlg.run() == Gtk.ResponseType.OK:
+            description = desc_entry.get_text().strip()
+            task_id = id_entry.get_text().strip()
+            if description:
+                import sqlite3
+                db = sqlite3.connect(CTX_DB)
+                db.row_factory = sqlite3.Row
+                if not task_id:
+                    # Auto-assign next number
+                    rows = db.execute(
+                        "SELECT task_id FROM tasks WHERE project = ?", (project,)
+                    ).fetchall()
+                    max_num = 0
+                    for row in rows:
+                        parts = row["task_id"].split(".")
+                        try:
+                            num = int(parts[0])
+                            if num > max_num:
+                                max_num = num
+                        except ValueError:
+                            pass
+                    task_id = str(max_num + 1)
+                try:
+                    db.execute(
+                        """INSERT INTO tasks (project, task_id, description, status)
+                           VALUES (?, ?, ?, 'open')""",
+                        (project, task_id, description),
+                    )
+                    db.commit()
+                except sqlite3.IntegrityError:
+                    pass
+                db.close()
+                self._load_tasks()
+        dlg.destroy()
+
+    def _on_edit_task(self):
+        project = self._get_selected_project()
+        sel = self.tree.get_selection()
+        model, it = sel.get_selected()
+        if not it or not project:
+            return
+        task_id = model[it][1]
+        old_desc = model[it][2].strip()
+
+        dlg = Gtk.Dialog(
+            title="Edit Task", transient_for=self.app, modal=True,
+            destroy_with_parent=True,
+        )
+        dlg.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OK, Gtk.ResponseType.OK,
+        )
+        box = dlg.get_content_area()
+        box.set_spacing(8)
+        box.set_border_width(12)
+
+        lbl = Gtk.Label(label=f"Edit task {task_id}:")
+        lbl.set_xalign(0)
+        box.pack_start(lbl, False, False, 0)
+
+        entry = Gtk.Entry()
+        entry.set_text(old_desc)
+        entry.set_activates_default(True)
+        box.pack_start(entry, False, False, 0)
+
+        dlg.set_default_response(Gtk.ResponseType.OK)
+        dlg.show_all()
+
+        if dlg.run() == Gtk.ResponseType.OK:
+            new_desc = entry.get_text().strip()
+            if new_desc:
+                import sqlite3
+                db = sqlite3.connect(CTX_DB)
+                db.execute(
+                    """UPDATE tasks SET description = ?, updated_at = datetime('now')
+                       WHERE project = ? AND task_id = ?""",
+                    (new_desc, project, task_id),
+                )
+                db.commit()
+                db.close()
+                self._load_tasks()
+        dlg.destroy()
+
+    def _on_delete_task(self):
+        project = self._get_selected_project()
+        sel = self.tree.get_selection()
+        model, it = sel.get_selected()
+        if not it or not project:
+            return
+        task_id = model[it][1]
+        import sqlite3
+        db = sqlite3.connect(CTX_DB)
+        db.execute(
+            "DELETE FROM tasks WHERE project = ? AND task_id = ?",
+            (project, task_id),
+        )
+        db.commit()
+        db.close()
+        self._load_tasks()
+
+    def _on_clear_done(self):
+        project = self._get_selected_project()
+        if not project:
+            return
+        import sqlite3
+        db = sqlite3.connect(CTX_DB)
+        db.execute(
+            "DELETE FROM tasks WHERE project = ? AND status = 'done'",
+            (project,),
+        )
+        db.commit()
+        db.close()
+        self._load_tasks()
+
+    def _on_reset_all(self):
+        project = self._get_selected_project()
+        if not project:
+            return
+        import sqlite3
+        db = sqlite3.connect(CTX_DB)
+        db.execute(
+            """UPDATE tasks SET status = 'open', updated_at = datetime('now')
+               WHERE project = ?""",
+            (project,),
+        )
+        db.commit()
+        db.close()
+        self._load_tasks()
+
+
 # ─── BTerminalApp ─────────────────────────────────────────────────────────────
 
 
@@ -4910,6 +5441,9 @@ class BTerminalApp(Gtk.Window):
         self.consult_panel = ConsultPanel(self)
         self.sidebar_stack.add_titled(self.consult_panel, "consult", "Consult")
 
+        self.task_panel = TaskListPanel(self)
+        self.sidebar_stack.add_titled(self.task_panel, "tasks", "Tasks")
+
         switcher = Gtk.StackSwitcher()
         switcher.set_stack(self.sidebar_stack)
         switcher.set_halign(Gtk.Align.FILL)
@@ -4936,6 +5470,8 @@ class BTerminalApp(Gtk.Window):
                 self.ctx_panel.refresh()
             elif child is self.consult_panel:
                 self.consult_panel.refresh()
+            elif child is self.task_panel:
+                self.task_panel.refresh()
 
         self.sidebar_stack.connect("notify::visible-child", _on_sidebar_switch)
 
