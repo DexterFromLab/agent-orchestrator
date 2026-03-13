@@ -86,7 +86,7 @@ SESSION_COLORS = [
 ]
 
 KEY_MAP = {
-    "Enter": "\n",
+    "Enter": "\r",
     "Tab": "\t",
     "Escape": "\x1b",
     "Ctrl+C": "\x03",
@@ -2108,7 +2108,7 @@ class TerminalTab(Gtk.Box):
             message = (
                 f"[AUTO-TRIGGER] Sprawd\u017a list\u0119 zada\u0144: tasks context {self._task_project} "
                 f"— wykonaj nast\u0119pne otwarte zadanie, po zako\u0144czeniu oznacz: "
-                f"tasks done {self._task_project} <task_id>\n"
+                f"tasks done {self._task_project} <task_id>\r"
             )
             self.terminal.feed_child(message.encode())
 
@@ -5126,8 +5126,19 @@ class TaskListPanel(Gtk.Box):
         self.pack_start(btn_box, False, False, 0)
 
         self._db_mtime = 0
+        self._reset_all_autorun()
         self.refresh()
         GLib.timeout_add(2000, self._poll_db_changes)
+
+    def _reset_all_autorun(self):
+        """Reset all autorun flags on startup so auto-trigger is always OFF."""
+        if not os.path.exists(CTX_DB):
+            return
+        import sqlite3
+        db = sqlite3.connect(CTX_DB)
+        db.execute("UPDATE task_config SET autorun = 0 WHERE autorun = 1")
+        db.commit()
+        db.close()
 
     def _poll_db_changes(self):
         """Check if ctx database mtime changed and refresh if so."""
@@ -5289,7 +5300,7 @@ class TaskListPanel(Gtk.Box):
                 message = (
                     f"[AUTO-TRIGGER] Sprawdź listę zadań: tasks context {project} "
                     f"— wykonaj następne otwarte zadanie, po zakończeniu oznacz: "
-                    f"tasks done {project} <task_id>\n"
+                    f"tasks done {project} <task_id>\r"
                 )
                 tab.terminal.feed_child(message.encode())
                 return
