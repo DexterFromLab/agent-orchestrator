@@ -35,6 +35,11 @@ GTK 3 terminal with SSH & Claude Code session management, macros, cross-session 
 - **Ctx Setup Wizard** — step-by-step project setup with auto-detection from README and CLAUDE.md generation
 - **Import / Export** — selective import and export of projects, entries, summaries and shared context via JSON with checkbox tree UI
 
+## Requirements
+
+- **Claude Code** — active Claude subscription (Max or Pro plan) with Claude Code CLI installed
+- **OpenRouter account** *(optional)* — required only for the Consult feature; needs API credits on [openrouter.ai](https://openrouter.ai)
+
 ## Installation
 
 ```bash
