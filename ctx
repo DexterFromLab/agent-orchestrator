@@ -94,10 +94,18 @@ def cmd_init(args):
     name, desc = args[0], args[1]
     work_dir = args[2] if len(args) > 2 else None
     db = get_db()
-    db.execute(
-        "INSERT OR REPLACE INTO sessions (name, description, work_dir) VALUES (?, ?, ?)",
-        (name, desc, work_dir),
-    )
+    if work_dir is not None:
+        db.execute(
+            "INSERT INTO sessions (name, description, work_dir) VALUES (?, ?, ?) "
+            "ON CONFLICT(name) DO UPDATE SET description = excluded.description, work_dir = excluded.work_dir",
+            (name, desc, work_dir),
+        )
+    else:
+        db.execute(
+            "INSERT INTO sessions (name, description) VALUES (?, ?) "
+            "ON CONFLICT(name) DO UPDATE SET description = excluded.description",
+            (name, desc),
+        )
     db.commit()
     db.close()
     print(f"Project '{name}' registered.")
