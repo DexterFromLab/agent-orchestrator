@@ -110,6 +110,16 @@ See [phases.md](phases.md) for the full phased implementation plan.
 - **Post-MVP:** Phases 5-7 (agent tree, polish, packaging, agent teams)
 - **Multi-Machine:** Phases A-D (bterminal-core extraction, relay binary, RemoteManager, frontend)
 
+## Related Documentation
+
+For the current (v3) architecture, see these documents which supersede parts of this v2 plan:
+
+- **[architecture.md](architecture.md)** — End-to-end system architecture (Rust backend, Svelte frontend, sidecar layer)
+- **[sidecar.md](sidecar.md)** — Multi-provider sidecar architecture (Claude, Codex, Ollama runners)
+- **[orchestration.md](orchestration.md)** — Multi-agent orchestration (btmsg, bttask, wake scheduler)
+- **[production.md](production.md)** — Production hardening features (supervisor, sandbox, search, plugins, secrets)
+- **[v3-task_plan.md](v3-task_plan.md)** — v3 Mission Control architecture decisions
+
 ---
 
 ## Decisions Log

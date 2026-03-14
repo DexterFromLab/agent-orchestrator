@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Comprehensive documentation suite** — 4 new docs: `architecture.md` (end-to-end system architecture with component hierarchy, data flow, IPC patterns), `sidecar.md` (multi-provider runner lifecycle, env stripping, NDJSON protocol, build pipeline), `orchestration.md` (btmsg messaging, bttask kanban, agent roles, wake scheduler, session anchors, health monitoring), `production.md` (sidecar supervisor, Landlock sandbox, FTS5 search, plugin system, secrets management, notifications, audit logging, error classification, telemetry)
 - **Sidecar crash recovery/supervision** — `bterminal-core/src/supervisor.rs`: SidecarSupervisor wraps SidecarManager with auto-restart, exponential backoff (1s base, 30s cap, 5 retries), SidecarHealth enum (Healthy/Degraded/Failed), 5min stability window. 17 tests
 - **Notification system** — OS desktop notifications via `notify-rust` + in-app NotificationCenter.svelte (bell icon, unread badge, history max 100, 6 notification types). Agent dispatcher emits on complete/error/crash. notifications-bridge.ts adapter
 - **Secrets management** — `keyring` crate with linux-native (libsecret). SecretsManager in secrets.rs: store/get/delete/list with `__bterminal_keys__` metadata tracking. SettingsTab Secrets section. secrets-bridge.ts adapter. No plaintext fallback
