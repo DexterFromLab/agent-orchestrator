@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control (All Phases 1-10 Complete + Production Readiness): multi-project dashboard with project groups, per-project Claude sessions with session continuity, team agents panel, terminal tabs, VSCode-style left sidebar, multi-agent orchestration (Tier 1 management agents: Manager/Architect/Tester/Reviewer with role-specific tabs, btmsg inter-agent messaging, bttask kanban task board with optimistic locking). Production features: sidecar crash recovery/supervision, FTS5 full-text search, plugin system (sandboxed, 35 tests), Landlock sandboxing, secrets management (system keyring), OS + in-app notifications, keyboard-first UX (18+ palette commands), agent health monitoring + dead letter queue, audit logging, error classification. Hardening: TLS relay support, WAL checkpoint (5min), subagent delegation fix.
+Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Python) is production-stable. v2 redesign (Tauri 2.x + Svelte 5 + Claude Agent SDK) Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Packaging: .deb + AppImage via GitHub Actions CI. v3 Mission Control (All Phases 1-10 Complete + Production Readiness): multi-project dashboard with project groups, per-project Claude sessions with session continuity, team agents panel, terminal tabs, VSCode-style left sidebar, multi-agent orchestration (Tier 1 management agents: Manager/Architect/Tester/Reviewer with role-specific tabs, btmsg inter-agent messaging, bttask kanban task board with optimistic locking). Production features: sidecar crash recovery/supervision, FTS5 full-text search, plugin system (sandboxed, 35 tests), Landlock sandboxing, secrets management (system keyring), OS + in-app notifications, keyboard-first UX (18+ palette commands), agent health monitoring + dead letter queue, audit logging, error classification. Hardening: TLS relay support, SPKI certificate pinning (TOFU), WAL checkpoint (5min), subagent delegation fix, SidecarManager actor pattern (mpsc), per-message btmsg acknowledgment (seen_messages), Aider autonomous mode toggle.
 
 - **Repository:** github.com/DexterFromLab/BTerminal
 - **License:** MIT
@@ -149,6 +149,8 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `v2/sidecar/claude-runner.ts` | Claude sidecar source (compiled to .mjs by esbuild, includes findClaudeCli()) |
 | `v2/sidecar/codex-runner.ts` | Codex sidecar source (@openai/codex-sdk dynamic import, sandbox/approval mapping) |
 | `v2/sidecar/ollama-runner.ts` | Ollama sidecar source (direct HTTP to localhost:11434, zero external deps) |
+| `v2/sidecar/aider-parser.ts` | Aider output parser (pure functions: looksLikePrompt, parseTurnOutput, extractSessionCost, execShell) |
+| `v2/sidecar/aider-parser.test.ts` | Vitest tests for Aider parser (72 tests: prompt detection, turn parsing, cost extraction, format-drift canaries) |
 | `v2/sidecar/agent-runner-deno.ts` | Standalone Deno sidecar runner (not used by SidecarManager, alternative) |
 | `v2/sidecar/dist/claude-runner.mjs` | Bundled Claude sidecar (runs on both Deno and Node.js) |
 | `v2/src/lib/adapters/claude-messages.test.ts` | Vitest tests for Claude message adapter (25 tests) |

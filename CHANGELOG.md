@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Aider autonomous mode toggle** — per-project `autonomousMode` setting ('restricted'|'autonomous') gates shell command execution in Aider sidecar. Default restricted. SettingsTab toggle
+- **SPKI certificate pinning (TOFU)** — `remote_probe_spki` Tauri command + `probe_spki_hash()` extracts relay TLS certificate SPKI hash. `remote_add_pin`/`remote_remove_pin` commands. In-memory pin store in RemoteManager
+- **Per-message btmsg acknowledgment** — `seen_messages` table with session-scoped tracking replaces count-based polling. `btmsg_unseen_messages`, `btmsg_mark_seen`, `btmsg_prune_seen` commands. ON DELETE CASCADE cleanup
+- **Aider parser test suite** — 72 vitest tests for extracted `aider-parser.ts` (pure parsing functions). 8 realistic Aider output fixtures. Covers prompt detection, suppression, turn parsing, cost extraction, shell execution, format-drift canaries
+- **Dead code wiring** — 4 orphaned Rust functions wired as Tauri commands: `btmsg_get_agent_heartbeats`, `btmsg_queue_dead_letter`, `search_index_task`, `search_index_btmsg`
+
+### Changed
+- **SidecarManager actor refactor** — replaced `Arc<Mutex<HashMap>>` with dedicated actor thread via `std::sync::mpsc` channel. Eliminates TOCTOU race conditions on session lifecycle. All mutable state owned by single thread
+- **Aider parser extraction** — pure functions (`looksLikePrompt`, `parseTurnOutput`, `extractSessionCost`, etc.) extracted from `aider-runner.ts` to `aider-parser.ts` for testability. Runner imports from parser module
+
+### Fixed
+- **groups.rs test failure** — `test_groups_roundtrip` missing 9 Option fields added in P1-P10 (provider, model, use_worktrees, sandbox_enabled, anchor_budget_scale, stall_threshold_min, is_agent, agent_role, system_prompt)
+- **remote_probe_spki tracing skip mismatch** — `#[tracing::instrument(skip(state))]` referenced non-existent parameter name. Removed unused State parameter
+
+### Added
 - **Comprehensive documentation suite** — 4 new docs: `architecture.md` (end-to-end system architecture with component hierarchy, data flow, IPC patterns), `sidecar.md` (multi-provider runner lifecycle, env stripping, NDJSON protocol, build pipeline), `orchestration.md` (btmsg messaging, bttask kanban, agent roles, wake scheduler, session anchors, health monitoring), `production.md` (sidecar supervisor, Landlock sandbox, FTS5 search, plugin system, secrets management, notifications, audit logging, error classification, telemetry)
 - **Sidecar crash recovery/supervision** — `bterminal-core/src/supervisor.rs`: SidecarSupervisor wraps SidecarManager with auto-restart, exponential backoff (1s base, 30s cap, 5 retries), SidecarHealth enum (Healthy/Degraded/Failed), 5min stability window. 17 tests
 - **Notification system** — OS desktop notifications via `notify-rust` + in-app NotificationCenter.svelte (bell icon, unread badge, history max 100, 6 notification types). Agent dispatcher emits on complete/error/crash. notifications-bridge.ts adapter

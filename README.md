@@ -52,7 +52,7 @@ Agent Orchestrator lets you run multiple Claude Code agents in parallel, organiz
 - **ctx integration** — SQLite context database for cross-session memory
 
 ### Testing
-- **444 vitest** + **151 cargo** + **109 E2E** tests
+- **516 vitest** + **159 cargo** + **109 E2E** tests
 - **E2E engine** — WebDriverIO + tauri-driver, Phase A/B/C scenarios
 - **LLM judge** — dual-mode CLI/API for semantic assertion (claude-haiku)
 - **CI** — GitHub Actions with xvfb + LLM-judged test gating
