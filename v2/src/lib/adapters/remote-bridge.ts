@@ -8,6 +8,8 @@ export interface RemoteMachineConfig {
   url: string;
   token: string;
   auto_connect: boolean;
+  /** SPKI SHA-256 pin(s) for certificate verification. Empty = TOFU on first connect. */
+  spki_pins?: string[];
 }
 
 export interface RemoteMachineInfo {
@@ -16,6 +18,8 @@ export interface RemoteMachineInfo {
   url: string;
   status: string;
   auto_connect: boolean;
+  /** Currently stored SPKI pin hashes (hex-encoded SHA-256) */
+  spki_pins: string[];
 }
 
 // --- Machine management ---
@@ -38,6 +42,23 @@ export async function connectRemoteMachine(machineId: string): Promise<void> {
 
 export async function disconnectRemoteMachine(machineId: string): Promise<void> {
   return invoke('remote_disconnect', { machineId });
+}
+
+// --- SPKI certificate pinning ---
+
+/** Probe a relay server's TLS certificate and return its SHA-256 hash (hex-encoded). */
+export async function probeSpki(url: string): Promise<string> {
+  return invoke('remote_probe_spki', { url });
+}
+
+/** Add an SPKI pin hash to a machine's trusted pins. */
+export async function addSpkiPin(machineId: string, pin: string): Promise<void> {
+  return invoke('remote_add_pin', { machineId, pin });
+}
+
+/** Remove an SPKI pin hash from a machine's trusted pins. */
+export async function removeSpkiPin(machineId: string, pin: string): Promise<void> {
+  return invoke('remote_remove_pin', { machineId, pin });
 }
 
 // --- Remote event listeners ---
@@ -138,6 +159,22 @@ export async function onRemoteMachineReconnectReady(
   callback: (msg: RemoteMachineEvent) => void,
 ): Promise<UnlistenFn> {
   return listen<RemoteMachineEvent>('remote-machine-reconnect-ready', (event) => {
+    callback(event.payload);
+  });
+}
+
+// --- SPKI TOFU event ---
+
+export interface RemoteSpkiTofuEvent {
+  machineId: string;
+  hash: string;
+}
+
+/** Listen for TOFU (Trust On First Use) events when a new SPKI pin is auto-stored. */
+export async function onRemoteSpkiTofu(
+  callback: (msg: RemoteSpkiTofuEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<RemoteSpkiTofuEvent>('remote-spki-tofu', (event) => {
     callback(event.payload);
   });
 }

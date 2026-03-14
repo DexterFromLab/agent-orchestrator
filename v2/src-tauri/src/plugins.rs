@@ -3,7 +3,7 @@
 // Each plugin lives in its own subdirectory with a plugin.json manifest.
 
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Plugin manifest — parsed from plugin.json
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,11 +137,6 @@ pub fn read_plugin_file(
         .map_err(|e| format!("Failed to read plugin file: {e}"))
 }
 
-/// Get the plugins directory path from a config directory
-pub fn plugins_dir(config_dir: &Path) -> PathBuf {
-    config_dir.join("plugins")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -257,9 +252,4 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_plugins_dir_path() {
-        let config = Path::new("/home/user/.config/bterminal");
-        assert_eq!(plugins_dir(config), PathBuf::from("/home/user/.config/bterminal/plugins"));
-    }
 }

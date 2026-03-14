@@ -89,6 +89,7 @@ impl SearchDb {
     }
 
     /// Index a task into the search_tasks FTS5 table.
+    #[allow(dead_code)] // Called via Tauri IPC command search_index_task
     pub fn index_task(
         &self,
         task_id: &str,
@@ -108,6 +109,7 @@ impl SearchDb {
     }
 
     /// Index a btmsg message into the search_btmsg FTS5 table.
+    #[allow(dead_code)] // Called via Tauri IPC command search_index_btmsg
     pub fn index_btmsg(
         &self,
         msg_id: &str,
@@ -264,7 +266,6 @@ fn chrono_now() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     fn temp_search_db() -> (SearchDb, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();

@@ -26,6 +26,7 @@ pub struct MemoraDb {
 }
 
 impl MemoraDb {
+    #[cfg(test)]
     fn default_db_path() -> std::path::PathBuf {
         dirs::data_dir()
             .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".local/share"))
@@ -33,6 +34,7 @@ impl MemoraDb {
             .join("memories.db")
     }
 
+    #[cfg(test)]
     pub fn new() -> Self {
         Self::new_with_path(Self::default_db_path())
     }

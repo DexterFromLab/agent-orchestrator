@@ -78,6 +78,23 @@ pub fn btmsg_register_agents(config: groups::GroupsFile) -> Result<(), String> {
     btmsg::register_agents_from_groups(&config)
 }
 
+// ---- Per-message acknowledgment (seen_messages) ----
+
+#[tauri::command]
+pub fn btmsg_unseen_messages(agent_id: String, session_id: String) -> Result<Vec<btmsg::BtmsgMessage>, String> {
+    btmsg::unseen_messages(&agent_id, &session_id)
+}
+
+#[tauri::command]
+pub fn btmsg_mark_seen(session_id: String, message_ids: Vec<String>) -> Result<(), String> {
+    btmsg::mark_messages_seen(&session_id, &message_ids)
+}
+
+#[tauri::command]
+pub fn btmsg_prune_seen() -> Result<u64, String> {
+    btmsg::prune_seen_messages(7 * 24 * 3600, 200_000)
+}
+
 // ---- Heartbeat monitoring ----
 
 #[tauri::command]
@@ -90,6 +107,11 @@ pub fn btmsg_get_stale_agents(group_id: String, threshold_secs: i64) -> Result<V
     btmsg::get_stale_agents(&group_id, threshold_secs)
 }
 
+#[tauri::command]
+pub fn btmsg_get_agent_heartbeats(group_id: String) -> Result<Vec<btmsg::AgentHeartbeat>, String> {
+    btmsg::get_agent_heartbeats(&group_id)
+}
+
 // ---- Dead letter queue ----
 
 #[tauri::command]
@@ -100,6 +122,16 @@ pub fn btmsg_get_dead_letters(group_id: String, limit: i32) -> Result<Vec<btmsg:
 #[tauri::command]
 pub fn btmsg_clear_dead_letters(group_id: String) -> Result<(), String> {
     btmsg::clear_dead_letters(&group_id)
+}
+
+#[tauri::command]
+pub fn btmsg_queue_dead_letter(
+    from_agent: String,
+    to_agent: String,
+    content: String,
+    error: String,
+) -> Result<(), String> {
+    btmsg::queue_dead_letter(&from_agent, &to_agent, &content, &error)
 }
 
 // ---- Audit log ----

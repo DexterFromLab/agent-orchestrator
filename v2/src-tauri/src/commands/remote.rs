@@ -1,6 +1,6 @@
 use tauri::State;
 use crate::AppState;
-use crate::remote::{RemoteMachineConfig, RemoteMachineInfo};
+use crate::remote::{self, RemoteMachineConfig, RemoteMachineInfo};
 use crate::pty::PtyOptions;
 use crate::sidecar::AgentQueryOptions;
 
@@ -62,4 +62,24 @@ pub async fn remote_pty_resize(state: State<'_, AppState>, machine_id: String, i
 #[tauri::command]
 pub async fn remote_pty_kill(state: State<'_, AppState>, machine_id: String, id: String) -> Result<(), String> {
     state.remote_manager.pty_kill(&machine_id, &id).await
+}
+
+// --- SPKI certificate pinning ---
+
+#[tauri::command]
+#[tracing::instrument]
+pub async fn remote_probe_spki(url: String) -> Result<String, String> {
+    remote::probe_spki_hash(&url).await
+}
+
+#[tauri::command]
+#[tracing::instrument(skip(state))]
+pub async fn remote_add_pin(state: State<'_, AppState>, machine_id: String, pin: String) -> Result<(), String> {
+    state.remote_manager.add_spki_pin(&machine_id, pin).await
+}
+
+#[tauri::command]
+#[tracing::instrument(skip(state))]
+pub async fn remote_remove_pin(state: State<'_, AppState>, machine_id: String, pin: String) -> Result<(), String> {
+    state.remote_manager.remove_spki_pin(&machine_id, &pin).await
 }

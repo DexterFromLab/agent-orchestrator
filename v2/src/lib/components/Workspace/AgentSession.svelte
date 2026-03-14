@@ -27,7 +27,7 @@
   import { getProvider, getDefaultProviderId } from '../../providers/registry.svelte';
   import { loadAnchorsForProject } from '../../stores/anchors.svelte';
   import { getSecret } from '../../adapters/secrets-bridge';
-  import { getUnreadCount } from '../../adapters/btmsg-bridge';
+  import { getUnseenMessages, markMessagesSeen } from '../../adapters/btmsg-bridge';
   import { getWakeEvent, consumeWakeEvent, updateManagerSession } from '../../stores/wake-scheduler.svelte';
   import { SessionId, ProjectId } from '../../types/ids';
   import AgentPane from '../Agent/AgentPane.svelte';
@@ -161,26 +161,35 @@ bttask comment <task-id> "update"  # Add a comment
     stopAgent(sessionId).catch(() => {});
   });
 
-  // btmsg inbox polling — auto-wake agent when it receives messages from other agents
+  // btmsg inbox polling — per-message acknowledgment wake mechanism
+  // Uses seen_messages table for per-session tracking instead of global unread count.
+  // Every unseen message triggers exactly one wake, regardless of timing.
   let msgPollTimer: ReturnType<typeof setInterval> | null = null;
-  let lastKnownUnread = 0;
 
   function startMsgPoll() {
     if (msgPollTimer) clearInterval(msgPollTimer);
     msgPollTimer = setInterval(async () => {
       if (contextRefreshPrompt) return; // Don't queue if already has a pending prompt
       try {
-        const count = await getUnreadCount(project.id as unknown as AgentId);
-        if (count > 0 && count > lastKnownUnread) {
-          lastKnownUnread = count;
-          contextRefreshPrompt = `[New Message] You have ${count} unread message(s). Check your inbox with \`btmsg inbox\` and respond appropriately.`;
+        const unseen = await getUnseenMessages(
+          project.id as unknown as AgentId,
+          sessionId,
+        );
+        if (unseen.length > 0) {
+          // Build a prompt with the actual message contents
+          const msgSummary = unseen.map(m =>
+            `From ${m.senderName ?? m.fromAgent} (${m.senderRole ?? 'unknown'}): ${m.content}`
+          ).join('\n');
+          contextRefreshPrompt = `[New Messages] You have ${unseen.length} unread message(s):\n\n${msgSummary}\n\nRespond appropriately using \`btmsg send <agent-id> "reply"\`.`;
+
+          // Mark as seen immediately to prevent re-injection
+          await markMessagesSeen(sessionId, unseen.map(m => m.id));
+
           logAuditEvent(
             project.id as unknown as AgentId,
             'wake_event',
-            `Agent woken by ${count} unread btmsg message(s)`,
+            `Agent woken by ${unseen.length} btmsg message(s)`,
           ).catch(() => {});
-        } else if (count === 0) {
-          lastKnownUnread = 0;
         }
       } catch {
         // btmsg not available, ignore
@@ -345,6 +354,7 @@ bttask comment <task-id> "update"  # Add a comment
       agentSystemPrompt={agentPrompt}
       model={project.model}
       extraEnv={agentEnv}
+      autonomousMode={project.autonomousMode}
       autoPrompt={contextRefreshPrompt}
       onautopromptconsumed={handleAutoPromptConsumed}
       onExit={handleNewSession}

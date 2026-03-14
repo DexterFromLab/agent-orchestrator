@@ -28,6 +28,7 @@ pub struct CtxDb {
 }
 
 impl CtxDb {
+    #[cfg(test)]
     fn default_db_path() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_default()
@@ -35,6 +36,7 @@ impl CtxDb {
             .join("context.db")
     }
 
+    #[cfg(test)]
     pub fn new() -> Self {
         Self::new_with_path(Self::default_db_path())
     }

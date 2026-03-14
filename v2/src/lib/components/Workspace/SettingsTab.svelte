@@ -1152,6 +1152,27 @@
 
             <div class="card-field">
               <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Shell Execution
+              </span>
+              <div class="wake-strategy-row">
+                <button
+                  class="strategy-btn"
+                  class:active={!agent.autonomousMode || agent.autonomousMode === 'restricted'}
+                  title="Shell commands are shown but not auto-executed"
+                  onclick={() => updateAgent(activeGroupId, agent.id, { autonomousMode: 'restricted' })}
+                >Restricted</button>
+                <button
+                  class="strategy-btn"
+                  class:active={agent.autonomousMode === 'autonomous'}
+                  title="Shell commands are auto-executed with audit logging"
+                  onclick={() => updateAgent(activeGroupId, agent.id, { autonomousMode: 'autonomous' })}
+                >Autonomous</button>
+              </div>
+            </div>
+
+            <div class="card-field">
+              <span class="card-field-label">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                 Custom Context
               </span>
@@ -1438,6 +1459,27 @@
                 />
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
               </label>
+            </div>
+
+            <div class="card-field">
+              <span class="card-field-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Shell Execution
+              </span>
+              <div class="wake-strategy-row">
+                <button
+                  class="strategy-btn"
+                  class:active={!project.autonomousMode || project.autonomousMode === 'restricted'}
+                  title="Shell commands are shown but not auto-executed"
+                  onclick={() => updateProject(activeGroupId, project.id, { autonomousMode: 'restricted' })}
+                >Restricted</button>
+                <button
+                  class="strategy-btn"
+                  class:active={project.autonomousMode === 'autonomous'}
+                  title="Shell commands are auto-executed with audit logging"
+                  onclick={() => updateProject(activeGroupId, project.id, { autonomousMode: 'autonomous' })}
+                >Autonomous</button>
+              </div>
             </div>
 
             <div class="card-field">

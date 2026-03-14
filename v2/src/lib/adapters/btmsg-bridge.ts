@@ -169,6 +169,29 @@ export async function registerAgents(config: import('../types/groups').GroupsFil
   return invoke('btmsg_register_agents', { config });
 }
 
+// ---- Per-message acknowledgment (seen_messages) ----
+
+/**
+ * Get messages not yet seen by this session (per-session tracking).
+ */
+export async function getUnseenMessages(agentId: AgentId, sessionId: string): Promise<BtmsgMessage[]> {
+  return invoke('btmsg_unseen_messages', { agentId, sessionId });
+}
+
+/**
+ * Mark specific message IDs as seen by this session.
+ */
+export async function markMessagesSeen(sessionId: string, messageIds: string[]): Promise<void> {
+  return invoke('btmsg_mark_seen', { sessionId, messageIds });
+}
+
+/**
+ * Prune old seen_messages entries (7-day default, emergency 3-day at 200k rows).
+ */
+export async function pruneSeen(): Promise<number> {
+  return invoke('btmsg_prune_seen');
+}
+
 // ---- Heartbeat monitoring ----
 
 /**

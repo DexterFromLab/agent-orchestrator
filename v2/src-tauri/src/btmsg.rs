@@ -35,6 +35,25 @@ fn open_db() -> Result<Connection, String> {
         .map_err(|e| format!("Failed to set WAL mode: {e}"))?;
     conn.query_row("PRAGMA busy_timeout = 5000", [], |_| Ok(()))
         .map_err(|e| format!("Failed to set busy_timeout: {e}"))?;
+    conn.execute_batch("PRAGMA foreign_keys = ON")
+        .map_err(|e| format!("Failed to enable foreign keys: {e}"))?;
+
+    // Migration: add seen_messages table if not present
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS seen_messages (
+            session_id TEXT NOT NULL,
+            message_id TEXT NOT NULL,
+            seen_at INTEGER NOT NULL DEFAULT (unixepoch()),
+            PRIMARY KEY (session_id, message_id),
+            FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_seen_messages_session ON seen_messages(session_id);"
+    ).map_err(|e| format!("Migration error (seen_messages): {e}"))?;
+
+    // Migration: add sender_group_id column to messages if not present
+    // SQLite ALTER TABLE ADD COLUMN is a no-op if column already exists (errors silently)
+    let _ = conn.execute_batch("ALTER TABLE messages ADD COLUMN sender_group_id TEXT");
+
     Ok(conn)
 }
 
@@ -161,6 +180,79 @@ pub fn unread_messages(agent_id: &str) -> Result<Vec<BtmsgMessage>, String> {
     msgs.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {e}"))
 }
 
+/// Get messages that have not been seen by this session.
+/// Unlike unread_messages (which uses the global `read` flag),
+/// this tracks per-session acknowledgment via the seen_messages table.
+pub fn unseen_messages(agent_id: &str, session_id: &str) -> Result<Vec<BtmsgMessage>, String> {
+    let db = open_db()?;
+    let mut stmt = db.prepare(
+        "SELECT m.id, m.from_agent, m.to_agent, m.content, m.read, m.reply_to, m.created_at, \
+         a.name AS sender_name, a.role AS sender_role \
+         FROM messages m \
+         LEFT JOIN agents a ON a.id = m.from_agent \
+         WHERE m.to_agent = ?1 \
+           AND m.id NOT IN (SELECT message_id FROM seen_messages WHERE session_id = ?2) \
+         ORDER BY m.created_at ASC"
+    ).map_err(|e| format!("Prepare unseen query: {e}"))?;
+
+    let rows = stmt.query_map(params![agent_id, session_id], |row| {
+        Ok(BtmsgMessage {
+            id: row.get("id")?,
+            from_agent: row.get("from_agent")?,
+            to_agent: row.get("to_agent")?,
+            content: row.get("content")?,
+            read: row.get::<_, i32>("read")? != 0,
+            reply_to: row.get("reply_to")?,
+            created_at: row.get("created_at")?,
+            sender_name: row.get("sender_name")?,
+            sender_role: row.get("sender_role")?,
+        })
+    }).map_err(|e| format!("Query unseen: {e}"))?;
+
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {e}"))
+}
+
+/// Mark specific message IDs as seen by this session.
+pub fn mark_messages_seen(session_id: &str, message_ids: &[String]) -> Result<(), String> {
+    if message_ids.is_empty() {
+        return Ok(());
+    }
+    let db = open_db()?;
+    let mut stmt = db.prepare(
+        "INSERT OR IGNORE INTO seen_messages (session_id, message_id) VALUES (?1, ?2)"
+    ).map_err(|e| format!("Prepare mark_seen: {e}"))?;
+
+    for id in message_ids {
+        stmt.execute(params![session_id, id])
+            .map_err(|e| format!("Insert seen: {e}"))?;
+    }
+    Ok(())
+}
+
+/// Prune seen_messages entries older than the given threshold.
+/// Uses emergency aggressive pruning (3 days) when row count exceeds the threshold.
+pub fn prune_seen_messages(max_age_secs: i64, emergency_threshold: i64) -> Result<u64, String> {
+    let db = open_db()?;
+
+    let count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM seen_messages", [], |row| row.get(0)
+    ).map_err(|e| format!("Count seen: {e}"))?;
+
+    let threshold_secs = if count > emergency_threshold {
+        // Emergency: prune more aggressively (3 days instead of configured max)
+        max_age_secs.min(3 * 24 * 3600)
+    } else {
+        max_age_secs
+    };
+
+    let deleted = db.execute(
+        "DELETE FROM seen_messages WHERE seen_at < unixepoch() - ?1",
+        params![threshold_secs],
+    ).map_err(|e| format!("Prune seen: {e}"))?;
+
+    Ok(deleted as u64)
+}
+
 pub fn history(agent_id: &str, other_id: &str, limit: i32) -> Result<Vec<BtmsgMessage>, String> {
     let db = open_db()?;
     let mut stmt = db.prepare(
@@ -254,7 +346,8 @@ pub fn send_message(from_agent: &str, to_agent: &str, content: &str) -> Result<S
 
     let msg_id = uuid::Uuid::new_v4().to_string();
     db.execute(
-        "INSERT INTO messages (id, from_agent, to_agent, content, group_id) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO messages (id, from_agent, to_agent, content, group_id, sender_group_id) \
+         VALUES (?1, ?2, ?3, ?4, ?5, (SELECT group_id FROM agents WHERE id = ?2))",
         params![msg_id, from_agent, to_agent, content, group_id],
     ).map_err(|e| format!("Insert error: {e}"))?;
 
@@ -518,6 +611,7 @@ fn open_db_or_create() -> Result<Connection, String> {
             read INTEGER DEFAULT 0,
             reply_to TEXT,
             group_id TEXT NOT NULL,
+            sender_group_id TEXT,
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (from_agent) REFERENCES agents(id),
             FOREIGN KEY (to_agent) REFERENCES agents(id)
@@ -619,14 +713,28 @@ fn open_db_or_create() -> Result<Connection, String> {
         );
 
         CREATE INDEX IF NOT EXISTS idx_audit_log_agent ON audit_log(agent_id);
-        CREATE INDEX IF NOT EXISTS idx_audit_log_type ON audit_log(event_type);"
+        CREATE INDEX IF NOT EXISTS idx_audit_log_type ON audit_log(event_type);
+
+        CREATE TABLE IF NOT EXISTS seen_messages (
+            session_id TEXT NOT NULL,
+            message_id TEXT NOT NULL,
+            seen_at INTEGER NOT NULL DEFAULT (unixepoch()),
+            PRIMARY KEY (session_id, message_id),
+            FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_seen_messages_session ON seen_messages(session_id);"
     ).map_err(|e| format!("Schema creation error: {e}"))?;
+
+    // Enable foreign keys for ON DELETE CASCADE support
+    conn.execute_batch("PRAGMA foreign_keys = ON")
+        .map_err(|e| format!("Failed to enable foreign keys: {e}"))?;
 
     Ok(conn)
 }
 
 // ---- Heartbeat monitoring ----
 
+#[allow(dead_code)] // Constructed in get_agent_heartbeats, called via Tauri IPC
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentHeartbeat {
@@ -651,6 +759,7 @@ pub fn record_heartbeat(agent_id: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(dead_code)] // Called via Tauri IPC command btmsg_get_agent_heartbeats
 pub fn get_agent_heartbeats(group_id: &str) -> Result<Vec<AgentHeartbeat>, String> {
     let db = open_db()?;
     let mut stmt = db
@@ -713,21 +822,6 @@ pub struct DeadLetter {
     pub created_at: String,
 }
 
-pub fn queue_dead_letter(
-    from_agent: &str,
-    to_agent: &str,
-    content: &str,
-    error: &str,
-) -> Result<(), String> {
-    let db = open_db()?;
-    db.execute(
-        "INSERT INTO dead_letter_queue (from_agent, to_agent, content, error) VALUES (?1, ?2, ?3, ?4)",
-        params![from_agent, to_agent, content, error],
-    )
-    .map_err(|e| format!("Dead letter insert error: {e}"))?;
-    Ok(())
-}
-
 pub fn get_dead_letters(group_id: &str, limit: i32) -> Result<Vec<DeadLetter>, String> {
     let db = open_db()?;
     let mut stmt = db
@@ -755,6 +849,22 @@ pub fn get_dead_letters(group_id: &str, limit: i32) -> Result<Vec<DeadLetter>, S
 
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|e| format!("Row error: {e}"))
+}
+
+#[allow(dead_code)] // Called via Tauri IPC command btmsg_queue_dead_letter
+pub fn queue_dead_letter(
+    from_agent: &str,
+    to_agent: &str,
+    content: &str,
+    error: &str,
+) -> Result<(), String> {
+    let db = open_db()?;
+    db.execute(
+        "INSERT INTO dead_letter_queue (from_agent, to_agent, content, error) VALUES (?1, ?2, ?3, ?4)",
+        params![from_agent, to_agent, content, error],
+    )
+    .map_err(|e| format!("Dead letter insert error: {e}"))?;
+    Ok(())
 }
 
 pub fn clear_dead_letters(group_id: &str) -> Result<(), String> {

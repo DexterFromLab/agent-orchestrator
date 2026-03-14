@@ -20,6 +20,8 @@ export interface ProjectConfig {
   useWorktrees?: boolean;
   /** When true, sidecar process is sandboxed via Landlock (Linux 5.13+, restricts filesystem access) */
   sandboxEnabled?: boolean;
+  /** Shell execution mode for AI agents. 'restricted' (default) surfaces commands for approval; 'autonomous' auto-executes with audit logging */
+  autonomousMode?: 'restricted' | 'autonomous';
   /** Anchor token budget scale (defaults to 'medium' = 6K tokens) */
   anchorBudgetScale?: AnchorBudgetScale;
   /** Stall detection threshold in minutes (defaults to 15) */
@@ -56,6 +58,7 @@ export function agentToProject(agent: GroupAgentConfig, groupCwd: string): Proje
     isAgent: true,
     agentRole: agent.role,
     systemPrompt: agent.systemPrompt,
+    autonomousMode: agent.autonomousMode,
   };
 }
 
@@ -83,6 +86,8 @@ export interface GroupAgentConfig {
   wakeStrategy?: WakeStrategy;
   /** Wake threshold 0..1 for smart strategy (default 0.5) */
   wakeThreshold?: number;
+  /** Shell execution mode. 'restricted' (default) surfaces commands for approval; 'autonomous' auto-executes with audit logging */
+  autonomousMode?: 'restricted' | 'autonomous';
 }
 
 export interface GroupConfig {

@@ -248,6 +248,9 @@ pub fn run() {
             commands::remote::remote_pty_write,
             commands::remote::remote_pty_resize,
             commands::remote::remote_pty_kill,
+            commands::remote::remote_probe_spki,
+            commands::remote::remote_add_pin,
+            commands::remote::remote_remove_pin,
             // btmsg (agent messenger)
             commands::btmsg::btmsg_get_agents,
             commands::btmsg::btmsg_unread_count,
@@ -264,11 +267,17 @@ pub fn run() {
             commands::btmsg::btmsg_create_channel,
             commands::btmsg::btmsg_add_channel_member,
             commands::btmsg::btmsg_register_agents,
+            // btmsg per-message acknowledgment
+            commands::btmsg::btmsg_unseen_messages,
+            commands::btmsg::btmsg_mark_seen,
+            commands::btmsg::btmsg_prune_seen,
             // btmsg health monitoring
             commands::btmsg::btmsg_record_heartbeat,
             commands::btmsg::btmsg_get_stale_agents,
+            commands::btmsg::btmsg_get_agent_heartbeats,
             commands::btmsg::btmsg_get_dead_letters,
             commands::btmsg::btmsg_clear_dead_letters,
+            commands::btmsg::btmsg_queue_dead_letter,
             // Audit log
             commands::btmsg::audit_log_event,
             commands::btmsg::audit_log_list,
@@ -286,6 +295,8 @@ pub fn run() {
             commands::search::search_query,
             commands::search::search_rebuild,
             commands::search::search_index_message,
+            commands::search::search_index_task,
+            commands::search::search_index_btmsg,
             // Notifications
             commands::notifications::notify_desktop,
             // Secrets (system keyring)

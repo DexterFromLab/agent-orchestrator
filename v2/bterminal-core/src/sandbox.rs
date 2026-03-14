@@ -85,6 +85,39 @@ impl SandboxConfig {
         }
     }
 
+    /// Build a restricted sandbox config for Aider agent sessions.
+    /// More restrictive than `for_projects`: only project worktree + read-only system paths.
+    /// Does NOT allow write access to ~/.config, ~/.claude, etc.
+    pub fn for_aider_restricted(project_cwd: &str, worktree: Option<&str>) -> Self {
+        let mut rw = vec![PathBuf::from(project_cwd)];
+        if let Some(wt) = worktree {
+            rw.push(PathBuf::from(wt));
+        }
+        rw.push(std::env::temp_dir());
+        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/root"));
+        rw.push(home.join(".aider"));
+
+        let ro = vec![
+            PathBuf::from("/usr"),
+            PathBuf::from("/lib"),
+            PathBuf::from("/lib64"),
+            PathBuf::from("/etc"),
+            PathBuf::from("/proc"),
+            PathBuf::from("/dev"),
+            PathBuf::from("/bin"),
+            PathBuf::from("/sbin"),
+            home.join(".local"),
+            home.join(".deno"),
+            home.join(".nvm"),
+        ];
+
+        Self {
+            rw_paths: rw,
+            ro_paths: ro,
+            enabled: true,
+        }
+    }
+
     /// Build a sandbox config for a single project directory.
     pub fn for_project(cwd: &str, worktree: Option<&str>) -> Self {
         let worktrees: Vec<&str> = worktree.into_iter().collect();
@@ -264,6 +297,57 @@ mod tests {
         // With worktree: cwd + worktree + tmp = 3
         let config = SandboxConfig::for_project("/tmp/test", Some("/tmp/wt"));
         assert_eq!(config.rw_paths.len(), 3);
+    }
+
+    #[test]
+    fn test_for_aider_restricted_single_cwd() {
+        let config = SandboxConfig::for_aider_restricted("/home/user/myproject", None);
+        assert!(config.enabled);
+        assert!(config.rw_paths.contains(&PathBuf::from("/home/user/myproject")));
+        assert!(config.rw_paths.contains(&std::env::temp_dir()));
+        let home = dirs::home_dir().unwrap();
+        assert!(config.rw_paths.contains(&home.join(".aider")));
+        // No worktree path added
+        assert!(!config
+            .rw_paths
+            .iter()
+            .any(|p| p.to_string_lossy().contains("worktree")));
+    }
+
+    #[test]
+    fn test_for_aider_restricted_with_worktree() {
+        let config = SandboxConfig::for_aider_restricted(
+            "/home/user/myproject",
+            Some("/home/user/myproject/.claude/worktrees/abc123"),
+        );
+        assert!(config.enabled);
+        assert!(config.rw_paths.contains(&PathBuf::from("/home/user/myproject")));
+        assert!(config.rw_paths.contains(&PathBuf::from(
+            "/home/user/myproject/.claude/worktrees/abc123"
+        )));
+    }
+
+    #[test]
+    fn test_for_aider_restricted_no_config_write() {
+        let config = SandboxConfig::for_aider_restricted("/tmp/test", None);
+        let home = dirs::home_dir().unwrap();
+        // Aider restricted must NOT have ~/.config or ~/.claude in rw_paths
+        assert!(!config.rw_paths.contains(&home.join(".config")));
+        assert!(!config.rw_paths.contains(&home.join(".claude")));
+        // And NOT in ro_paths either (stricter than for_projects)
+        assert!(!config.ro_paths.contains(&home.join(".config")));
+        assert!(!config.ro_paths.contains(&home.join(".claude")));
+    }
+
+    #[test]
+    fn test_for_aider_restricted_rw_count() {
+        // Without worktree: cwd + tmp + .aider = 3
+        let config = SandboxConfig::for_aider_restricted("/tmp/test", None);
+        assert_eq!(config.rw_paths.len(), 3);
+
+        // With worktree: cwd + worktree + tmp + .aider = 4
+        let config = SandboxConfig::for_aider_restricted("/tmp/test", Some("/tmp/wt"));
+        assert_eq!(config.rw_paths.len(), 4);
     }
 
     #[test]

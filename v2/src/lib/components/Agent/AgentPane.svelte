@@ -62,6 +62,8 @@
     model?: string;
     /** Extra env vars injected into agent process (e.g. BTMSG_AGENT_ID) */
     extraEnv?: Record<string, string>;
+    /** Shell execution mode for AI agents. 'restricted' blocks auto-exec; 'autonomous' allows it. */
+    autonomousMode?: 'restricted' | 'autonomous';
     /** Auto-triggered prompt (e.g. periodic context refresh). Picked up when agent is idle. */
     autoPrompt?: string;
     /** Called when autoPrompt has been consumed */
@@ -69,7 +71,7 @@
     onExit?: () => void;
   }
 
-  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, useWorktrees = false, agentSystemPrompt, model: modelOverride, extraEnv, autoPrompt, onautopromptconsumed, onExit }: Props = $props();
+  let { sessionId, projectId, prompt: initialPrompt = '', cwd: initialCwd, profile: profileName, provider: providerId = 'claude', capabilities = DEFAULT_CAPABILITIES, useWorktrees = false, agentSystemPrompt, model: modelOverride, extraEnv, autonomousMode, autoPrompt, onautopromptconsumed, onExit }: Props = $props();
 
   let session = $derived(getAgentSession(sessionId));
   let inputPrompt = $state(initialPrompt);
@@ -213,6 +215,7 @@
       system_prompt: systemPrompt,
       model: modelOverride || undefined,
       worktree_name: useWorktrees ? sessionId : undefined,
+      provider_config: { autonomousMode: autonomousMode ?? 'restricted' },
       extra_env: extraEnv,
     });
     inputPrompt = '';

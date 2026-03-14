@@ -4,6 +4,7 @@ use bterminal_core::pty::PtyOptions;
 use bterminal_core::sidecar::AgentQueryOptions;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
+use sha2::{Sha256, Digest};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
@@ -16,6 +17,9 @@ pub struct RemoteMachineConfig {
     pub url: String,
     pub token: String,
     pub auto_connect: bool,
+    /// SPKI SHA-256 pin(s) for certificate verification. Empty = TOFU on first connect.
+    #[serde(default)]
+    pub spki_pins: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,6 +29,8 @@ pub struct RemoteMachineInfo {
     pub url: String,
     pub status: String,
     pub auto_connect: bool,
+    /// Currently stored SPKI pin hashes (hex-encoded SHA-256)
+    pub spki_pins: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +85,7 @@ impl RemoteManager {
             url: m.config.url.clone(),
             status: m.status.clone(),
             auto_connect: m.config.auto_connect,
+            spki_pins: m.config.spki_pins.clone(),
         }).collect()
     }
 
@@ -110,8 +117,28 @@ impl RemoteManager {
         Ok(())
     }
 
+    /// Add an SPKI pin hash to a machine's trusted pins.
+    pub async fn add_spki_pin(&self, machine_id: &str, pin: String) -> Result<(), String> {
+        let mut machines = self.machines.lock().await;
+        let machine = machines.get_mut(machine_id)
+            .ok_or_else(|| format!("Machine {machine_id} not found"))?;
+        if !machine.config.spki_pins.contains(&pin) {
+            machine.config.spki_pins.push(pin);
+        }
+        Ok(())
+    }
+
+    /// Remove an SPKI pin hash from a machine's trusted pins.
+    pub async fn remove_spki_pin(&self, machine_id: &str, pin: &str) -> Result<(), String> {
+        let mut machines = self.machines.lock().await;
+        let machine = machines.get_mut(machine_id)
+            .ok_or_else(|| format!("Machine {machine_id} not found"))?;
+        machine.config.spki_pins.retain(|p| p != pin);
+        Ok(())
+    }
+
     pub async fn connect(&self, app: &AppHandle, machine_id: &str) -> Result<(), String> {
-        let (url, token) = {
+        let (url, token, spki_pins) = {
             let mut machines = self.machines.lock().await;
             let machine = machines.get_mut(machine_id)
                 .ok_or_else(|| format!("Machine {machine_id} not found"))?;
@@ -121,8 +148,59 @@ impl RemoteManager {
             machine.status = "connecting".to_string();
             // Reset cancellation flag for new connection
             machine.cancelled.store(false, std::sync::atomic::Ordering::Relaxed);
-            (machine.config.url.clone(), machine.config.token.clone())
+            (machine.config.url.clone(), machine.config.token.clone(), machine.config.spki_pins.clone())
         };
+
+        // SPKI certificate pin verification for wss:// connections
+        if url.starts_with("wss://") {
+            if !spki_pins.is_empty() {
+                // Verify server certificate against stored pins
+                let server_hash = probe_spki_hash(&url).await.map_err(|e| {
+                    // Reset status on probe failure
+                    let machines = self.machines.clone();
+                    let mid = machine_id.to_string();
+                    tauri::async_runtime::spawn(async move {
+                        let mut machines = machines.lock().await;
+                        if let Some(machine) = machines.get_mut(&mid) {
+                            machine.status = "disconnected".to_string();
+                        }
+                    });
+                    format!("SPKI probe failed: {e}")
+                })?;
+                if !spki_pins.contains(&server_hash) {
+                    // Pin mismatch — possible MITM or certificate rotation
+                    let mut machines = self.machines.lock().await;
+                    if let Some(machine) = machines.get_mut(machine_id) {
+                        machine.status = "disconnected".to_string();
+                    }
+                    return Err(format!(
+                        "SPKI pin mismatch! Server certificate hash '{server_hash}' does not match \
+                         any trusted pin. This may indicate a MITM attack or certificate rotation. \
+                         Update the pin in Settings if this is expected."
+                    ));
+                }
+                log::info!("SPKI pin verified for machine {machine_id}");
+            } else {
+                // TOFU: no pins stored — probe and auto-store on first wss:// connect
+                match probe_spki_hash(&url).await {
+                    Ok(hash) => {
+                        log::info!("TOFU: storing SPKI pin for machine {machine_id}: {hash}");
+                        let mut machines = self.machines.lock().await;
+                        if let Some(machine) = machines.get_mut(machine_id) {
+                            machine.config.spki_pins.push(hash.clone());
+                        }
+                        let _ = app.emit("remote-spki-tofu", &serde_json::json!({
+                            "machineId": machine_id,
+                            "hash": hash,
+                        }));
+                    }
+                    Err(e) => {
+                        log::warn!("TOFU: failed to probe SPKI hash for {machine_id}: {e}");
+                        // Continue without pinning — non-blocking
+                    }
+                }
+            }
+        }
 
         // Build WebSocket request with auth header
         let request = tokio_tungstenite::tungstenite::http::Request::builder()
@@ -428,6 +506,57 @@ impl RemoteManager {
             payload: serde_json::json!({ "id": id }),
         }).await
     }
+}
+
+/// Probe a relay server's TLS certificate and return its SHA-256 hash (hex-encoded).
+/// Connects with a permissive TLS config to extract the certificate, then hashes it.
+/// Only works for wss:// URLs.
+pub async fn probe_spki_hash(url: &str) -> Result<String, String> {
+    let host = extract_host(url).ok_or_else(|| "Invalid URL".to_string())?;
+    let hostname = host.split(':').next().unwrap_or(&host).to_string();
+    let addr = if host.contains(':') {
+        host.clone()
+    } else {
+        format!("{host}:9750")
+    };
+
+    // Build a permissive TLS connector to get the certificate regardless of CA trust
+    let connector = native_tls::TlsConnector::builder()
+        .danger_accept_invalid_certs(true)
+        .build()
+        .map_err(|e| format!("TLS connector error: {e}"))?;
+    let connector = tokio_native_tls::TlsConnector::from(connector);
+
+    let tcp = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        tokio::net::TcpStream::connect(&addr),
+    )
+    .await
+    .map_err(|_| "Connection timeout".to_string())?
+    .map_err(|e| format!("TCP connect failed: {e}"))?;
+
+    let tls_stream = connector
+        .connect(&hostname, tcp)
+        .await
+        .map_err(|e| format!("TLS handshake failed: {e}"))?;
+
+    // Extract peer certificate DER bytes
+    let cert = tls_stream
+        .get_ref()
+        .peer_certificate()
+        .map_err(|e| format!("Failed to get peer certificate: {e}"))?
+        .ok_or_else(|| "No peer certificate presented".to_string())?;
+
+    let cert_der = cert
+        .to_der()
+        .map_err(|e| format!("Failed to encode certificate DER: {e}"))?;
+
+    // SHA-256 hash of the full DER-encoded certificate
+    let mut hasher = Sha256::new();
+    hasher.update(&cert_der);
+    let hash = hasher.finalize();
+
+    Ok(hex::encode(hash))
 }
 
 /// Probe whether a relay is reachable via TCP connect only (no WS upgrade).

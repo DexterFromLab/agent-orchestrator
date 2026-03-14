@@ -33,3 +33,27 @@ pub fn search_index_message(
 ) -> Result<(), String> {
     state.search_db.index_message(&session_id, &role, &content)
 }
+
+#[tauri::command]
+pub fn search_index_task(
+    state: State<'_, AppState>,
+    task_id: String,
+    title: String,
+    description: String,
+    status: String,
+    assigned_to: String,
+) -> Result<(), String> {
+    state.search_db.index_task(&task_id, &title, &description, &status, &assigned_to)
+}
+
+#[tauri::command]
+pub fn search_index_btmsg(
+    state: State<'_, AppState>,
+    msg_id: String,
+    from_agent: String,
+    to_agent: String,
+    content: String,
+    channel: String,
+) -> Result<(), String> {
+    state.search_db.index_btmsg(&msg_id, &from_agent, &to_agent, &content, &channel)
+}
