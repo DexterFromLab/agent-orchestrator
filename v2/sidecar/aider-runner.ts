@@ -2,12 +2,23 @@
 // Spawned by Rust SidecarManager, communicates via stdio NDJSON
 // Runs aider in interactive mode — persistent process with stdin/stdout chat
 // Pre-fetches btmsg/bttask context so the LLM has actionable data immediately.
+//
+// Parsing logic lives in aider-parser.ts (exported for unit testing).
 
 import { stdin, stdout, stderr } from 'process';
 import { createInterface } from 'readline';
-import { spawn, execSync, type ChildProcess } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import { accessSync, constants } from 'fs';
 import { join } from 'path';
+import {
+  type TurnBlock,
+  looksLikePrompt,
+  parseTurnOutput,
+  prefetchContext,
+  execShell,
+  extractSessionCost,
+  PROMPT_RE,
+} from './aider-parser.js';
 
 const rl = createInterface({ input: stdin });
 
@@ -23,6 +34,7 @@ interface AiderSession {
   ready: boolean;
   env: Record<string, string>;
   cwd: string;
+  autonomousMode: 'restricted' | 'autonomous';
 }
 
 const sessions = new Map<string, AiderSession>();
@@ -78,212 +90,7 @@ async function handleMessage(msg: Record<string, unknown>) {
   }
 }
 
-// --- Context pre-fetching ---
-// Execute btmsg/bttask CLIs to gather context BEFORE sending prompt to LLM.
-// This way the LLM gets real data to act on instead of suggesting commands.
-
-function runCmd(cmd: string, env: Record<string, string>, cwd: string): string | null {
-  try {
-    const result = execSync(cmd, { env, cwd, timeout: 5000, encoding: 'utf-8' }).trim();
-    log(`[prefetch] ${cmd} → ${result.length} chars`);
-    return result || null;
-  } catch (e: unknown) {
-    log(`[prefetch] ${cmd} FAILED: ${e instanceof Error ? e.message : String(e)}`);
-    return null;
-  }
-}
-
-function prefetchContext(env: Record<string, string>, cwd: string): string {
-  log(`[prefetch] BTMSG_AGENT_ID=${env.BTMSG_AGENT_ID ?? 'NOT SET'}, cwd=${cwd}`);
-  const parts: string[] = [];
-
-  const inbox = runCmd('btmsg inbox', env, cwd);
-  if (inbox) {
-    parts.push(`## Your Inbox\n\`\`\`\n${inbox}\n\`\`\``);
-  } else {
-    parts.push('## Your Inbox\nNo messages (or btmsg unavailable).');
-  }
-
-  const board = runCmd('bttask board', env, cwd);
-  if (board) {
-    parts.push(`## Task Board\n\`\`\`\n${board}\n\`\`\``);
-  } else {
-    parts.push('## Task Board\nNo tasks (or bttask unavailable).');
-  }
-
-  return parts.join('\n\n');
-}
-
-// --- Prompt detection ---
-// Aider with --no-pretty --no-fancy-input shows prompts like:
-//   >  or  aider>  or  repo-name>
-const PROMPT_RE = /^[a-zA-Z0-9._-]*> $/;
-
-function looksLikePrompt(buffer: string): boolean {
-  // Check the last non-empty line
-  const lines = buffer.split('\n');
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const l = lines[i];
-    if (l.trim() === '') continue;
-    return PROMPT_RE.test(l);
-  }
-  return false;
-}
-
-// Lines to suppress from UI (aider startup noise)
-const SUPPRESS_RE = [
-  /^Aider v\d/,
-  /^Main model:/,
-  /^Weak model:/,
-  /^Git repo:/,
-  /^Repo-map:/,
-  /^Use \/help/,
-];
-
-function shouldSuppress(line: string): boolean {
-  const t = line.trim();
-  return t === '' || SUPPRESS_RE.some(p => p.test(t));
-}
-
-// --- Shell command execution ---
-// Runs a shell command and returns {stdout, stderr, exitCode}
-
-function execShell(cmd: string, env: Record<string, string>, cwd: string): { stdout: string; exitCode: number } {
-  try {
-    const result = execSync(cmd, { env, cwd, timeout: 30000, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
-    return { stdout: result.trim(), exitCode: 0 };
-  } catch (e: unknown) {
-    const err = e as { stdout?: string; stderr?: string; status?: number };
-    return { stdout: (err.stdout ?? err.stderr ?? String(e)).trim(), exitCode: err.status ?? 1 };
-  }
-}
-
-// --- Turn output parsing ---
-// Parses complete turn output into structured blocks:
-// thinking, answer text, shell commands, cost info
-
-interface TurnBlock {
-  type: 'thinking' | 'text' | 'shell' | 'cost';
-  content: string;
-}
-
-// Known shell command patterns — commands from btmsg/bttask/common tools
-const SHELL_CMD_RE = /^(btmsg |bttask |cat |ls |find |grep |mkdir |cd |cp |mv |rm |pip |npm |git |curl |wget |python |node |bash |sh )/;
-
-function parseTurnOutput(buffer: string): TurnBlock[] {
-  const blocks: TurnBlock[] = [];
-  const lines = buffer.split('\n');
-
-  let thinkingLines: string[] = [];
-  let answerLines: string[] = [];
-  let inThinking = false;
-  let inAnswer = false;
-  let inCodeBlock = false;
-  let codeBlockLang = '';
-  let codeBlockLines: string[] = [];
-
-  for (const line of lines) {
-    const t = line.trim();
-
-    // Skip suppressed lines
-    if (shouldSuppress(line) && !inCodeBlock) continue;
-
-    // Prompt markers — skip
-    if (PROMPT_RE.test(t)) continue;
-
-    // Thinking block markers (handle various unicode arrows and spacing)
-    if (/^[►▶⯈❯>]\s*THINKING$/i.test(t)) {
-      inThinking = true;
-      inAnswer = false;
-      continue;
-    }
-    if (/^[►▶⯈❯>]\s*ANSWER$/i.test(t)) {
-      if (thinkingLines.length > 0) {
-        blocks.push({ type: 'thinking', content: thinkingLines.join('\n') });
-        thinkingLines = [];
-      }
-      inThinking = false;
-      inAnswer = true;
-      continue;
-    }
-
-    // Code block detection (```bash, ```shell, ```)
-    if (t.startsWith('```') && !inCodeBlock) {
-      inCodeBlock = true;
-      codeBlockLang = t.slice(3).trim().toLowerCase();
-      codeBlockLines = [];
-      continue;
-    }
-    if (t === '```' && inCodeBlock) {
-      inCodeBlock = false;
-      // If this was a bash/shell code block, extract commands
-      if (['bash', 'shell', 'sh', ''].includes(codeBlockLang)) {
-        for (const cmdLine of codeBlockLines) {
-          const cmd = cmdLine.trim().replace(/^\$ /, '');
-          if (cmd && SHELL_CMD_RE.test(cmd)) {
-            if (answerLines.length > 0) {
-              blocks.push({ type: 'text', content: answerLines.join('\n') });
-              answerLines = [];
-            }
-            blocks.push({ type: 'shell', content: cmd });
-          }
-        }
-      }
-      codeBlockLines = [];
-      continue;
-    }
-    if (inCodeBlock) {
-      codeBlockLines.push(line);
-      continue;
-    }
-
-    // Cost line
-    if (/^Tokens: .+Cost:/.test(t)) {
-      blocks.push({ type: 'cost', content: t });
-      continue;
-    }
-
-    // Shell command ($ prefix or Running prefix)
-    if (t.startsWith('$ ') || t.startsWith('Running ')) {
-      if (answerLines.length > 0) {
-        blocks.push({ type: 'text', content: answerLines.join('\n') });
-        answerLines = [];
-      }
-      blocks.push({ type: 'shell', content: t.replace(/^(Running |\$ )/, '') });
-      continue;
-    }
-
-    // Detect bare btmsg/bttask commands in answer text
-    if (inAnswer && SHELL_CMD_RE.test(t) && !t.includes('`') && !t.startsWith('#')) {
-      if (answerLines.length > 0) {
-        blocks.push({ type: 'text', content: answerLines.join('\n') });
-        answerLines = [];
-      }
-      blocks.push({ type: 'shell', content: t });
-      continue;
-    }
-
-    // Aider's "Applied edit" / flake8 output — suppress from answer text
-    if (/^Applied edit to |^Fix any errors|^Running: /.test(t)) continue;
-
-    // Accumulate into thinking or answer
-    if (inThinking) {
-      thinkingLines.push(line);
-    } else {
-      answerLines.push(line);
-    }
-  }
-
-  // Flush remaining
-  if (thinkingLines.length > 0) {
-    blocks.push({ type: 'thinking', content: thinkingLines.join('\n') });
-  }
-  if (answerLines.length > 0) {
-    blocks.push({ type: 'text', content: answerLines.join('\n').trim() });
-  }
-
-  return blocks;
-}
+// Parsing, I/O helpers, and constants are imported from aider-parser.ts
 
 // --- Main query handler ---
 
@@ -297,6 +104,8 @@ async function handleQuery(msg: QueryMessage) {
   if (providerConfig?.openrouterApiKey && typeof providerConfig.openrouterApiKey === 'string') {
     env.OPENROUTER_API_KEY = providerConfig.openrouterApiKey;
   }
+
+  const autonomousMode = (providerConfig?.autonomousMode as string) === 'autonomous' ? 'autonomous' : 'restricted' as const;
 
   const existing = sessions.get(sessionId);
 
@@ -388,6 +197,7 @@ async function handleQuery(msg: QueryMessage) {
     ready: false,
     env,
     cwd,
+    autonomousMode,
   };
   sessions.set(sessionId, session);
 
@@ -456,7 +266,6 @@ async function handleQuery(msg: QueryMessage) {
         case 'shell': {
           const cmdId = `shell-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-          // Emit tool_use (command being run)
           send({
             type: 'agent_event',
             sessionId,
@@ -468,23 +277,34 @@ async function handleQuery(msg: QueryMessage) {
             },
           });
 
-          // Actually execute the command
-          log(`[exec] Running: ${block.content}`);
-          const result = execShell(block.content, session.env, session.cwd);
-          const output = result.stdout || '(no output)';
+          if (session.autonomousMode === 'autonomous') {
+            log(`[exec] Running: ${block.content}`);
+            const result = execShell(block.content, session.env, session.cwd);
+            const output = result.stdout || '(no output)';
 
-          // Emit tool_result (command output)
-          send({
-            type: 'agent_event',
-            sessionId,
-            event: {
-              type: 'tool_result',
-              tool_use_id: cmdId,
-              content: output,
-            },
-          });
+            send({
+              type: 'agent_event',
+              sessionId,
+              event: {
+                type: 'tool_result',
+                tool_use_id: cmdId,
+                content: output,
+              },
+            });
 
-          shellResults.push(`$ ${block.content}\n${output}`);
+            shellResults.push(`$ ${block.content}\n${output}`);
+          } else {
+            log(`[restricted] Blocked: ${block.content}`);
+            send({
+              type: 'agent_event',
+              sessionId,
+              event: {
+                type: 'tool_result',
+                tool_use_id: cmdId,
+                content: `[BLOCKED] Shell execution disabled in restricted mode. Command not executed: ${block.content}`,
+              },
+            });
+          }
           break;
         }
 
@@ -495,8 +315,7 @@ async function handleQuery(msg: QueryMessage) {
     }
 
     // Extract cost and emit result
-    const costMatch = session.turnBuffer.match(/Cost: \$([0-9.]+) message, \$([0-9.]+) session/);
-    const costUsd = costMatch ? parseFloat(costMatch[2]) : 0;
+    const costUsd = extractSessionCost(session.turnBuffer);
 
     send({
       type: 'agent_event',
