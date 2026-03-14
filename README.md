@@ -130,9 +130,9 @@ cd v2 && cargo build --release -p bterminal-relay
 
 | Document | Description |
 |----------|-------------|
-| [docs/v3-task_plan.md](docs/v3-task_plan.md) | Architecture decisions and strategies |
-| [docs/v3-progress.md](docs/v3-progress.md) | Session progress log |
-| [docs/v3-release-notes.md](docs/v3-release-notes.md) | v3.0 release notes |
+| [docs/decisions.md](docs/decisions.md) | Architecture decisions log |
+| [docs/progress/](docs/progress/) | Session progress logs (v2, v3, archive) |
+| [docs/release-notes.md](docs/release-notes.md) | v3.0 release notes |
 | [docs/e2e-testing.md](docs/e2e-testing.md) | E2E testing facility documentation |
 | [docs/multi-machine.md](docs/multi-machine.md) | Multi-machine relay architecture |
 

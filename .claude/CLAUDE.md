@@ -6,28 +6,26 @@
 - v2 docs are in `docs/`. Architecture in `docs/architecture.md`.
 - v2 Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles, skill discovery.
 - v3 Mission Control (All Phases 1-10 + Production Readiness Complete): project groups, workspace store, 15+ Workspace components, session continuity, multi-provider adapter pattern, worktree isolation, session anchors, Memora adapter, SOLID refactoring, multi-agent orchestration (btmsg/bttask, 4 Tier 1 roles, role-specific tabs), dashboard metrics, auto-wake scheduler, reviewer agent. Production: sidecar supervisor (auto-restart, exponential backoff), FTS5 search (3 virtual tables, Spotlight overlay), plugin system (sandboxed new Function(), permission-gated), Landlock sandbox (kernel 6.2+), secrets management (system keyring), OS+in-app notifications, keyboard-first UX (18+ palette commands, vi-nav), agent health monitoring (heartbeats, dead letter queue), audit logging, error classification (6 types), optimistic locking (bttask). Hardening: TLS relay, WAL checkpoint (5min), subagent delegation fix, plugin sandbox tests (35). 444 vitest + 151 cargo + 109 E2E.
-- v3 docs: `docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
 
 ## Documentation References
 
 - System architecture: [docs/architecture.md](../docs/architecture.md)
+- Architecture decisions: [docs/decisions.md](../docs/decisions.md)
 - Sidecar architecture: [docs/sidecar.md](../docs/sidecar.md)
 - Multi-agent orchestration: [docs/orchestration.md](../docs/orchestration.md)
 - Production hardening: [docs/production.md](../docs/production.md)
-- v3 design decisions: [docs/v3-task_plan.md](../docs/v3-task_plan.md)
-- v3 findings: [docs/v3-findings.md](../docs/v3-findings.md)
 - Implementation phases: [docs/phases.md](../docs/phases.md)
 - Research findings: [docs/findings.md](../docs/findings.md)
-- Progress log: [docs/progress.md](../docs/progress.md)
+- Progress logs: [docs/progress/](../docs/progress/)
 
 ## Rules
 
 - Do not modify v1 code (`bterminal.py`) unless explicitly asked — it is production-stable.
-- v2/v3 work goes on the `dexter_changes` branch (repo: agent-orchestrator), not master.
-- Architecture decisions must reference `docs/v3-task_plan.md` Decisions Log.
-- When adding new decisions, append to the Decisions Log table with date.
-- Update `docs/progress.md` after each significant work session.
+- v2/v3 work goes on the `hib_changes` branch (repo: agent-orchestrator), not master.
+- Architecture decisions must reference `docs/decisions.md`.
+- When adding new decisions, append to the appropriate category table with date.
+- Update `docs/progress/` after each significant work session.
 
 ## Key Technical Constraints
 
@@ -86,7 +84,7 @@
 - E2E test mode (`BTERMINAL_TEST=1`): watcher.rs and fs_watcher.rs skip file watchers, wake-scheduler disabled via `disableWakeScheduler()`, `is_test_mode` Tauri command bridges to frontend. Data/config dirs overridable via `BTERMINAL_TEST_DATA_DIR`/`BTERMINAL_TEST_CONFIG_DIR`. E2E uses WebDriverIO + tauri-driver, single session, TCP readiness probe. Phase A: 7 data-testid-based scenarios in `agent-scenarios.test.ts` (deterministic assertions). Phase B: 6 scenarios in `phase-b.test.ts` (multi-project grid, independent tab switching, status bar fleet state, LLM-judged agent responses/code generation, context tab verification). LLM judge (`llm-judge.ts`): raw fetch to Anthropic API using claude-haiku-4-5, structured verdict (pass/fail + reasoning + confidence), `assertWithJudge()` with configurable threshold, skips when `ANTHROPIC_API_KEY` absent. CI workflow (`.github/workflows/e2e.yml`): unit + cargo + e2e jobs, xvfb-run, path-filtered triggers, LLM tests gated on secret. Test fixtures in `fixtures.ts` create isolated temp environments. Results tracked via JSON store in `results-db.ts`.
 - v3 SQLite additions: agent_messages table (per-project message persistence), project_agent_state table (sdkSessionId, cost, status per project), sessions.project_id column.
 - v3 App.svelte: VSCode-style sidebar layout. Horizontal: left icon rail (GlobalTabBar, 2.75rem, single Settings gear icon) + expandable drawer panel (Settings only, content-driven width, max 50%) + main workspace (ProjectGrid always visible) + StatusBar. Sidebar has Settings only — Sessions/Docs/Context are project-specific (in ProjectBox tabs). Keyboard: Ctrl+B (toggle sidebar), Ctrl+, (settings), Escape (close).
-- v3 component tree: App -> GlobalTabBar (settings icon) + sidebar-panel? (SettingsTab) + workspace (ProjectGrid) + StatusBar. See `docs/v3-task_plan.md` for full tree.
+- v3 component tree: App -> GlobalTabBar (settings icon) + sidebar-panel? (SettingsTab) + workspace (ProjectGrid) + StatusBar. See `docs/architecture.md` for full tree.
 - MarkdownPane reactively watches filePath changes via $effect (not onMount-only). Uses sans-serif font (Inter, system-ui), all --ctp-* theme vars. Styled blockquotes with translucent backgrounds, table row hover, link hover underlines. Inner `.markdown-pane-scroll` wrapper with `container-type: inline-size` for responsive padding via `--bterminal-pane-padding-inline`.
 - AgentPane UI (redesigned 2026-03-09): sans-serif root font (`system-ui, -apple-system, sans-serif`), monospace only on code/tool names. Tool calls paired with results in collapsible `<details>` groups via `$derived.by` toolResultMap (cache-guarded by tool_result count). Hook messages collapsed into compact `<details>` with gear icon. Context window meter inline in status strip. Cost bar minimal (no background, subtle border-top). Session summary with translucent surface background. Two-phase scroll anchoring (`$effect.pre` + `$effect`). Tool-aware output truncation (Bash 500 lines, Read/Write 50, Glob/Grep 20, default 30). Colors softened via `color-mix()`. Inner `.agent-pane-scroll` wrapper with `container-type: inline-size` for responsive padding via shared `--bterminal-pane-padding-inline` variable.
 - ProjectBox uses CSS `style:display` (flex/none) instead of `{#if}` for tab content panes — keeps AgentSession mounted across tab switches (prevents session ID reset and message loss). Terminal section also uses `style:display`. Grid rows: auto auto 1fr auto.

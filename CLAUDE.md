@@ -21,15 +21,13 @@ Terminal emulator with SSH and Claude Code session management. v1 (GTK3+VTE Pyth
 | `install.sh` | v1 system installer |
 | `install-v2.sh` | v2 build-from-source installer (Node.js 20+, Rust 1.77+, system libs) |
 | `.github/workflows/release.yml` | CI: builds .deb + AppImage on v* tags, uploads to GitHub Releases |
-| `docs/task_plan.md` | v2 architecture decisions and strategies |
+| `docs/architecture.md` | End-to-end system architecture, data model, layout system |
+| `docs/decisions.md` | Architecture decisions log with rationale and dates |
 | `docs/phases.md` | v2 implementation phases (1-7 + multi-machine A-D) |
-| `docs/findings.md` | v2 research findings |
-| `docs/progress.md` | Session progress log (recent) |
-| `docs/progress-archive.md` | Archived progress log (2026-03-05 to 2026-03-06 early) |
+| `docs/findings.md` | All research findings (v2 + v3 combined) |
+| `docs/progress/` | Session progress logs (v2, v3, archive) |
 | `docs/multi-machine.md` | Multi-machine architecture (implemented, Phases A-D) |
-| `docs/v3-task_plan.md` | v3 Mission Control redesign: architecture decisions and strategies |
-| `docs/v3-findings.md` | v3 research findings and codebase reuse analysis |
-| `docs/v3-progress.md` | v3 session progress log |
+| `docs/release-notes.md` | v3.0 release notes |
 | `docs/e2e-testing.md` | E2E testing facility: fixtures, test mode, LLM judge, spec phases, CI |
 | `v2/Cargo.toml` | Cargo workspace root (members: src-tauri, bterminal-core, bterminal-relay) |
 | `v2/bterminal-core/` | Shared crate: EventSink trait, PtyManager, SidecarManager |

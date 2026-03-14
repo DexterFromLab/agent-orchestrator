@@ -306,7 +306,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v3 App.svelte full rewrite: GlobalTabBar + tab content area + StatusBar (no sidebar, no TilingGrid)
 - 24 new vitest tests for workspace store, 7 new cargo tests for groups (total: 138 vitest + 36 cargo)
 - v3 adversarial architecture review: 3 agents (Architect, Devil's Advocate, UX+Performance Specialist), 12 issues identified and resolved
-- v3 Mission Control redesign planning: architecture docs (`docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`), codebase reuse analysis
+- v3 Mission Control redesign planning: architecture docs (`docs/architecture.md`, `docs/decisions.md`, `docs/findings.md`), codebase reuse analysis
 - Claude profile/account switching: `claude_list_profiles()` reads `~/.config/switcher/profiles/` directories with `profile.toml` metadata (email, subscription_type, display_name); profile selector dropdown in AgentPane toolbar when multiple profiles available; selected profile's `config_dir` passed as `CLAUDE_CONFIG_DIR` env override to SDK
 - Skill discovery and autocomplete: `claude_list_skills()` reads `~/.claude/skills/` (directories with `SKILL.md` or standalone `.md` files); type `/` in agent prompt textarea to trigger autocomplete menu with arrow key navigation, Tab/Enter selection, Escape dismiss; `expandSkillPrompt()` reads skill content and injects as prompt
 - New frontend adapter `claude-bridge.ts`: `ClaudeProfile` and `ClaudeSkill` interfaces, `listProfiles()`, `listSkills()`, `readSkill()` IPC wrappers
