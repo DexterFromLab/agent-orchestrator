@@ -28,7 +28,6 @@ The application has three major version milestones:
 |----------|---------------|
 | [architecture.md](architecture.md) | End-to-end system architecture: Rust backend, Svelte frontend, sidecar layer, data flow, IPC patterns |
 | [v3-task_plan.md](v3-task_plan.md) | v3 Mission Control architecture decisions, adversarial review, data model, component tree, layout system, 10-phase plan |
-| [task_plan.md](task_plan.md) | v2 architecture decisions, technology choices, error handling strategy, testing strategy |
 | [multi-machine.md](multi-machine.md) | Multi-machine relay architecture: bterminal-core extraction, bterminal-relay binary, RemoteManager, WebSocket protocol, reconnection |
 
 ### Subsystem Guides
@@ -75,7 +74,7 @@ If you are new to this codebase, read the documents in this order:
 4. **[orchestration.md](orchestration.md)** — Understand multi-agent coordination
 5. **[e2e-testing.md](e2e-testing.md)** — Understand how to test changes
 
-For v2-specific context (the foundation that v3 builds on), read [task_plan.md](task_plan.md) and [findings.md](findings.md).
+For v2-specific context (the foundation that v3 builds on), read [findings.md](findings.md) and [phases.md](phases.md).
 
 ---
 

@@ -3,7 +3,7 @@
 ## Workflow
 
 - v1 is a single-file Python app (`bterminal.py`). Changes are localized.
-- v2 docs are in `docs/`. Architecture decisions are in `docs/task_plan.md`.
+- v2 docs are in `docs/`. Architecture in `docs/architecture.md`.
 - v2 Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles, skill discovery.
 - v3 Mission Control (All Phases 1-10 + Production Readiness Complete): project groups, workspace store, 15+ Workspace components, session continuity, multi-provider adapter pattern, worktree isolation, session anchors, Memora adapter, SOLID refactoring, multi-agent orchestration (btmsg/bttask, 4 Tier 1 roles, role-specific tabs), dashboard metrics, auto-wake scheduler, reviewer agent. Production: sidecar supervisor (auto-restart, exponential backoff), FTS5 search (3 virtual tables, Spotlight overlay), plugin system (sandboxed new Function(), permission-gated), Landlock sandbox (kernel 6.2+), secrets management (system keyring), OS+in-app notifications, keyboard-first UX (18+ palette commands, vi-nav), agent health monitoring (heartbeats, dead letter queue), audit logging, error classification (6 types), optimistic locking (bttask). Hardening: TLS relay, WAL checkpoint (5min), subagent delegation fix, plugin sandbox tests (35). 444 vitest + 151 cargo + 109 E2E.
 - v3 docs: `docs/v3-task_plan.md`, `docs/v3-findings.md`, `docs/v3-progress.md`.
@@ -11,20 +11,21 @@
 
 ## Documentation References
 
-- Architecture & decisions: [docs/task_plan.md](../docs/task_plan.md)
+- System architecture: [docs/architecture.md](../docs/architecture.md)
+- Sidecar architecture: [docs/sidecar.md](../docs/sidecar.md)
+- Multi-agent orchestration: [docs/orchestration.md](../docs/orchestration.md)
+- Production hardening: [docs/production.md](../docs/production.md)
+- v3 design decisions: [docs/v3-task_plan.md](../docs/v3-task_plan.md)
+- v3 findings: [docs/v3-findings.md](../docs/v3-findings.md)
 - Implementation phases: [docs/phases.md](../docs/phases.md)
 - Research findings: [docs/findings.md](../docs/findings.md)
 - Progress log: [docs/progress.md](../docs/progress.md)
-- v3 architecture: [docs/v3-task_plan.md](../docs/v3-task_plan.md)
-- v3 findings: [docs/v3-findings.md](../docs/v3-findings.md)
-- v3 progress: [docs/v3-progress.md](../docs/v3-progress.md)
 
 ## Rules
 
 - Do not modify v1 code (`bterminal.py`) unless explicitly asked — it is production-stable.
 - v2/v3 work goes on the `dexter_changes` branch (repo: agent-orchestrator), not master.
-- v2 architecture decisions must reference `docs/task_plan.md` Decisions Log.
-- v3 architecture decisions must reference `docs/v3-task_plan.md` Decisions Log.
+- Architecture decisions must reference `docs/v3-task_plan.md` Decisions Log.
 - When adding new decisions, append to the Decisions Log table with date.
 - Update `docs/progress.md` after each significant work session.
 

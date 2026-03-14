@@ -1,6 +1,6 @@
 # BTerminal v2 — Implementation Phases
 
-See [task_plan.md](task_plan.md) for architecture decisions, error handling, and testing strategy.
+See [architecture.md](architecture.md) for system architecture and [v3-task_plan.md](v3-task_plan.md) for v3 design decisions.
 
 ---
 
