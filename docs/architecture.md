@@ -320,6 +320,203 @@ Key-value store for user preferences: theme, fonts, shell, CWD, provider setting
 
 ---
 
+## Data Model
+
+### Project Group Config (`~/.config/bterminal/groups.json`)
+
+Human-editable JSON file defining workspaces. Each group contains up to 5 projects. Loaded at startup by `groups.rs`, not hot-reloaded.
+
+```jsonc
+{
+  "version": 1,
+  "groups": [
+    {
+      "id": "work-ai",
+      "name": "AI Projects",
+      "projects": [
+        {
+          "id": "bterminal",
+          "name": "BTerminal",
+          "identifier": "bterminal",
+          "description": "Terminal emulator with Claude integration",
+          "icon": "\uf120",
+          "cwd": "/home/user/code/BTerminal",
+          "profile": "default",
+          "enabled": true
+        }
+      ]
+    }
+  ],
+  "activeGroupId": "work-ai"
+}
+```
+
+### TypeScript Types (`v2/src/lib/types/groups.ts`)
+
+```typescript
+export interface ProjectConfig {
+  id: string;
+  name: string;
+  identifier: string;
+  description: string;
+  icon: string;
+  cwd: string;
+  profile: string;
+  enabled: boolean;
+}
+
+export interface GroupConfig {
+  id: string;
+  name: string;
+  projects: ProjectConfig[];  // max 5
+}
+
+export interface GroupsFile {
+  version: number;
+  groups: GroupConfig[];
+  activeGroupId: string;
+}
+```
+
+### SQLite Schema (v3 Additions)
+
+Beyond the core `sessions` and `settings` tables, v3 added project-scoped agent persistence:
+
+```sql
+ALTER TABLE sessions ADD COLUMN project_id TEXT DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS agent_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    sdk_session_id TEXT,
+    message_type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    parent_id TEXT,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS project_agent_state (
+    project_id TEXT PRIMARY KEY,
+    last_session_id TEXT NOT NULL,
+    sdk_session_id TEXT,
+    status TEXT NOT NULL,
+    cost_usd REAL DEFAULT 0,
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    last_prompt TEXT,
+    updated_at INTEGER NOT NULL
+);
+```
+
+---
+
+## Layout System
+
+### Project Grid (Flexbox + scroll-snap)
+
+Projects are arranged horizontally in a flex container with CSS scroll-snap for clean project-to-project scrolling:
+
+```css
+.project-grid {
+  display: flex;
+  gap: 4px;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+
+.project-box {
+  flex: 0 0 calc((100% - (N-1) * 4px) / N);
+  scroll-snap-align: start;
+  min-width: 480px;
+}
+```
+
+N is computed from viewport width: `Math.min(projects.length, Math.max(1, Math.floor(containerWidth / 520)))`
+
+### Project Box Internal Layout
+
+Each project box uses a CSS grid with 4 rows:
+
+```
+┌─ ProjectHeader (auto) ─────────────────┐
+├─────────────────────┬──────────────────┤
+│ AgentSession        │ TeamAgentsPanel  │
+│ (flex: 1)           │ (240px/overlay)  │
+├─────────────────────┴──────────────────┤
+│ [Tab1] [Tab2] [+]          TabBar auto │
+├────────────────────────────────────────┤
+│ Terminal content (xterm or scrollback) │
+└────────────────────────────────────────┘
+```
+
+Team panel: inline at >2560px viewport (240px wide), overlay at <2560px. Collapsed when no subagents running.
+
+### Responsive Breakpoints
+
+| Viewport Width | Visible Projects | Team Panel Mode |
+|---------------|-----------------|-----------------|
+| 5120px+ | 5 | inline 240px |
+| 3840px | 4 | inline 200px |
+| 2560px | 3 | overlay |
+| 1920px | 3 | overlay |
+| <1600px | 1 + project tabs | overlay |
+
+### xterm.js Budget: 4 Active Instances
+
+WebKit2GTK OOMs at ~5 simultaneous xterm.js instances. The budget system manages this:
+
+| State | xterm.js Instance? | Memory |
+|-------|--------------------|--------|
+| Active-Focused | Yes | ~20MB |
+| Active-Background | Yes (if budget allows) | ~20MB |
+| Suspended | No (HTML pre scrollback) | ~200KB |
+| Uninitialized | No (placeholder) | 0 |
+
+On focus: serialize least-recent xterm scrollback, destroy it, create new for focused tab, reconnect PTY. Suspend/resume cycle < 50ms.
+
+### Project Accent Colors
+
+Each project slot gets a distinct Catppuccin accent color for visual distinction:
+
+| Slot | Color | CSS Variable |
+|------|-------|-------------|
+| 1 | Blue | `var(--ctp-blue)` |
+| 2 | Green | `var(--ctp-green)` |
+| 3 | Mauve | `var(--ctp-mauve)` |
+| 4 | Peach | `var(--ctp-peach)` |
+| 5 | Pink | `var(--ctp-pink)` |
+
+Applied to border tint and header accent via `var(--accent)` CSS custom property set per ProjectBox.
+
+---
+
+## Keyboard Shortcuts
+
+Three-layer shortcut system prevents conflicts between terminal input, workspace navigation, and app-level commands:
+
+| Shortcut | Action | Layer |
+|----------|--------|-------|
+| Ctrl+K | Command palette | App |
+| Ctrl+G | Switch group (palette filtered) | App |
+| Ctrl+1..5 | Focus project by index | App |
+| Alt+1..4 | Switch sidebar tab + open drawer | App |
+| Ctrl+B | Toggle sidebar open/closed | App |
+| Ctrl+, | Toggle settings panel | App |
+| Escape | Close sidebar drawer | App |
+| Ctrl+Shift+F | FTS5 search overlay | App |
+| Ctrl+N | New terminal in focused project | Workspace |
+| Ctrl+Shift+N | New agent query | Workspace |
+| Ctrl+Tab | Next terminal tab | Project |
+| Ctrl+W | Close terminal tab | Project |
+| Ctrl+Shift+C/V | Copy/paste in terminal | Terminal |
+
+Terminal layer captures raw keys only when focused. App layer has highest priority.
+
+---
+
 ## Key Constraints
 
 1. **WebKit2GTK has no WebGL** — xterm.js must use the Canvas addon explicitly. Maximum 4 active xterm.js instances to avoid OOM.

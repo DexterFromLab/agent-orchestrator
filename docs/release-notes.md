@@ -1,4 +1,4 @@
-# BTerminal v3.0 Release Notes
+# v3.0 Release Notes
 
 ## Mission Control — Multi-Project AI Agent Orchestration
 

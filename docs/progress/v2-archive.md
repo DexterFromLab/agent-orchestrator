@@ -1,6 +1,6 @@
-# BTerminal v2 — Progress Log (Archive: 2026-03-05 to 2026-03-06 early)
+# v2 Progress Log (Archive: 2026-03-05 to 2026-03-06 early)
 
-> Archived from [progress.md](progress.md). Covers research, Phases 1-6, polish, testing, agent teams, and subagent support.
+> Archived from [v2.md](v2.md). Covers research, Phases 1-6, polish, testing, agent teams, and subagent support.
 
 ## Session: 2026-03-05
 

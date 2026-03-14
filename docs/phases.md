@@ -1,6 +1,6 @@
 # BTerminal v2 — Implementation Phases
 
-See [architecture.md](architecture.md) for system architecture and [v3-task_plan.md](v3-task_plan.md) for v3 design decisions.
+See [architecture.md](architecture.md) for system architecture and [decisions.md](decisions.md) for design decisions.
 
 ---
 

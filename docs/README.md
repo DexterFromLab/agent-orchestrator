@@ -26,8 +26,8 @@ The application has three major version milestones:
 
 | Document | What It Covers |
 |----------|---------------|
-| [architecture.md](architecture.md) | End-to-end system architecture: Rust backend, Svelte frontend, sidecar layer, data flow, IPC patterns |
-| [v3-task_plan.md](v3-task_plan.md) | v3 Mission Control architecture decisions, adversarial review, data model, component tree, layout system, 10-phase plan |
+| [architecture.md](architecture.md) | End-to-end system architecture: Rust backend, Svelte frontend, sidecar layer, data model, layout system, data flow, IPC patterns |
+| [decisions.md](decisions.md) | Architecture decisions log: rationale and dates for all major design choices |
 | [multi-machine.md](multi-machine.md) | Multi-machine relay architecture: bterminal-core extraction, bterminal-relay binary, RemoteManager, WebSocket protocol, reconnection |
 
 ### Subsystem Guides
@@ -44,22 +44,21 @@ The application has three major version milestones:
 | Document | What It Covers |
 |----------|---------------|
 | [phases.md](phases.md) | v2 implementation phases (1-7 + multi-machine A-D + profiles/skills) with checklists |
-| [v3-progress.md](v3-progress.md) | v3 session-by-session progress log (All Phases 1-10 + production hardening) |
-| [progress.md](progress.md) | v2 session-by-session progress log (recent sessions) |
-| [progress-archive.md](progress-archive.md) | Archived v2 progress (2026-03-05 to 2026-03-06 early) |
+| [progress/v3.md](progress/v3.md) | v3 session-by-session progress log (Phases 1-10 + production hardening) |
+| [progress/v2.md](progress/v2.md) | v2 session-by-session progress log (recent sessions) |
+| [progress/v2-archive.md](progress/v2-archive.md) | Archived v2 progress (2026-03-05 to 2026-03-06 early) |
 
 ### Research & Analysis
 
 | Document | What It Covers |
 |----------|---------------|
-| [findings.md](findings.md) | v2 research: Claude Agent SDK, Tauri+xterm.js, terminal performance, Zellij architecture, ultrawide design patterns |
-| [v3-findings.md](v3-findings.md) | v3 research: adversarial architecture review, production hardening analysis, provider adapter coupling map, session anchor design |
+| [findings.md](findings.md) | All research: Claude Agent SDK, Tauri+xterm.js, terminal performance, adversarial review, provider coupling, codebase reuse, session anchors, multi-agent design, theme evolution, performance measurements |
 
-### Release
+### Release & Testing
 
 | Document | What It Covers |
 |----------|---------------|
-| [v3-release-notes.md](v3-release-notes.md) | v3.0 release notes: feature summary, breaking changes, test coverage, known limitations |
+| [release-notes.md](release-notes.md) | v3.0 release notes: feature summary, breaking changes, test coverage, known limitations |
 | [e2e-testing.md](e2e-testing.md) | E2E testing facility: WebDriverIO fixtures, test mode, LLM judge, CI integration, troubleshooting |
 
 ---
@@ -69,12 +68,12 @@ The application has three major version milestones:
 If you are new to this codebase, read the documents in this order:
 
 1. **[architecture.md](architecture.md)** — Understand how the pieces fit together
-2. **[v3-task_plan.md](v3-task_plan.md)** — Understand the design decisions behind v3
+2. **[decisions.md](decisions.md)** — Understand why things are built the way they are
 3. **[sidecar.md](sidecar.md)** — Understand how agent sessions actually run
 4. **[orchestration.md](orchestration.md)** — Understand multi-agent coordination
 5. **[e2e-testing.md](e2e-testing.md)** — Understand how to test changes
 
-For v2-specific context (the foundation that v3 builds on), read [findings.md](findings.md) and [phases.md](phases.md).
+For research context, read [findings.md](findings.md). For implementation history, see [phases.md](phases.md) and [progress/](progress/).
 
 ---
 
