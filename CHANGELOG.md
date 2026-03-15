@@ -8,11 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Plugin sandbox Web Worker migration** — replaced `new Function()` sandbox with dedicated Web Worker per plugin. True process-level isolation — no DOM, no Tauri IPC, no main-thread access. Permission-gated API proxied via postMessage with RPC pattern. 26 tests (MockWorker class in vitest)
+- **seen_messages startup pruning** — `pruneSeen()` called fire-and-forget in App.svelte onMount. Removes entries older than 7 days (emergency: 3 days at 200k rows)
 - **Aider autonomous mode toggle** — per-project `autonomousMode` setting ('restricted'|'autonomous') gates shell command execution in Aider sidecar. Default restricted. SettingsTab toggle
 - **SPKI certificate pinning (TOFU)** — `remote_probe_spki` Tauri command + `probe_spki_hash()` extracts relay TLS certificate SPKI hash. `remote_add_pin`/`remote_remove_pin` commands. In-memory pin store in RemoteManager
 - **Per-message btmsg acknowledgment** — `seen_messages` table with session-scoped tracking replaces count-based polling. `btmsg_unseen_messages`, `btmsg_mark_seen`, `btmsg_prune_seen` commands. ON DELETE CASCADE cleanup
 - **Aider parser test suite** — 72 vitest tests for extracted `aider-parser.ts` (pure parsing functions). 8 realistic Aider output fixtures. Covers prompt detection, suppression, turn parsing, cost extraction, shell execution, format-drift canaries
 - **Dead code wiring** — 4 orphaned Rust functions wired as Tauri commands: `btmsg_get_agent_heartbeats`, `btmsg_queue_dead_letter`, `search_index_task`, `search_index_btmsg`
+
+### Security
+- **Plugin sandbox hardened** — `new Function()` (same-realm, escapable via prototype walking) replaced with Web Worker (separate JS context, no escape vectors). Eliminates `arguments.callee.constructor` and `({}).constructor.constructor` attack paths
 
 ### Changed
 - **SidecarManager actor refactor** — replaced `Arc<Mutex<HashMap>>` with dedicated actor thread via `std::sync::mpsc` channel. Eliminates TOCTOU race conditions on session lifecycle. All mutable state owned by single thread

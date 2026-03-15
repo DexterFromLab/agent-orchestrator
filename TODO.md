@@ -8,18 +8,16 @@
 ## Multi-Agent (v3.1)
 
 - [ ] **Agent Teams real-world testing** — Subagent delegation prompt + `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` env injection done. Needs real multi-agent session to verify Manager spawns child agents via SDK teams.
-- [ ] **seen_messages periodic pruning** — `btmsg_prune_seen` command exists but no scheduler calls it. Wire to a periodic timer (e.g., every 6 hours) to prevent unbounded growth.
-
-## Security (v3.2)
-
-- [ ] **Plugin sandbox migration** — Current `new Function()` sandbox has escape vectors (prototype walking, `arguments.callee.constructor`). Migrate to Web Worker isolation for true process-level sandboxing.
 
 ## Reliability
 
 - [ ] **Soak test** — Run 4-hour soak with 6+ agents across 3+ projects. Monitor: memory growth, SQLite WAL size, xterm.js instance count, sidecar supervisor restarts.
+- [ ] **WebKit2GTK Worker verification** — Verify Web Worker Blob URL approach works in Tauri's WebKit2GTK webview (tested in vitest only so far).
 
 ## Completed
 
+- [x] Plugin sandbox migration — new Function() → Web Worker isolation, 26 tests | Done: 2026-03-15
+- [x] seen_messages startup pruning — pruneSeen() on app startup, fire-and-forget | Done: 2026-03-15
 - [x] Tribunal priorities: Aider security, SidecarManager actor, SPKI pinning, btmsg reliability, Aider tests | Done: 2026-03-14
 - [x] Dead code cleanup — 7 warnings resolved, 4 new Tauri commands wired | Done: 2026-03-14
 - [x] E2E fixture + judge hardening | Done: 2026-03-12
@@ -28,9 +26,3 @@
 - [x] v3 Production Readiness — all 13 tribunal items | Done: 2026-03-12
 - [x] Unified test runner + testing gate rule | Done: 2026-03-12
 - [x] E2E Phase B + 27 test fixes | Done: 2026-03-12
-- [x] Reviewer agent role | Done: 2026-03-12
-- [x] Auto-wake Manager scheduler | Done: 2026-03-12
-- [x] Dashboard metrics panel | Done: 2026-03-12
-- [x] Branded types (GroupId, AgentId, SessionId, ProjectId) | Done: 2026-03-11
-- [x] Regression tests + sidecar env security | Done: 2026-03-11
-- [x] Integration fix (btmsg column, camelCase, PlantUML, Tauri 2.x assets) | Done: 2026-03-11
