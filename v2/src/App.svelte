@@ -18,6 +18,7 @@
     triggerFocusFlash, emitProjectTabSwitch, emitTerminalToggle,
   } from './lib/stores/workspace.svelte';
   import { disableWakeScheduler } from './lib/stores/wake-scheduler.svelte';
+  import { pruneSeen } from './lib/adapters/btmsg-bridge';
   import { invoke } from '@tauri-apps/api/core';
 
   // Workspace components
@@ -112,6 +113,7 @@
     // Step 2: Agent dispatcher
     startAgentDispatcher();
     startHealthTick();
+    pruneSeen().catch(() => {}); // housekeeping: remove stale seen_messages on startup
     markStep(2);
 
     // Disable wake scheduler in test mode to prevent timer interference
