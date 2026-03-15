@@ -5,11 +5,15 @@
   import {
     getAgentSession,
     createAgentSession,
+    updateAgentStatus,
     getChildSessions,
     getTotalCost,
   } from '../../stores/agents.svelte';
   import { focusPane } from '../../stores/layout.svelte';
   import { isSidecarAlive, setSidecarAlive } from '../../agent-dispatcher';
+  import { getSessionProjectId } from '../../utils/session-persistence';
+  import { setAgentStatus as setBtmsgAgentStatus } from '../../adapters/btmsg-bridge';
+  import type { AgentId } from '../../types/ids';
   import { listProfiles, listSkills, readSkill, type ClaudeProfile, type ClaudeSkill } from '../../adapters/claude-bridge';
   import { getInjectableAnchors, getProjectAnchors, addAnchors, removeAnchor } from '../../stores/anchors.svelte';
   import { estimateTokens } from '../../utils/anchor-serializer';
@@ -261,6 +265,9 @@
   }
 
   function handleStop() {
+    updateAgentStatus(sessionId, 'done');
+    const projId = getSessionProjectId(sessionId);
+    if (projId) setBtmsgAgentStatus(projId as unknown as AgentId, 'stopped').catch(() => {});
     stopAgent(sessionId).catch(() => {});
   }
 

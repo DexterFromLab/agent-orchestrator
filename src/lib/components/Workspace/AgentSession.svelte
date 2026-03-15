@@ -27,7 +27,7 @@
   import { getProvider, getDefaultProviderId } from '../../providers/registry.svelte';
   import { loadAnchorsForProject } from '../../stores/anchors.svelte';
   import { getSecret } from '../../adapters/secrets-bridge';
-  import { getUnseenMessages, markMessagesSeen } from '../../adapters/btmsg-bridge';
+  import { getUnseenMessages, markMessagesSeen, setAgentStatus as setBtmsgAgentStatus } from '../../adapters/btmsg-bridge';
   import { getWakeEvent, consumeWakeEvent, updateManagerSession } from '../../stores/wake-scheduler.svelte';
   import { SessionId, ProjectId } from '../../types/ids';
   import AgentPane from '../Agent/AgentPane.svelte';
@@ -158,6 +158,8 @@ bttask comment <task-id> "update"  # Add a comment
   // Listen for stop-button events from GroupAgentsPanel
   const unsubAgentStop = onAgentStop((projectId) => {
     if (projectId !== project.id) return;
+    updateAgentStatus(sessionId, 'done');
+    setBtmsgAgentStatus(project.id as unknown as AgentId, 'stopped').catch(() => {});
     stopAgent(sessionId).catch(() => {});
   });
 

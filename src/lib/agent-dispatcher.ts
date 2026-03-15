@@ -37,9 +37,17 @@ import {
   clearSubagentRoutes,
 } from './utils/subagent-router';
 import { indexMessage } from './adapters/search-bridge';
-import { recordHeartbeat } from './adapters/btmsg-bridge';
+import { recordHeartbeat, setAgentStatus as setBtmsgAgentStatus } from './adapters/btmsg-bridge';
 import { logAuditEvent } from './adapters/audit-bridge';
 import type { AgentId } from './types/ids';
+
+/** Sync btmsg agent status to 'stopped' when a session reaches terminal state */
+function syncBtmsgStopped(sessionId: SessionIdType): void {
+  const projectId = getSessionProjectId(sessionId);
+  if (projectId) {
+    setBtmsgAgentStatus(projectId as unknown as AgentId, 'stopped').catch(() => {});
+  }
+}
 
 // Re-export public API consumed by other modules
 export { registerSessionProject, waitForPendingPersistence } from './utils/session-persistence';
@@ -99,6 +107,7 @@ export async function startAgentDispatcher(): Promise<void> {
 
       case 'agent_stopped':
         updateAgentStatus(sessionId, 'done');
+        syncBtmsgStopped(sessionId);
         tel.info('agent_stopped', { sessionId });
         notify('success', `Agent ${sessionId.slice(0, 8)} completed`);
         addNotification('Agent complete', `Session ${sessionId.slice(0, 8)} finished`, 'agent_complete', getSessionProjectId(sessionId) ?? undefined);
@@ -111,6 +120,7 @@ export async function startAgentDispatcher(): Promise<void> {
         const errorMsg = msg.message ?? 'Unknown';
         const classified = classifyError(errorMsg);
         updateAgentStatus(sessionId, 'error', errorMsg);
+        syncBtmsgStopped(sessionId);
         tel.error('agent_error', { sessionId, error: errorMsg, errorType: classified.type });
 
         // Show type-specific toast
@@ -148,10 +158,11 @@ export async function startAgentDispatcher(): Promise<void> {
     if (restarting) return;
     restarting = true;
 
-    // Mark all running sessions as errored
+    // Mark all running sessions as errored + sync btmsg
     for (const session of getAgentSessions()) {
       if (session.status === 'running' || session.status === 'starting') {
         updateAgentStatus(session.id, 'error', 'Sidecar crashed');
+        syncBtmsgStopped(session.id);
       }
     }
 
@@ -278,6 +289,7 @@ function handleAgentEvent(sessionId: SessionIdType, event: Record<string, unknow
           const costErrorMsg = cost.errors?.join('; ') ?? 'Unknown error';
           const costClassified = classifyError(costErrorMsg);
           updateAgentStatus(sessionId, 'error', costErrorMsg);
+          syncBtmsgStopped(sessionId);
 
           if (costClassified.type === 'rate_limit') {
             notify('warning', `Rate limited. ${costClassified.retryDelaySec > 0 ? `Retrying in ~${costClassified.retryDelaySec}s...` : ''}`);
@@ -290,6 +302,7 @@ function handleAgentEvent(sessionId: SessionIdType, event: Record<string, unknow
           }
         } else {
           updateAgentStatus(sessionId, 'done');
+          syncBtmsgStopped(sessionId);
           notify('success', `Agent done — $${cost.totalCostUsd.toFixed(4)}, ${cost.numTurns} turns`);
         }
         // Health: record token snapshot + tool done

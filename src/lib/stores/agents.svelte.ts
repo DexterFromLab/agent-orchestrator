@@ -62,6 +62,12 @@ export function createAgentSession(id: string, prompt: string, parent?: { sessio
 export function updateAgentStatus(id: string, status: AgentStatus, error?: string): void {
   const session = sessions.find(s => s.id === id);
   if (!session) return;
+  // Never transition from terminal states back to active states
+  // (prevents late sidecar events from overriding optimistic stop)
+  if ((session.status === 'done' || session.status === 'error') &&
+      (status === 'running' || status === 'starting' || status === 'idle')) {
+    return;
+  }
   session.status = status;
   if (error) session.error = error;
 }

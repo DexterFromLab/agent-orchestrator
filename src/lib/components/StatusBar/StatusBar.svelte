@@ -1,8 +1,13 @@
 <script lang="ts">
-  import { getAgentSessions } from '../../stores/agents.svelte';
+  import { getAgentSessions, updateAgentStatus } from '../../stores/agents.svelte';
   import { getActiveGroup, getEnabledProjects, setActiveProject } from '../../stores/workspace.svelte';
   import { getHealthAggregates, getAttentionQueue, type ProjectHealth } from '../../stores/health.svelte';
   import { getTotalConflictCount } from '../../stores/conflicts.svelte';
+  import { clearWakeScheduler } from '../../stores/wake-scheduler.svelte';
+  import { stopAgent } from '../../adapters/agent-bridge';
+  import { setAgentStatus as setBtmsgAgentStatus } from '../../adapters/btmsg-bridge';
+  import { getSessionProjectId } from '../../utils/session-persistence';
+  import type { AgentId } from '../../types/ids';
   import { onMount } from 'svelte';
   import { checkForUpdates, installUpdate, type UpdateInfo } from '../../utils/updater';
   import { message as dialogMessage, confirm } from '@tauri-apps/plugin-dialog';
@@ -22,6 +27,28 @@
 
   let totalConflicts = $derived(getTotalConflictCount());
   let showAttention = $state(false);
+
+  // Stop All state
+  let stopping = $state(false);
+  let hasActive = $derived(health.running > 0 || health.idle > 0 || health.stalled > 0);
+
+  async function handleStopAll() {
+    if (stopping) return;
+    stopping = true;
+    try {
+      clearWakeScheduler();
+      const sessions = getAgentSessions();
+      const active = sessions.filter(s => s.status === 'running' || s.status === 'starting' || s.status === 'idle');
+      for (const s of active) {
+        updateAgentStatus(s.id, 'done');
+        const projId = getSessionProjectId(s.id);
+        if (projId) setBtmsgAgentStatus(projId as unknown as AgentId, 'stopped').catch(() => {});
+      }
+      await Promise.all(active.map(s => stopAgent(s.id).catch(() => {})));
+    } finally {
+      stopping = false;
+    }
+  }
 
   // Auto-update state
   let updateInfo = $state<UpdateInfo | null>(null);
@@ -124,6 +151,21 @@
   </div>
 
   <div class="right">
+    {#if hasActive}
+      <button
+        class="item stop-all-btn"
+        onclick={handleStopAll}
+        disabled={stopping}
+        title="Stop all agents and wake scheduler"
+      >
+        {#if stopping}
+          Stopping...
+        {:else}
+          ■ Stop All
+        {/if}
+      </button>
+      <span class="sep"></span>
+    {/if}
     {#if health.totalBurnRatePerHour > 0}
       <span class="item burn-rate" title="Total burn rate across active sessions">
         {formatRate(health.totalBurnRatePerHour)}
@@ -282,6 +324,32 @@
   .attention-btn.attention-open .attention-dot,
   .attention-btn:hover .attention-dot {
     background: var(--ctp-red);
+  }
+
+  /* Stop All */
+  .stop-all-btn {
+    background: color-mix(in srgb, var(--ctp-red) 15%, transparent);
+    border: 1px solid var(--ctp-red);
+    border-radius: 0.25rem;
+    color: var(--ctp-red);
+    font: inherit;
+    font-size: 0.625rem;
+    font-weight: 600;
+    padding: 0 0.375rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    line-height: 1.25rem;
+  }
+
+  .stop-all-btn:hover {
+    background: color-mix(in srgb, var(--ctp-red) 25%, transparent);
+  }
+
+  .stop-all-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   /* Burn rate */
