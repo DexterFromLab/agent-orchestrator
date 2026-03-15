@@ -1,0 +1,12 @@
+{
+  "name": "bterminal-sidecar",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild claude-runner.ts --bundle --platform=node --target=node20 --outfile=dist/claude-runner.mjs --format=esm"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.4"
+  }
+}

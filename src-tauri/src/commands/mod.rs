@@ -1,0 +1,17 @@
+pub mod pty;
+pub mod agent;
+pub mod watcher;
+pub mod session;
+pub mod persistence;
+pub mod knowledge;
+pub mod claude;
+pub mod groups;
+pub mod files;
+pub mod remote;
+pub mod misc;
+pub mod btmsg;
+pub mod bttask;
+pub mod notifications;
+pub mod search;
+pub mod plugins;
+pub mod secrets;

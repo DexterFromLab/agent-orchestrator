@@ -1,0 +1,329 @@
+// Project health tracking — Svelte 5 runes
+// Tracks per-project activity state, burn rate, context pressure, and attention scoring
+
+import type { SessionId as SessionIdType, ProjectId as ProjectIdType } from '../types/ids';
+import { getAgentSession, type AgentSession } from './agents.svelte';
+import { getProjectConflicts } from './conflicts.svelte';
+import { scoreAttention } from '../utils/attention-scorer';
+
+// --- Types ---
+
+export type ActivityState = 'inactive' | 'running' | 'idle' | 'stalled';
+
+export interface ProjectHealth {
+  projectId: ProjectIdType;
+  sessionId: SessionIdType | null;
+  /** Current activity state */
+  activityState: ActivityState;
+  /** Name of currently running tool (if any) */
+  activeTool: string | null;
+  /** Duration in ms since last activity (0 if running a tool) */
+  idleDurationMs: number;
+  /** Burn rate in USD per hour (0 if no data) */
+  burnRatePerHour: number;
+  /** Context pressure as fraction 0..1 (null if unknown) */
+  contextPressure: number | null;
+  /** Number of file conflicts (2+ agents writing same file) */
+  fileConflictCount: number;
+  /** Number of external write conflicts (filesystem writes by non-agent processes) */
+  externalConflictCount: number;
+  /** Attention urgency score (higher = more urgent, 0 = no attention needed) */
+  attentionScore: number;
+  /** Human-readable attention reason */
+  attentionReason: string | null;
+}
+
+export type AttentionItem = ProjectHealth & { projectName: string; projectIcon: string };
+
+// --- Configuration ---
+
+const DEFAULT_STALL_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
+const TICK_INTERVAL_MS = 5_000; // Update derived state every 5s
+const BURN_RATE_WINDOW_MS = 5 * 60 * 1000; // 5-minute window for burn rate calc
+
+// Context limits by model (tokens)
+const MODEL_CONTEXT_LIMITS: Record<string, number> = {
+  'claude-sonnet-4-20250514': 200_000,
+  'claude-opus-4-20250514': 200_000,
+  'claude-haiku-4-20250506': 200_000,
+  'claude-3-5-sonnet-20241022': 200_000,
+  'claude-3-5-haiku-20241022': 200_000,
+  'claude-sonnet-4-6': 200_000,
+  'claude-opus-4-6': 200_000,
+};
+const DEFAULT_CONTEXT_LIMIT = 200_000;
+
+
+// --- State ---
+
+interface ProjectTracker {
+  projectId: ProjectIdType;
+  sessionId: SessionIdType | null;
+  lastActivityTs: number; // epoch ms
+  lastToolName: string | null;
+  toolInFlight: boolean;
+  /** Token snapshots for burn rate calculation: [timestamp, totalTokens] */
+  tokenSnapshots: Array<[number, number]>;
+  /** Cost snapshots for $/hr: [timestamp, costUsd] */
+  costSnapshots: Array<[number, number]>;
+  /** Number of tasks in 'review' status (for reviewer agents) */
+  reviewQueueDepth: number;
+}
+
+let trackers = $state<Map<ProjectIdType, ProjectTracker>>(new Map());
+let stallThresholds = $state<Map<ProjectIdType, number>>(new Map()); // projectId → ms
+let tickTs = $state<number>(Date.now());
+let tickInterval: ReturnType<typeof setInterval> | null = null;
+
+// --- Public API ---
+
+/** Register a project for health tracking */
+export function trackProject(projectId: ProjectIdType, sessionId: SessionIdType | null): void {
+  const existing = trackers.get(projectId);
+  if (existing) {
+    existing.sessionId = sessionId;
+    return;
+  }
+  trackers.set(projectId, {
+    projectId,
+    sessionId,
+    lastActivityTs: Date.now(),
+    lastToolName: null,
+    toolInFlight: false,
+    tokenSnapshots: [],
+    costSnapshots: [],
+    reviewQueueDepth: 0,
+  });
+}
+
+/** Remove a project from health tracking */
+export function untrackProject(projectId: ProjectIdType): void {
+  trackers.delete(projectId);
+}
+
+/** Set per-project stall threshold in minutes (null to use default) */
+export function setStallThreshold(projectId: ProjectIdType, minutes: number | null): void {
+  if (minutes === null) {
+    stallThresholds.delete(projectId);
+  } else {
+    stallThresholds.set(projectId, minutes * 60 * 1000);
+  }
+}
+
+/** Update session ID for a tracked project */
+export function updateProjectSession(projectId: ProjectIdType, sessionId: SessionIdType): void {
+  const t = trackers.get(projectId);
+  if (t) {
+    t.sessionId = sessionId;
+  }
+}
+
+/** Record activity — call on every agent message. Auto-starts tick if stopped. */
+export function recordActivity(projectId: ProjectIdType, toolName?: string): void {
+  const t = trackers.get(projectId);
+  if (!t) return;
+  t.lastActivityTs = Date.now();
+  if (toolName !== undefined) {
+    t.lastToolName = toolName;
+    t.toolInFlight = true;
+  }
+  // Auto-start tick when activity resumes
+  if (!tickInterval) startHealthTick();
+}
+
+/** Record tool completion */
+export function recordToolDone(projectId: ProjectIdType): void {
+  const t = trackers.get(projectId);
+  if (!t) return;
+  t.lastActivityTs = Date.now();
+  t.toolInFlight = false;
+}
+
+/** Record a token/cost snapshot for burn rate calculation */
+export function recordTokenSnapshot(projectId: ProjectIdType, totalTokens: number, costUsd: number): void {
+  const t = trackers.get(projectId);
+  if (!t) return;
+  const now = Date.now();
+  t.tokenSnapshots.push([now, totalTokens]);
+  t.costSnapshots.push([now, costUsd]);
+  // Prune old snapshots beyond window
+  const cutoff = now - BURN_RATE_WINDOW_MS * 2;
+  t.tokenSnapshots = t.tokenSnapshots.filter(([ts]) => ts > cutoff);
+  t.costSnapshots = t.costSnapshots.filter(([ts]) => ts > cutoff);
+}
+
+/** Check if any tracked project has an active (running/starting) session */
+function hasActiveSession(): boolean {
+  for (const t of trackers.values()) {
+    if (!t.sessionId) continue;
+    const session = getAgentSession(t.sessionId);
+    if (session && (session.status === 'running' || session.status === 'starting')) return true;
+  }
+  return false;
+}
+
+/** Start the health tick timer (auto-stops when no active sessions) */
+export function startHealthTick(): void {
+  if (tickInterval) return;
+  tickInterval = setInterval(() => {
+    if (!hasActiveSession()) {
+      stopHealthTick();
+      return;
+    }
+    tickTs = Date.now();
+  }, TICK_INTERVAL_MS);
+}
+
+/** Stop the health tick timer */
+export function stopHealthTick(): void {
+  if (tickInterval) {
+    clearInterval(tickInterval);
+    tickInterval = null;
+  }
+}
+
+/** Set review queue depth for a project (used by reviewer agents) */
+export function setReviewQueueDepth(projectId: ProjectIdType, depth: number): void {
+  const t = trackers.get(projectId);
+  if (t) t.reviewQueueDepth = depth;
+}
+
+/** Clear all tracked projects */
+export function clearHealthTracking(): void {
+  trackers = new Map();
+  stallThresholds = new Map();
+}
+
+// --- Derived health per project ---
+
+function getContextLimit(model?: string): number {
+  if (!model) return DEFAULT_CONTEXT_LIMIT;
+  return MODEL_CONTEXT_LIMITS[model] ?? DEFAULT_CONTEXT_LIMIT;
+}
+
+function computeBurnRate(snapshots: Array<[number, number]>): number {
+  if (snapshots.length < 2) return 0;
+  const windowStart = Date.now() - BURN_RATE_WINDOW_MS;
+  const recent = snapshots.filter(([ts]) => ts >= windowStart);
+  if (recent.length < 2) return 0;
+  const first = recent[0];
+  const last = recent[recent.length - 1];
+  const elapsedHours = (last[0] - first[0]) / 3_600_000;
+  if (elapsedHours < 0.001) return 0; // Less than ~4 seconds
+  const costDelta = last[1] - first[1];
+  return Math.max(0, costDelta / elapsedHours);
+}
+
+function computeHealth(tracker: ProjectTracker, now: number): ProjectHealth {
+  const session: AgentSession | undefined = tracker.sessionId
+    ? getAgentSession(tracker.sessionId)
+    : undefined;
+
+  // Activity state
+  let activityState: ActivityState;
+  let idleDurationMs = 0;
+  let activeTool: string | null = null;
+
+  if (!session || session.status === 'idle' || session.status === 'done' || session.status === 'error') {
+    activityState = session?.status === 'error' ? 'inactive' : 'inactive';
+  } else if (tracker.toolInFlight) {
+    activityState = 'running';
+    activeTool = tracker.lastToolName;
+    idleDurationMs = 0;
+  } else {
+    idleDurationMs = now - tracker.lastActivityTs;
+    const stallMs = stallThresholds.get(tracker.projectId) ?? DEFAULT_STALL_THRESHOLD_MS;
+    if (idleDurationMs >= stallMs) {
+      activityState = 'stalled';
+    } else {
+      activityState = 'idle';
+    }
+  }
+
+  // Context pressure
+  let contextPressure: number | null = null;
+  if (session && (session.inputTokens + session.outputTokens) > 0) {
+    const limit = getContextLimit(session.model);
+    contextPressure = Math.min(1, (session.inputTokens + session.outputTokens) / limit);
+  }
+
+  // Burn rate
+  const burnRatePerHour = computeBurnRate(tracker.costSnapshots);
+
+  // File conflicts
+  const conflicts = getProjectConflicts(tracker.projectId);
+  const fileConflictCount = conflicts.conflictCount;
+  const externalConflictCount = conflicts.externalConflictCount;
+
+  // Attention scoring — delegated to pure function
+  const attention = scoreAttention({
+    sessionStatus: session?.status,
+    sessionError: session?.error,
+    activityState,
+    idleDurationMs,
+    contextPressure,
+    fileConflictCount,
+    externalConflictCount,
+    reviewQueueDepth: tracker.reviewQueueDepth,
+  });
+
+  return {
+    projectId: tracker.projectId,
+    sessionId: tracker.sessionId,
+    activityState,
+    activeTool,
+    idleDurationMs,
+    burnRatePerHour,
+    contextPressure,
+    fileConflictCount,
+    externalConflictCount,
+    attentionScore: attention.score,
+    attentionReason: attention.reason,
+  };
+}
+
+/** Get health for a single project (reactive via tickTs) */
+export function getProjectHealth(projectId: ProjectIdType): ProjectHealth | null {
+  // Touch tickTs to make this reactive to the timer
+  const now = tickTs;
+  const t = trackers.get(projectId);
+  if (!t) return null;
+  return computeHealth(t, now);
+}
+
+/** Get all project health sorted by attention score descending */
+export function getAllProjectHealth(): ProjectHealth[] {
+  const now = tickTs;
+  const results: ProjectHealth[] = [];
+  for (const t of trackers.values()) {
+    results.push(computeHealth(t, now));
+  }
+  results.sort((a, b) => b.attentionScore - a.attentionScore);
+  return results;
+}
+
+/** Get top N items needing attention */
+export function getAttentionQueue(limit = 5): ProjectHealth[] {
+  return getAllProjectHealth().filter(h => h.attentionScore > 0).slice(0, limit);
+}
+
+/** Get aggregate stats across all tracked projects */
+export function getHealthAggregates(): {
+  running: number;
+  idle: number;
+  stalled: number;
+  totalBurnRatePerHour: number;
+} {
+  const all = getAllProjectHealth();
+  let running = 0;
+  let idle = 0;
+  let stalled = 0;
+  let totalBurnRatePerHour = 0;
+  for (const h of all) {
+    if (h.activityState === 'running') running++;
+    else if (h.activityState === 'idle') idle++;
+    else if (h.activityState === 'stalled') stalled++;
+    totalBurnRatePerHour += h.burnRatePerHour;
+  }
+  return { running, idle, stalled, totalBurnRatePerHour };
+}

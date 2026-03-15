@@ -1,0 +1,357 @@
+import { loadGroups, saveGroups, getCliGroup } from '../adapters/groups-bridge';
+import type { GroupsFile, GroupConfig, ProjectConfig, GroupAgentConfig } from '../types/groups';
+import { agentToProject } from '../types/groups';
+import { clearAllAgentSessions } from '../stores/agents.svelte';
+import { clearHealthTracking } from '../stores/health.svelte';
+import { clearAllConflicts } from '../stores/conflicts.svelte';
+import { clearWakeScheduler } from '../stores/wake-scheduler.svelte';
+import { waitForPendingPersistence } from '../agent-dispatcher';
+import { registerAgents } from '../adapters/btmsg-bridge';
+
+export type WorkspaceTab = 'sessions' | 'docs' | 'context' | 'settings' | 'comms';
+
+export interface TerminalTab {
+  id: string;
+  title: string;
+  type: 'shell' | 'ssh' | 'agent-terminal' | 'agent-preview';
+  /** SSH session ID if type === 'ssh' */
+  sshSessionId?: string;
+  /** Agent session ID if type === 'agent-preview' */
+  agentSessionId?: string;
+}
+
+// --- Core state ---
+
+let groupsConfig = $state<GroupsFile | null>(null);
+let activeGroupId = $state<string>('');
+let activeTab = $state<WorkspaceTab>('sessions');
+let activeProjectId = $state<string | null>(null);
+
+/** Terminal tabs per project (keyed by project ID) */
+let projectTerminals = $state<Record<string, TerminalTab[]>>({});
+
+// --- Focus flash event (keyboard quick-jump visual feedback) ---
+
+let focusFlashProjectId = $state<string | null>(null);
+
+export function getFocusFlashProjectId(): string | null {
+  return focusFlashProjectId;
+}
+
+export function triggerFocusFlash(projectId: string): void {
+  focusFlashProjectId = projectId;
+  // Auto-clear after animation duration
+  setTimeout(() => {
+    focusFlashProjectId = null;
+  }, 400);
+}
+
+// --- Project tab switching (keyboard-driven) ---
+
+type ProjectTabSwitchCallback = (projectId: string, tabIndex: number) => void;
+let projectTabSwitchCallbacks: ProjectTabSwitchCallback[] = [];
+
+export function onProjectTabSwitch(cb: ProjectTabSwitchCallback): () => void {
+  projectTabSwitchCallbacks.push(cb);
+  return () => {
+    projectTabSwitchCallbacks = projectTabSwitchCallbacks.filter(c => c !== cb);
+  };
+}
+
+export function emitProjectTabSwitch(projectId: string, tabIndex: number): void {
+  for (const cb of projectTabSwitchCallbacks) {
+    cb(projectId, tabIndex);
+  }
+}
+
+// --- Terminal toggle (keyboard-driven) ---
+
+type TerminalToggleCallback = (projectId: string) => void;
+let terminalToggleCallbacks: TerminalToggleCallback[] = [];
+
+export function onTerminalToggle(cb: TerminalToggleCallback): () => void {
+  terminalToggleCallbacks.push(cb);
+  return () => {
+    terminalToggleCallbacks = terminalToggleCallbacks.filter(c => c !== cb);
+  };
+}
+
+export function emitTerminalToggle(projectId: string): void {
+  for (const cb of terminalToggleCallbacks) {
+    cb(projectId);
+  }
+}
+
+// --- Agent start event (play button in GroupAgentsPanel) ---
+
+type AgentStartCallback = (projectId: string) => void;
+let agentStartCallbacks: AgentStartCallback[] = [];
+
+export function onAgentStart(cb: AgentStartCallback): () => void {
+  agentStartCallbacks.push(cb);
+  return () => {
+    agentStartCallbacks = agentStartCallbacks.filter(c => c !== cb);
+  };
+}
+
+export function emitAgentStart(projectId: string): void {
+  for (const cb of agentStartCallbacks) {
+    cb(projectId);
+  }
+}
+
+// --- Agent stop event (stop button in GroupAgentsPanel) ---
+
+type AgentStopCallback = (projectId: string) => void;
+let agentStopCallbacks: AgentStopCallback[] = [];
+
+export function onAgentStop(cb: AgentStopCallback): () => void {
+  agentStopCallbacks.push(cb);
+  return () => {
+    agentStopCallbacks = agentStopCallbacks.filter(c => c !== cb);
+  };
+}
+
+export function emitAgentStop(projectId: string): void {
+  for (const cb of agentStopCallbacks) {
+    cb(projectId);
+  }
+}
+
+// --- Getters ---
+
+export function getGroupsConfig(): GroupsFile | null {
+  return groupsConfig;
+}
+
+export function getActiveGroupId(): string {
+  return activeGroupId;
+}
+
+export function getActiveTab(): WorkspaceTab {
+  return activeTab;
+}
+
+export function getActiveProjectId(): string | null {
+  return activeProjectId;
+}
+
+export function getActiveGroup(): GroupConfig | undefined {
+  return groupsConfig?.groups.find(g => g.id === activeGroupId);
+}
+
+export function getEnabledProjects(): ProjectConfig[] {
+  const group = getActiveGroup();
+  if (!group) return [];
+  return group.projects.filter(p => p.enabled);
+}
+
+/** Get all work items: enabled projects + agents as virtual project entries */
+export function getAllWorkItems(): ProjectConfig[] {
+  const group = getActiveGroup();
+  if (!group) return [];
+  const projects = group.projects.filter(p => p.enabled);
+  const agentProjects = (group.agents ?? [])
+    .filter(a => a.enabled)
+    .map(a => {
+      // Use first project's parent dir as default CWD for agents
+      const groupCwd = projects[0]?.cwd?.replace(/\/[^/]+\/?$/, '/') ?? '/tmp';
+      return agentToProject(a, groupCwd);
+    });
+  return [...agentProjects, ...projects];
+}
+
+export function getAllGroups(): GroupConfig[] {
+  return groupsConfig?.groups ?? [];
+}
+
+// --- Setters ---
+
+export function setActiveTab(tab: WorkspaceTab): void {
+  activeTab = tab;
+}
+
+export function setActiveProject(projectId: string | null): void {
+  activeProjectId = projectId;
+}
+
+export async function switchGroup(groupId: string): Promise<void> {
+  if (groupId === activeGroupId) return;
+
+  // Wait for any in-flight persistence before clearing state
+  await waitForPendingPersistence();
+
+  // Teardown: clear terminal tabs, agent sessions, health tracking, and wake schedulers for the old group
+  projectTerminals = {};
+  clearAllAgentSessions();
+  clearHealthTracking();
+  clearAllConflicts();
+  clearWakeScheduler();
+
+  activeGroupId = groupId;
+  activeProjectId = null;
+
+  // Auto-focus first enabled project
+  const projects = getEnabledProjects();
+  if (projects.length > 0) {
+    activeProjectId = projects[0].id;
+  }
+
+  // Persist active group
+  if (groupsConfig) {
+    groupsConfig.activeGroupId = groupId;
+    saveGroups(groupsConfig).catch(e => console.warn('Failed to save groups:', e));
+  }
+}
+
+// --- Terminal tab management per project ---
+
+export function getTerminalTabs(projectId: string): TerminalTab[] {
+  return projectTerminals[projectId] ?? [];
+}
+
+export function addTerminalTab(projectId: string, tab: TerminalTab): void {
+  const tabs = projectTerminals[projectId] ?? [];
+  projectTerminals[projectId] = [...tabs, tab];
+}
+
+export function removeTerminalTab(projectId: string, tabId: string): void {
+  const tabs = projectTerminals[projectId] ?? [];
+  projectTerminals[projectId] = tabs.filter(t => t.id !== tabId);
+}
+
+// --- Persistence ---
+
+export async function loadWorkspace(initialGroupId?: string): Promise<void> {
+  try {
+    const config = await loadGroups();
+    groupsConfig = config;
+    projectTerminals = {};
+
+    // Register all agents from config into btmsg database
+    // (creates agent records, contact permissions, review channels)
+    registerAgents(config).catch(e => console.warn('Failed to register agents:', e));
+
+    // CLI --group flag takes priority, then explicit param, then persisted
+    let cliGroup: string | null = null;
+    if (!initialGroupId) {
+      cliGroup = await getCliGroup();
+    }
+    const targetId = initialGroupId || cliGroup || config.activeGroupId;
+    // Match by ID or by name (CLI users may pass name)
+    const targetGroup = config.groups.find(
+      g => g.id === targetId || g.name === targetId,
+    );
+
+    if (targetGroup) {
+      activeGroupId = targetGroup.id;
+    } else if (config.groups.length > 0) {
+      activeGroupId = config.groups[0].id;
+    }
+
+    // Auto-focus first enabled project
+    const projects = getEnabledProjects();
+    if (projects.length > 0) {
+      activeProjectId = projects[0].id;
+    }
+  } catch (e) {
+    console.warn('Failed to load groups config:', e);
+    groupsConfig = { version: 1, groups: [], activeGroupId: '' };
+  }
+}
+
+export async function saveWorkspace(): Promise<void> {
+  if (!groupsConfig) return;
+  await saveGroups(groupsConfig);
+  // Re-register agents after config changes (new agents, permission updates)
+  registerAgents(groupsConfig).catch(e => console.warn('Failed to register agents:', e));
+}
+
+// --- Group/project mutation ---
+
+export function addGroup(group: GroupConfig): void {
+  if (!groupsConfig) return;
+  groupsConfig = {
+    ...groupsConfig,
+    groups: [...groupsConfig.groups, group],
+  };
+  saveGroups(groupsConfig).catch(e => console.warn('Failed to save groups:', e));
+}
+
+export function removeGroup(groupId: string): void {
+  if (!groupsConfig) return;
+  groupsConfig = {
+    ...groupsConfig,
+    groups: groupsConfig.groups.filter(g => g.id !== groupId),
+  };
+  if (activeGroupId === groupId) {
+    activeGroupId = groupsConfig.groups[0]?.id ?? '';
+    activeProjectId = null;
+  }
+  saveGroups(groupsConfig).catch(e => console.warn('Failed to save groups:', e));
+}
+
+export function updateProject(groupId: string, projectId: string, updates: Partial<ProjectConfig>): void {
+  if (!groupsConfig) return;
+  groupsConfig = {
+    ...groupsConfig,
+    groups: groupsConfig.groups.map(g => {
+      if (g.id !== groupId) return g;
+      return {
+        ...g,
+        projects: g.projects.map(p => {
+          if (p.id !== projectId) return p;
+          return { ...p, ...updates };
+        }),
+      };
+    }),
+  };
+  saveGroups(groupsConfig).catch(e => console.warn('Failed to save groups:', e));
+}
+
+export function addProject(groupId: string, project: ProjectConfig): void {
+  if (!groupsConfig) return;
+  const group = groupsConfig.groups.find(g => g.id === groupId);
+  if (!group || group.projects.length >= 5) return;
+  groupsConfig = {
+    ...groupsConfig,
+    groups: groupsConfig.groups.map(g => {
+      if (g.id !== groupId) return g;
+      return { ...g, projects: [...g.projects, project] };
+    }),
+  };
+  saveGroups(groupsConfig).catch(e => console.warn('Failed to save groups:', e));
+}
+
+export function removeProject(groupId: string, projectId: string): void {
+  if (!groupsConfig) return;
+  groupsConfig = {
+    ...groupsConfig,
+    groups: groupsConfig.groups.map(g => {
+      if (g.id !== groupId) return g;
+      return { ...g, projects: g.projects.filter(p => p.id !== projectId) };
+    }),
+  };
+  if (activeProjectId === projectId) {
+    activeProjectId = null;
+  }
+  saveGroups(groupsConfig).catch(e => console.warn('Failed to save groups:', e));
+}
+
+export function updateAgent(groupId: string, agentId: string, updates: Partial<GroupAgentConfig>): void {
+  if (!groupsConfig) return;
+  groupsConfig = {
+    ...groupsConfig,
+    groups: groupsConfig.groups.map(g => {
+      if (g.id !== groupId) return g;
+      return {
+        ...g,
+        agents: (g.agents ?? []).map(a => {
+          if (a.id !== agentId) return a;
+          return { ...a, ...updates };
+        }),
+      };
+    }),
+  };
+  saveGroups(groupsConfig).catch(e => console.warn('Failed to save groups:', e));
+}

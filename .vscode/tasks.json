@@ -1,0 +1,22 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "run",
+      "type": "shell",
+      "command": "python3 ${workspaceFolder}/bterminal.py",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "install",
+      "type": "shell",
+      "command": "bash ${workspaceFolder}/install.sh",
+      "group": "none",
+      "problemMatcher": []
+    }
+  ]
+}
