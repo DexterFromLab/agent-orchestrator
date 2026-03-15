@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { confirm } from '@tauri-apps/plugin-dialog';
   import { getActiveGroup, emitAgentStart } from '../../stores/workspace.svelte';
   import {
     type BtmsgAgent,
@@ -18,6 +19,7 @@
     sendChannelMessage,
     createChannel,
     setAgentStatus,
+    clearAllComms,
   } from '../../adapters/btmsg-bridge';
 
   const ADMIN_ID = 'admin';
@@ -192,6 +194,30 @@
     if (view.type === 'channel' && currentView.type === 'channel') return view.channelId === currentView.channelId;
     return true;
   }
+
+  let clearing = $state(false);
+
+  async function handleClearAll() {
+    if (!groupId || clearing) return;
+    const confirmed = await confirm(
+      'All messages, channel history, activity feed, and unread indicators will be permanently deleted.\n\nThis action cannot be undone.',
+      { title: 'Clear all communications?', kind: 'warning' },
+    );
+    if (!confirmed) return;
+    clearing = true;
+    try {
+      await clearAllComms(groupId);
+      feedMessages = [];
+      dmMessages = [];
+      channelMessages = [];
+      currentView = { type: 'feed' };
+      await loadData();
+    } catch (e) {
+      console.error('[CommsTab] clearAllComms failed:', e);
+    } finally {
+      clearing = false;
+    }
+  }
 </script>
 
 <div class="comms-tab">
@@ -199,6 +225,14 @@
   <div class="conv-list">
     <div class="conv-header">
       <span class="conv-header-title">Messages</span>
+      <button
+        class="clear-all-btn"
+        onclick={handleClearAll}
+        disabled={clearing}
+        title="Clear all messages and activity feed"
+      >
+        {clearing ? '...' : '🗑'}
+      </button>
     </div>
 
     <!-- Activity Feed -->
@@ -383,6 +417,30 @@
   .conv-header {
     padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--ctp-surface0);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .clear-all-btn {
+    background: none;
+    border: none;
+    color: var(--ctp-overlay0);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    line-height: 1;
+  }
+
+  .clear-all-btn:hover {
+    color: var(--ctp-red);
+    background: color-mix(in srgb, var(--ctp-red) 10%, transparent);
+  }
+
+  .clear-all-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
   }
 
   .conv-header-title {

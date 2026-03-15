@@ -232,3 +232,10 @@ export async function getDeadLetters(groupId: GroupId, limit: number = 50): Prom
 export async function clearDeadLetters(groupId: GroupId): Promise<void> {
   return invoke('btmsg_clear_dead_letters', { groupId });
 }
+
+/**
+ * Clear ALL communications for a group: messages, channel messages, seen tracking, dead letters.
+ */
+export async function clearAllComms(groupId: GroupId): Promise<void> {
+  return invoke('btmsg_clear_all_comms', { groupId });
+}

@@ -125,6 +125,11 @@ pub fn btmsg_clear_dead_letters(group_id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn btmsg_clear_all_comms(group_id: String) -> Result<(), String> {
+    btmsg::clear_all_communications(&group_id)
+}
+
+#[tauri::command]
 pub fn btmsg_queue_dead_letter(
     from_agent: String,
     to_agent: String,

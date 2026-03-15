@@ -877,6 +877,35 @@ pub fn clear_dead_letters(group_id: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Clear all communications for a group: messages, channel messages, seen tracking, dead letters
+pub fn clear_all_communications(group_id: &str) -> Result<(), String> {
+    let db = open_db()?;
+    let agent_ids_clause = "(SELECT id FROM agents WHERE group_id = ?1)";
+
+    // Order matters: seen_messages references messages, so delete seen first
+    db.execute(
+        &format!("DELETE FROM seen_messages WHERE message_id IN (SELECT id FROM messages WHERE group_id = ?1 OR from_agent IN {agent_ids_clause} OR to_agent IN {agent_ids_clause})"),
+        params![group_id],
+    ).map_err(|e| format!("Clear seen_messages error: {e}"))?;
+
+    db.execute(
+        &format!("DELETE FROM messages WHERE group_id = ?1 OR from_agent IN {agent_ids_clause} OR to_agent IN {agent_ids_clause}"),
+        params![group_id],
+    ).map_err(|e| format!("Clear messages error: {e}"))?;
+
+    db.execute(
+        &format!("DELETE FROM channel_messages WHERE channel_id IN (SELECT id FROM channels WHERE group_id = ?1) OR from_agent IN {agent_ids_clause}"),
+        params![group_id],
+    ).map_err(|e| format!("Clear channel_messages error: {e}"))?;
+
+    db.execute(
+        &format!("DELETE FROM dead_letter_queue WHERE from_agent IN {agent_ids_clause} OR to_agent IN {agent_ids_clause}"),
+        params![group_id],
+    ).map_err(|e| format!("Clear dead_letter_queue error: {e}"))?;
+
+    Ok(())
+}
+
 // ---- Audit log ----
 
 #[derive(Debug, Serialize, Deserialize)]

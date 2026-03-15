@@ -277,6 +277,7 @@ pub fn run() {
             commands::btmsg::btmsg_get_agent_heartbeats,
             commands::btmsg::btmsg_get_dead_letters,
             commands::btmsg::btmsg_clear_dead_letters,
+            commands::btmsg::btmsg_clear_all_comms,
             commands::btmsg::btmsg_queue_dead_letter,
             // Audit log
             commands::btmsg::audit_log_event,
