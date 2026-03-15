@@ -8,6 +8,7 @@ gi.require_version("Gdk", "3.0")
 
 import json
 import os
+import sqlite3
 import subprocess
 import tempfile
 import threading
@@ -203,6 +204,19 @@ def _parse_color(hex_str):
     c = Gdk.RGBA()
     c.parse(hex_str)
     return c
+
+
+def show_error_dialog(parent, msg):
+    """Show a modal error dialog."""
+    dlg = Gtk.MessageDialog(
+        transient_for=parent,
+        modal=True,
+        message_type=Gtk.MessageType.ERROR,
+        buttons=Gtk.ButtonsType.OK,
+        text=msg,
+    )
+    dlg.run()
+    dlg.destroy()
 
 
 # ─── SessionManager ──────────────────────────────────────────────────────────
@@ -516,15 +530,7 @@ class SessionDialog(Gtk.Dialog):
         return True
 
     def _show_error(self, msg):
-        dlg = Gtk.MessageDialog(
-            transient_for=self,
-            modal=True,
-            message_type=Gtk.MessageType.ERROR,
-            buttons=Gtk.ButtonsType.OK,
-            text=msg,
-        )
-        dlg.run()
-        dlg.destroy()
+        show_error_dialog(self, msg)
 
 
 # ─── MacroDialog ─────────────────────────────────────────────────────────────
@@ -743,15 +749,7 @@ class MacroDialog(Gtk.Dialog):
         return True
 
     def _show_error(self, msg):
-        dlg = Gtk.MessageDialog(
-            transient_for=self,
-            modal=True,
-            message_type=Gtk.MessageType.ERROR,
-            buttons=Gtk.ButtonsType.OK,
-            text=msg,
-        )
-        dlg.run()
-        dlg.destroy()
+        show_error_dialog(self, msg)
 
 
 # ─── ClaudeCodeDialog ─────────────────────────────────────────────────────────
@@ -906,15 +904,7 @@ class ClaudeCodeDialog(Gtk.Dialog):
         return True
 
     def _show_error(self, msg):
-        dlg = Gtk.MessageDialog(
-            transient_for=self,
-            modal=True,
-            message_type=Gtk.MessageType.ERROR,
-            buttons=Gtk.ButtonsType.OK,
-            text=msg,
-        )
-        dlg.run()
-        dlg.destroy()
+        show_error_dialog(self, msg)
 
     def _on_browse_dir(self, button):
         dlg = Gtk.FileChooserDialog(
@@ -990,7 +980,6 @@ def _clipboard_get_image_or_path():
 
 def _ensure_images_table():
     """Create images table in ctx database if it doesn't exist."""
-    import sqlite3
     if not os.path.exists(CTX_DB):
         return
     db = sqlite3.connect(CTX_DB)
@@ -1010,7 +999,6 @@ def _ensure_images_table():
 
 def _save_ctx_image(project, source, original_name=None):
     """Save image to ctx. source: file path (str) or GdkPixbuf.Pixbuf."""
-    import sqlite3
     import shutil
     _ensure_images_table()
     proj_dir = os.path.join(CTX_IMAGES_DIR, project)
@@ -1044,7 +1032,6 @@ def _save_ctx_image(project, source, original_name=None):
 
 def _delete_ctx_image(project, filename):
     """Delete an image file and its database entry."""
-    import sqlite3
     path = os.path.join(CTX_IMAGES_DIR, project, filename)
     if os.path.exists(path):
         os.remove(path)
@@ -1081,7 +1068,6 @@ def _resolve_ctx_project_name(project_dir):
     """
     if not project_dir or not os.path.exists(CTX_DB):
         return os.path.basename(project_dir.rstrip("/")) if project_dir else None
-    import sqlite3
     normalized = project_dir.rstrip("/")
     try:
         db = sqlite3.connect(CTX_DB)
@@ -1101,7 +1087,6 @@ def _is_ctx_project_registered(project_name):
     """Check if a ctx project is already registered in the database."""
     if not os.path.exists(CTX_DB):
         return False
-    import sqlite3
     try:
         db = sqlite3.connect(CTX_DB)
         row = db.execute(
@@ -1649,7 +1634,6 @@ class CtxEditDialog(Gtk.Dialog):
         self.show_all()
 
     def _load_data(self):
-        import sqlite3
         self.store.clear()
         if not os.path.exists(CTX_DB):
             return
@@ -2040,7 +2024,6 @@ class TerminalTab(Gtk.Box):
         if not self._task_project:
             return False
         try:
-            import sqlite3
             if not os.path.exists(CTX_DB):
                 return False
             db = sqlite3.connect(CTX_DB)
@@ -2102,7 +2085,6 @@ class TerminalTab(Gtk.Box):
 
     def _detect_ctx_project(self):
         """Auto-detect ctx project from tab config, or ask user."""
-        import sqlite3
         if not os.path.exists(CTX_DB):
             return None
         # Try auto-detect from claude config
@@ -2187,7 +2169,6 @@ class TerminalTab(Gtk.Box):
         pixbuf, file_path = _clipboard_get_image_or_path()
         if not pixbuf and not file_path:
             return
-        import sqlite3
         if not os.path.exists(CTX_DB):
             return
         db = sqlite3.connect(CTX_DB)
@@ -2873,7 +2854,6 @@ class _CtxExportDialog(Gtk.Dialog):
         self.show_all()
 
     def _load_data(self):
-        import sqlite3
         if not os.path.exists(CTX_DB):
             return
         db = sqlite3.connect(CTX_DB)
@@ -2965,7 +2945,6 @@ class _CtxExportDialog(Gtk.Dialog):
 
     def get_export_data(self):
         """Collect checked items and return export dict."""
-        import sqlite3
         import base64
         if not os.path.exists(CTX_DB):
             return None
@@ -3502,7 +3481,6 @@ class CtxManagerPanel(Gtk.Box):
         if not os.path.exists(CTX_DB):
             return
 
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.row_factory = sqlite3.Row
         _ensure_images_table()
@@ -3606,7 +3584,6 @@ class CtxManagerPanel(Gtk.Box):
             self.detail_stack.set_visible_child_name("text")
 
     def _show_project_detail(self, project):
-        import sqlite3
         if not os.path.exists(CTX_DB):
             return
         db = sqlite3.connect(CTX_DB)
@@ -3674,7 +3651,6 @@ class CtxManagerPanel(Gtk.Box):
         db.close()
 
     def _show_entry_detail(self, project, key):
-        import sqlite3
         if not os.path.exists(CTX_DB):
             return
         db = sqlite3.connect(CTX_DB)
@@ -3826,7 +3802,6 @@ class CtxManagerPanel(Gtk.Box):
             self._edit_project(project)
 
     def _edit_project(self, project):
-        import sqlite3
         if not os.path.exists(CTX_DB):
             return
         db = sqlite3.connect(CTX_DB)
@@ -3852,7 +3827,6 @@ class CtxManagerPanel(Gtk.Box):
         dlg.destroy()
 
     def _edit_entry(self, project, key):
-        import sqlite3
         if not os.path.exists(CTX_DB):
             return
         db = sqlite3.connect(CTX_DB)
@@ -3880,7 +3854,6 @@ class CtxManagerPanel(Gtk.Box):
         dlg.destroy()
 
     def _edit_shared_entry(self, key):
-        import sqlite3
         if not os.path.exists(CTX_DB):
             return
         db = sqlite3.connect(CTX_DB)
@@ -3928,7 +3901,6 @@ class CtxManagerPanel(Gtk.Box):
         )
         if dlg.run() == Gtk.ResponseType.YES:
             if project == "__shared__":
-                import sqlite3
                 db = sqlite3.connect(CTX_DB)
                 db.execute("DELETE FROM shared WHERE key = ?", (key,))
                 db.commit()
@@ -4090,7 +4062,6 @@ class CtxManagerPanel(Gtk.Box):
         dlg.destroy()
 
     def _do_import(self, data, overwrite):
-        import sqlite3
         import base64
         # Ensure database and tables exist
         subprocess.run(["ctx", "list"], capture_output=True, text=True)
@@ -4933,7 +4904,6 @@ class ConsultPanel(Gtk.Box):
 
 def _ensure_tasks_tables():
     """Create tasks tables in ctx database if they don't exist."""
-    import sqlite3
     if not os.path.exists(CTX_DB):
         return
     db = sqlite3.connect(CTX_DB)
@@ -5097,7 +5067,6 @@ class TaskListPanel(Gtk.Box):
         """Reset all autorun flags on startup so auto-trigger is always OFF."""
         if not os.path.exists(CTX_DB):
             return
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.execute("UPDATE task_config SET autorun = 0 WHERE autorun = 1")
         db.commit()
@@ -5150,7 +5119,6 @@ class TaskListPanel(Gtk.Box):
         self.project_combo.remove_all()
         if not os.path.exists(CTX_DB):
             return
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.row_factory = sqlite3.Row
         projects = db.execute(
@@ -5170,7 +5138,6 @@ class TaskListPanel(Gtk.Box):
         project = self._get_selected_project()
         if not project or not os.path.exists(CTX_DB):
             return
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.row_factory = sqlite3.Row
         rows = db.execute(
@@ -5189,7 +5156,6 @@ class TaskListPanel(Gtk.Box):
         if not project or not os.path.exists(CTX_DB):
             self._update_auto_label(False)
             return
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.row_factory = sqlite3.Row
         row = db.execute(
@@ -5209,7 +5175,6 @@ class TaskListPanel(Gtk.Box):
         current_done = self.store[it][0]
         new_status = "open" if current_done else "done"
 
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.execute(
             """UPDATE tasks SET status = ?, updated_at = datetime('now')
@@ -5225,7 +5190,6 @@ class TaskListPanel(Gtk.Box):
         project = self._get_selected_project()
         if not project:
             return
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.execute(
             """INSERT INTO task_config (project, autorun)
@@ -5243,7 +5207,6 @@ class TaskListPanel(Gtk.Box):
 
     def _trigger_first_task(self, project):
         """Find a Claude Code tab matching this project and send trigger."""
-        import sqlite3
         if not os.path.exists(CTX_DB):
             return
         db = sqlite3.connect(CTX_DB)
@@ -5312,7 +5275,6 @@ class TaskListPanel(Gtk.Box):
             description = desc_entry.get_text().strip()
             task_id = id_entry.get_text().strip()
             if description:
-                import sqlite3
                 db = sqlite3.connect(CTX_DB)
                 db.row_factory = sqlite3.Row
                 if not task_id:
@@ -5379,7 +5341,6 @@ class TaskListPanel(Gtk.Box):
         if dlg.run() == Gtk.ResponseType.OK:
             new_desc = entry.get_text().strip()
             if new_desc:
-                import sqlite3
                 db = sqlite3.connect(CTX_DB)
                 db.execute(
                     """UPDATE tasks SET description = ?, updated_at = datetime('now')
@@ -5398,7 +5359,6 @@ class TaskListPanel(Gtk.Box):
         if not it or not project:
             return
         task_id = model[it][1]
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.execute(
             "DELETE FROM tasks WHERE project = ? AND task_id = ?",
@@ -5412,7 +5372,6 @@ class TaskListPanel(Gtk.Box):
         project = self._get_selected_project()
         if not project:
             return
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.execute(
             "DELETE FROM tasks WHERE project = ? AND status = 'done'",
@@ -5426,7 +5385,6 @@ class TaskListPanel(Gtk.Box):
         project = self._get_selected_project()
         if not project:
             return
-        import sqlite3
         db = sqlite3.connect(CTX_DB)
         db.execute(
             """UPDATE tasks SET status = 'open', updated_at = datetime('now')
