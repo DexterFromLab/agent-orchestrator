@@ -5528,7 +5528,10 @@ class BTerminalApp(Gtk.Window):
                 break
 
     def _build_tab_label(self, text, tab_widget):
-        """Build a tab label with a close button."""
+        """Build a tab label with a close button.
+
+        Stores label reference on tab_widget._tab_label for efficient updates.
+        """
         box = Gtk.Box(spacing=4)
 
         label = Gtk.Label(label=text)
@@ -5541,6 +5544,7 @@ class BTerminalApp(Gtk.Window):
         box.pack_start(close_btn, False, False, 0)
 
         box.show_all()
+        tab_widget._tab_label = label
         return box
 
     def add_local_tab(self):
@@ -5601,8 +5605,12 @@ class BTerminalApp(Gtk.Window):
         """Update tab label when terminal title changes."""
         idx = self.notebook.page_num(tab)
         if idx >= 0:
-            label_widget = self._build_tab_label(title, tab)
-            self.notebook.set_tab_label(tab, label_widget)
+            label = getattr(tab, "_tab_label", None)
+            if label:
+                label.set_text(title)
+            else:
+                label_widget = self._build_tab_label(title, tab)
+                self.notebook.set_tab_label(tab, label_widget)
             self._update_window_title()
 
     def _get_current_terminal(self):
