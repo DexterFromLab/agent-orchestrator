@@ -996,12 +996,22 @@ def debate(problem, analyst_model, advocate_model, critic_model, arbiter_model,
         total_rounds, duration, cost_data, agent_models)
 
     os.makedirs(output_dir, exist_ok=True)
-    report_path = os.path.join(output_dir, "tribunal-report.md")
+
+    # Find next available number to avoid overwriting previous results
+    existing_nums = []
+    for f in os.listdir(output_dir):
+        m = re.match(r"tribunal-report-(\d+)", f)
+        if m:
+            existing_nums.append(int(m.group(1)))
+    num = max(existing_nums, default=0) + 1
+    suffix = f"-{num:03d}"
+
+    report_path = os.path.join(output_dir, f"tribunal-report{suffix}.md")
     with open(report_path, "w") as f:
         f.write(report)
 
     # Also save raw JSON
-    raw_path = os.path.join(output_dir, "tribunal-data.json")
+    raw_path = os.path.join(output_dir, f"tribunal-data{suffix}.json")
     with open(raw_path, "w") as f:
         json.dump({
             "problem": problem_frame, "solutions": solutions,
