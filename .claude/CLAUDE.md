@@ -2,8 +2,7 @@
 
 ## Workflow
 
-- v1 is a single-file Python app (`bterminal.py`). Changes are localized.
-- v2 docs are in `docs/`. Architecture in `docs/architecture.md`.
+- Docs are in `docs/`. Architecture in `docs/architecture.md`.
 - v2 Phases 1-7 + multi-machine (A-D) + profiles/skills complete. Extras: SSH, ctx, themes, detached mode, auto-updater, shiki, copy/paste, session resume, drag-resize, session groups, Deno sidecar, Claude profiles, skill discovery.
 - v3 Mission Control (All Phases 1-10 + Production Readiness Complete): project groups, workspace store, 15+ Workspace components, session continuity, multi-provider adapter pattern, worktree isolation, session anchors, Memora adapter, SOLID refactoring, multi-agent orchestration (btmsg/bttask, 4 Tier 1 roles, role-specific tabs), dashboard metrics, auto-wake scheduler, reviewer agent. Production: sidecar supervisor (auto-restart, exponential backoff), FTS5 search (3 virtual tables, Spotlight overlay), plugin system (Web Worker sandbox, permission-gated), Landlock sandbox (kernel 6.2+), secrets management (system keyring), OS+in-app notifications, keyboard-first UX (18+ palette commands, vi-nav), agent health monitoring (heartbeats, dead letter queue), audit logging, error classification (6 types), optimistic locking (bttask). Hardening: TLS relay, SPKI pinning (TOFU), WAL checkpoint (5min), subagent delegation fix, plugin sandbox tests (26), SidecarManager actor pattern, per-message btmsg acknowledgment, Aider autonomous mode. 507 vitest + 110 cargo + 109 E2E.
 - Consult Memora (tag: `bterminal`) before making architectural changes.
@@ -21,8 +20,7 @@
 
 ## Rules
 
-- Do not modify v1 code (`bterminal.py`) unless explicitly asked — it is production-stable.
-- v2/v3 work goes on the `hib_changes` branch (repo: agent-orchestrator), not master.
+- Work goes on the `hib_changes` branch (repo: agent-orchestrator), not master.
 - Architecture decisions must reference `docs/decisions.md`.
 - When adding new decisions, append to the appropriate category table with date.
 - Update `docs/progress/` after each significant work session.
@@ -71,12 +69,12 @@
 - Theme system: 17 themes in 3 groups — 4 Catppuccin + 7 Editor (VSCode Dark+, Atom One Dark, Monokai, Dracula, Nord, Solarized Dark, GitHub Dark) + 6 Deep Dark (Tokyo Night, Gruvbox Dark, Ayu Dark, Poimandres, Vesper, Midnight). All map to same 26 --ctp-* CSS custom properties — zero component changes needed. ThemeId replaces CatppuccinFlavor. getCurrentTheme()/setTheme() are primary API (deprecated wrappers exist). THEME_LIST has ThemeMeta with group metadata for custom dropdown UI. Open terminals hot-swap via onThemeChange() callback registry in theme.svelte.ts. Typography uses --ui-font-family/--ui-font-size (UI elements, sans-serif fallback) and --term-font-family/--term-font-size (terminal, monospace fallback) CSS custom properties (defined in catppuccin.css). initTheme() restores all 4 font settings (ui_font_family, ui_font_size, term_font_family, term_font_size) from SQLite on startup.
 - Detached pane mode: App.svelte checks URL param `?detached=1` and renders a single pane without sidebar/grid chrome. Used for pop-out windows.
 - Shiki syntax highlighting uses lazy singleton pattern (avoid repeated WASM init). 13 languages preloaded. Used in MarkdownPane and AgentPane text messages.
-- Cargo workspace at v2/ level: members = [src-tauri, bterminal-core, bterminal-relay]. Cargo.lock is at workspace root (v2/), not in src-tauri/.
+- Cargo workspace at repo root: members = [src-tauri, bterminal-core, bterminal-relay]. Cargo.lock is at workspace root, not in src-tauri/.
 - EventSink trait (bterminal-core/src/event.rs) abstracts event emission. PtyManager and SidecarManager are in bterminal-core, not src-tauri. src-tauri has thin re-exports.
 - RemoteManager (src-tauri/src/remote.rs) manages WebSocket client connections to bterminal-relay instances. 12 Tauri commands prefixed with `remote_`.
 - remote-bridge.ts adapter wraps remote machine management IPC. machines.svelte.ts store tracks remote machine state.
 - Pane.remoteMachineId?: string routes operations through RemoteManager instead of local managers. Bridge adapters (pty-bridge, agent-bridge) check this field.
-- bterminal-relay binary (v2/bterminal-relay/) is a standalone WebSocket server with token auth, rate limiting, and per-connection isolated managers. Commands return structured responses (pty_created, pong, error) with commandId for correlation via send_error() helper.
+- bterminal-relay binary (bterminal-relay/) is a standalone WebSocket server with token auth, rate limiting, and per-connection isolated managers. Commands return structured responses (pty_created, pong, error) with commandId for correlation via send_error() helper.
 - RemoteManager reconnection: exponential backoff (1s-30s cap) on disconnect, attempt_tcp_probe() (TCP-only, no WS upgrade), emits remote-machine-reconnecting and remote-machine-reconnect-ready events. Frontend listeners in remote-bridge.ts; machines store auto-reconnects on ready.
 - v3 workspace store (`workspace.svelte.ts`) replaces layout store for v3. Groups loaded from `~/.config/bterminal/groups.json` via `groups-bridge.ts`. State: groups, activeGroupId, activeTab, focusedProjectId. Derived: activeGroup, activeProjects.
 - v3 groups backend (`groups.rs`): load_groups(), save_groups(), default_groups(). Tauri commands: groups_load, groups_save.

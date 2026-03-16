@@ -26,3 +26,18 @@ sidecar/node_modules
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Project-specific
+/CLAUDE.md
+/plugins/
+projects/
+.playwright-mcp/
+.audit/
+.tribunal/
+.local/
+debug/
