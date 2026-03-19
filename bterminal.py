@@ -196,6 +196,72 @@ textview.ctx-detail text {{
     background-color: {CATPPUCCIN['crust']};
     color: {CATPPUCCIN['subtext1']};
 }}
+frame > border {{
+    border-color: {CATPPUCCIN['surface0']};
+}}
+entry {{
+    background-color: {CATPPUCCIN['surface0']};
+    color: {CATPPUCCIN['text']};
+    border-color: {CATPPUCCIN['surface1']};
+    border-radius: 4px;
+}}
+entry:focus {{
+    border-color: {CATPPUCCIN['blue']};
+}}
+textview {{
+    background-color: {CATPPUCCIN['surface0']};
+    color: {CATPPUCCIN['text']};
+}}
+textview text {{
+    background-color: {CATPPUCCIN['surface0']};
+    color: {CATPPUCCIN['text']};
+}}
+checkbutton {{
+    color: {CATPPUCCIN['text']};
+}}
+checkbutton check {{
+    background-color: {CATPPUCCIN['surface0']};
+    border-color: {CATPPUCCIN['surface2']};
+    border-radius: 3px;
+}}
+checkbutton:checked check {{
+    background-color: {CATPPUCCIN['blue']};
+    border-color: {CATPPUCCIN['blue']};
+    color: {CATPPUCCIN['base']};
+}}
+scrollbar {{
+    background-color: {CATPPUCCIN['mantle']};
+}}
+scrollbar slider {{
+    background-color: {CATPPUCCIN['surface1']};
+    border-radius: 4px;
+    min-width: 6px;
+    min-height: 6px;
+}}
+scrollbar slider:hover {{
+    background-color: {CATPPUCCIN['surface2']};
+}}
+spinbutton {{
+    background-color: {CATPPUCCIN['surface0']};
+    color: {CATPPUCCIN['text']};
+    border-color: {CATPPUCCIN['surface1']};
+}}
+spinbutton button {{
+    background-color: {CATPPUCCIN['surface1']};
+    color: {CATPPUCCIN['text']};
+    border: none;
+}}
+spinbutton button:hover {{
+    background-color: {CATPPUCCIN['surface2']};
+}}
+combobox button {{
+    background-color: {CATPPUCCIN['surface0']};
+    color: {CATPPUCCIN['text']};
+    border-color: {CATPPUCCIN['surface1']};
+}}
+combobox button:hover {{
+    background-color: {CATPPUCCIN['surface1']};
+}}
 """
 
 
