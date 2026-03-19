@@ -196,8 +196,8 @@ textview.ctx-detail text {{
     background-color: {CATPPUCCIN['crust']};
     color: {CATPPUCCIN['subtext1']};
 }}
-frame > border {{
-    border-color: {CATPPUCCIN['surface0']};
+frame {{
+    border: 1px solid {CATPPUCCIN['surface0']};
 }}
 entry {{
     background-color: {CATPPUCCIN['surface0']};
