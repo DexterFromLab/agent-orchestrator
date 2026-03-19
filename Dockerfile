@@ -3,7 +3,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# System dependencies
+# System dependencies + fonts (self-contained, no host mounts needed)
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-gi \
@@ -16,6 +16,8 @@ RUN apt-get update && apt-get install -y \
     openssh-client \
     curl \
     git \
+    fonts-noto-color-emoji \
+    fonts-open-sans \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user with UID 1000 (matches typical host user for volume write access)
@@ -24,7 +26,8 @@ RUN userdel -r ubuntu 2>/dev/null || true \
 
 # Install app files
 RUN mkdir -p /opt/bterminal /home/bterminal/.local/bin /home/bterminal/.local/share/bterminal \
-             /home/bterminal/.config/bterminal /home/bterminal/.claude-context
+             /home/bterminal/.config/bterminal /home/bterminal/.claude-context \
+             /home/bterminal/.config/gtk-3.0
 
 COPY bterminal.py  /opt/bterminal/bterminal.py
 COPY ctx           /opt/bterminal/ctx
@@ -42,6 +45,10 @@ RUN ln -s /opt/bterminal/bterminal.py /usr/local/bin/bterminal \
  && ln -s /opt/bterminal/ctx          /usr/local/bin/ctx \
  && ln -s /opt/bterminal/consult      /usr/local/bin/consult \
  && ln -s /opt/bterminal/tasks        /usr/local/bin/tasks
+
+# GTK dark theme settings (self-contained — Adwaita:dark is built into GTK3)
+RUN printf '[Settings]\ngtk-application-prefer-dark-theme=1\ngtk-font-name=Open Sans 11\n' \
+    > /home/bterminal/.config/gtk-3.0/settings.ini
 
 # Ownership
 RUN chown -R bterminal:bterminal /opt/bterminal /home/bterminal
